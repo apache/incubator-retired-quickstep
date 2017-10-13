@@ -40,8 +40,10 @@ void InsertTuple::getFieldStringItems(
   non_container_child_field_names->push_back("input");
   non_container_child_fields->push_back(input_);
 
-  container_child_field_names->push_back("column_values");
-  container_child_fields->push_back(CastSharedPtrVector<OptimizerTreeBase>(column_values_));
+  for (const auto &column_values : column_values_) {
+    container_child_field_names->push_back("column_values");
+    container_child_fields->push_back(CastSharedPtrVector<OptimizerTreeBase>(column_values));
+  }
 }
 
 }  // namespace physical

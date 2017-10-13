@@ -2,9 +2,9 @@
 #define quickstep_yyHEADER_H 1
 #define quickstep_yyIN_HEADER 1
 
-#line 5 "SqlLexer_gen.hpp"
+#line 6 "SqlLexer_gen.hpp"
 
-#line 7 "SqlLexer_gen.hpp"
+#line 8 "SqlLexer_gen.hpp"
 
 #define  YY_INT_ALIGNED short int
 
@@ -12,244 +12,10 @@
 
 #define FLEX_SCANNER
 #define YY_FLEX_MAJOR_VERSION 2
-#define YY_FLEX_MINOR_VERSION 6
-#define YY_FLEX_SUBMINOR_VERSION 4
+#define YY_FLEX_MINOR_VERSION 5
+#define YY_FLEX_SUBMINOR_VERSION 35
 #if YY_FLEX_SUBMINOR_VERSION > 0
 #define FLEX_BETA
-#endif
-
-#ifdef yy_create_buffer
-#define quickstep_yy_create_buffer_ALREADY_DEFINED
-#else
-#define yy_create_buffer quickstep_yy_create_buffer
-#endif
-
-#ifdef yy_delete_buffer
-#define quickstep_yy_delete_buffer_ALREADY_DEFINED
-#else
-#define yy_delete_buffer quickstep_yy_delete_buffer
-#endif
-
-#ifdef yy_scan_buffer
-#define quickstep_yy_scan_buffer_ALREADY_DEFINED
-#else
-#define yy_scan_buffer quickstep_yy_scan_buffer
-#endif
-
-#ifdef yy_scan_string
-#define quickstep_yy_scan_string_ALREADY_DEFINED
-#else
-#define yy_scan_string quickstep_yy_scan_string
-#endif
-
-#ifdef yy_scan_bytes
-#define quickstep_yy_scan_bytes_ALREADY_DEFINED
-#else
-#define yy_scan_bytes quickstep_yy_scan_bytes
-#endif
-
-#ifdef yy_init_buffer
-#define quickstep_yy_init_buffer_ALREADY_DEFINED
-#else
-#define yy_init_buffer quickstep_yy_init_buffer
-#endif
-
-#ifdef yy_flush_buffer
-#define quickstep_yy_flush_buffer_ALREADY_DEFINED
-#else
-#define yy_flush_buffer quickstep_yy_flush_buffer
-#endif
-
-#ifdef yy_load_buffer_state
-#define quickstep_yy_load_buffer_state_ALREADY_DEFINED
-#else
-#define yy_load_buffer_state quickstep_yy_load_buffer_state
-#endif
-
-#ifdef yy_switch_to_buffer
-#define quickstep_yy_switch_to_buffer_ALREADY_DEFINED
-#else
-#define yy_switch_to_buffer quickstep_yy_switch_to_buffer
-#endif
-
-#ifdef yypush_buffer_state
-#define quickstep_yypush_buffer_state_ALREADY_DEFINED
-#else
-#define yypush_buffer_state quickstep_yypush_buffer_state
-#endif
-
-#ifdef yypop_buffer_state
-#define quickstep_yypop_buffer_state_ALREADY_DEFINED
-#else
-#define yypop_buffer_state quickstep_yypop_buffer_state
-#endif
-
-#ifdef yyensure_buffer_stack
-#define quickstep_yyensure_buffer_stack_ALREADY_DEFINED
-#else
-#define yyensure_buffer_stack quickstep_yyensure_buffer_stack
-#endif
-
-#ifdef yylex
-#define quickstep_yylex_ALREADY_DEFINED
-#else
-#define yylex quickstep_yylex
-#endif
-
-#ifdef yyrestart
-#define quickstep_yyrestart_ALREADY_DEFINED
-#else
-#define yyrestart quickstep_yyrestart
-#endif
-
-#ifdef yylex_init
-#define quickstep_yylex_init_ALREADY_DEFINED
-#else
-#define yylex_init quickstep_yylex_init
-#endif
-
-#ifdef yylex_init_extra
-#define quickstep_yylex_init_extra_ALREADY_DEFINED
-#else
-#define yylex_init_extra quickstep_yylex_init_extra
-#endif
-
-#ifdef yylex_destroy
-#define quickstep_yylex_destroy_ALREADY_DEFINED
-#else
-#define yylex_destroy quickstep_yylex_destroy
-#endif
-
-#ifdef yyget_debug
-#define quickstep_yyget_debug_ALREADY_DEFINED
-#else
-#define yyget_debug quickstep_yyget_debug
-#endif
-
-#ifdef yyset_debug
-#define quickstep_yyset_debug_ALREADY_DEFINED
-#else
-#define yyset_debug quickstep_yyset_debug
-#endif
-
-#ifdef yyget_extra
-#define quickstep_yyget_extra_ALREADY_DEFINED
-#else
-#define yyget_extra quickstep_yyget_extra
-#endif
-
-#ifdef yyset_extra
-#define quickstep_yyset_extra_ALREADY_DEFINED
-#else
-#define yyset_extra quickstep_yyset_extra
-#endif
-
-#ifdef yyget_in
-#define quickstep_yyget_in_ALREADY_DEFINED
-#else
-#define yyget_in quickstep_yyget_in
-#endif
-
-#ifdef yyset_in
-#define quickstep_yyset_in_ALREADY_DEFINED
-#else
-#define yyset_in quickstep_yyset_in
-#endif
-
-#ifdef yyget_out
-#define quickstep_yyget_out_ALREADY_DEFINED
-#else
-#define yyget_out quickstep_yyget_out
-#endif
-
-#ifdef yyset_out
-#define quickstep_yyset_out_ALREADY_DEFINED
-#else
-#define yyset_out quickstep_yyset_out
-#endif
-
-#ifdef yyget_leng
-#define quickstep_yyget_leng_ALREADY_DEFINED
-#else
-#define yyget_leng quickstep_yyget_leng
-#endif
-
-#ifdef yyget_text
-#define quickstep_yyget_text_ALREADY_DEFINED
-#else
-#define yyget_text quickstep_yyget_text
-#endif
-
-#ifdef yyget_lineno
-#define quickstep_yyget_lineno_ALREADY_DEFINED
-#else
-#define yyget_lineno quickstep_yyget_lineno
-#endif
-
-#ifdef yyset_lineno
-#define quickstep_yyset_lineno_ALREADY_DEFINED
-#else
-#define yyset_lineno quickstep_yyset_lineno
-#endif
-
-#ifdef yyget_column
-#define quickstep_yyget_column_ALREADY_DEFINED
-#else
-#define yyget_column quickstep_yyget_column
-#endif
-
-#ifdef yyset_column
-#define quickstep_yyset_column_ALREADY_DEFINED
-#else
-#define yyset_column quickstep_yyset_column
-#endif
-
-#ifdef yywrap
-#define quickstep_yywrap_ALREADY_DEFINED
-#else
-#define yywrap quickstep_yywrap
-#endif
-
-#ifdef yyget_lval
-#define quickstep_yyget_lval_ALREADY_DEFINED
-#else
-#define yyget_lval quickstep_yyget_lval
-#endif
-
-#ifdef yyset_lval
-#define quickstep_yyset_lval_ALREADY_DEFINED
-#else
-#define yyset_lval quickstep_yyset_lval
-#endif
-
-#ifdef yyget_lloc
-#define quickstep_yyget_lloc_ALREADY_DEFINED
-#else
-#define yyget_lloc quickstep_yyget_lloc
-#endif
-
-#ifdef yyset_lloc
-#define quickstep_yyset_lloc_ALREADY_DEFINED
-#else
-#define yyset_lloc quickstep_yyset_lloc
-#endif
-
-#ifdef yyalloc
-#define quickstep_yyalloc_ALREADY_DEFINED
-#else
-#define yyalloc quickstep_yyalloc
-#endif
-
-#ifdef yyrealloc
-#define quickstep_yyrealloc_ALREADY_DEFINED
-#else
-#define yyrealloc quickstep_yyrealloc
-#endif
-
-#ifdef yyfree
-#define quickstep_yyfree_ALREADY_DEFINED
-#else
-#define yyfree quickstep_yyfree
 #endif
 
 /* First, we deal with  platform-specific or compiler-specific issues. */
@@ -285,6 +51,7 @@ typedef int16_t flex_int16_t;
 typedef uint16_t flex_uint16_t;
 typedef int32_t flex_int32_t;
 typedef uint32_t flex_uint32_t;
+typedef uint64_t flex_uint64_t;
 #else
 typedef signed char flex_int8_t;
 typedef short int flex_int16_t;
@@ -292,6 +59,7 @@ typedef int flex_int32_t;
 typedef unsigned char flex_uint8_t; 
 typedef unsigned short int flex_uint16_t;
 typedef unsigned int flex_uint32_t;
+#endif /* ! C99 */
 
 /* Limits of integral types. */
 #ifndef INT8_MIN
@@ -322,23 +90,27 @@ typedef unsigned int flex_uint32_t;
 #define UINT32_MAX             (4294967295U)
 #endif
 
-#ifndef SIZE_MAX
-#define SIZE_MAX               (~(size_t)0)
-#endif
-
-#endif /* ! C99 */
-
 #endif /* ! FLEXINT_H */
 
-/* begin standard C++ headers. */
+#ifdef __cplusplus
 
-/* TODO: this is always defined, so inline it */
+/* The "const" storage-class-modifier is valid. */
+#define YY_USE_CONST
+
+#else	/* ! __cplusplus */
+
+/* C99 requires __STDC__ to be defined as 1. */
+#if defined (__STDC__)
+
+#define YY_USE_CONST
+
+#endif	/* defined (__STDC__) */
+#endif	/* ! __cplusplus */
+
+#ifdef YY_USE_CONST
 #define yyconst const
-
-#if defined(__GNUC__) && __GNUC__ >= 3
-#define yynoreturn __attribute__((__noreturn__))
 #else
-#define yynoreturn
+#define yyconst
 #endif
 
 /* An opaque pointer. */
@@ -360,15 +132,7 @@ typedef void* yyscan_t;
 
 /* Size of default input buffer. */
 #ifndef YY_BUF_SIZE
-#ifdef __ia64__
-/* On IA-64, the buffer size is 16k, not 8k.
- * Moreover, YY_BUF_SIZE is 2*YY_READ_BUF_SIZE in the general case.
- * Ditto for the __ia64__ case accordingly.
- */
-#define YY_BUF_SIZE 32768
-#else
 #define YY_BUF_SIZE 16384
-#endif /* __ia64__ */
 #endif
 
 #ifndef YY_TYPEDEF_YY_BUFFER_STATE
@@ -393,12 +157,12 @@ struct yy_buffer_state
 	/* Size of input buffer in bytes, not including room for EOB
 	 * characters.
 	 */
-	int yy_buf_size;
+	yy_size_t yy_buf_size;
 
 	/* Number of characters read into yy_ch_buf, not including EOB
 	 * characters.
 	 */
-	int yy_n_chars;
+	yy_size_t yy_n_chars;
 
 	/* Whether we "own" the buffer - i.e., we know we created it,
 	 * and can realloc() it to grow it, and should free() it to
@@ -421,7 +185,7 @@ struct yy_buffer_state
 
     int yy_bs_lineno; /**< The line count. */
     int yy_bs_column; /**< The column count. */
-
+    
 	/* Whether to try to fill the input buffer when we reach the
 	 * end of it.
 	 */
@@ -432,25 +196,25 @@ struct yy_buffer_state
 	};
 #endif /* !YY_STRUCT_YY_BUFFER_STATE */
 
-void yyrestart ( FILE *input_file , yyscan_t yyscanner );
-void yy_switch_to_buffer ( YY_BUFFER_STATE new_buffer , yyscan_t yyscanner );
-YY_BUFFER_STATE yy_create_buffer ( FILE *file, int size , yyscan_t yyscanner );
-void yy_delete_buffer ( YY_BUFFER_STATE b , yyscan_t yyscanner );
-void yy_flush_buffer ( YY_BUFFER_STATE b , yyscan_t yyscanner );
-void yypush_buffer_state ( YY_BUFFER_STATE new_buffer , yyscan_t yyscanner );
-void yypop_buffer_state ( yyscan_t yyscanner );
+void quickstep_yyrestart (FILE *input_file ,yyscan_t yyscanner );
+void quickstep_yy_switch_to_buffer (YY_BUFFER_STATE new_buffer ,yyscan_t yyscanner );
+YY_BUFFER_STATE quickstep_yy_create_buffer (FILE *file,int size ,yyscan_t yyscanner );
+void quickstep_yy_delete_buffer (YY_BUFFER_STATE b ,yyscan_t yyscanner );
+void quickstep_yy_flush_buffer (YY_BUFFER_STATE b ,yyscan_t yyscanner );
+void quickstep_yypush_buffer_state (YY_BUFFER_STATE new_buffer ,yyscan_t yyscanner );
+void quickstep_yypop_buffer_state (yyscan_t yyscanner );
 
-YY_BUFFER_STATE yy_scan_buffer ( char *base, yy_size_t size , yyscan_t yyscanner );
-YY_BUFFER_STATE yy_scan_string ( const char *yy_str , yyscan_t yyscanner );
-YY_BUFFER_STATE yy_scan_bytes ( const char *bytes, int len , yyscan_t yyscanner );
+YY_BUFFER_STATE quickstep_yy_scan_buffer (char *base,yy_size_t size ,yyscan_t yyscanner );
+YY_BUFFER_STATE quickstep_yy_scan_string (yyconst char *yy_str ,yyscan_t yyscanner );
+YY_BUFFER_STATE quickstep_yy_scan_bytes (yyconst char *bytes,yy_size_t len ,yyscan_t yyscanner );
 
-void *yyalloc ( yy_size_t , yyscan_t yyscanner );
-void *yyrealloc ( void *, yy_size_t , yyscan_t yyscanner );
-void yyfree ( void * , yyscan_t yyscanner );
+void *quickstep_yyalloc (yy_size_t ,yyscan_t yyscanner );
+void *quickstep_yyrealloc (void *,yy_size_t ,yyscan_t yyscanner );
+void quickstep_yyfree (void * ,yyscan_t yyscanner );
 
 /* Begin user sect3 */
 
-#define quickstep_yywrap(yyscanner) (/*CONSTCOND*/1)
+#define quickstep_yywrap(n) 1
 #define YY_SKIP_YYWRAP
 
 #define yytext_ptr yytext_r
@@ -477,50 +241,46 @@ void yyfree ( void * , yyscan_t yyscanner );
 #define YY_EXTRA_TYPE void *
 #endif
 
-int yylex_init (yyscan_t* scanner);
+int quickstep_yylex_init (yyscan_t* scanner);
 
-int yylex_init_extra ( YY_EXTRA_TYPE user_defined, yyscan_t* scanner);
+int quickstep_yylex_init_extra (YY_EXTRA_TYPE user_defined,yyscan_t* scanner);
 
 /* Accessor methods to globals.
    These are made visible to non-reentrant scanners for convenience. */
 
-int yylex_destroy ( yyscan_t yyscanner );
+int quickstep_yylex_destroy (yyscan_t yyscanner );
 
-int yyget_debug ( yyscan_t yyscanner );
+int quickstep_yyget_debug (yyscan_t yyscanner );
 
-void yyset_debug ( int debug_flag , yyscan_t yyscanner );
+void quickstep_yyset_debug (int debug_flag ,yyscan_t yyscanner );
 
-YY_EXTRA_TYPE yyget_extra ( yyscan_t yyscanner );
+YY_EXTRA_TYPE quickstep_yyget_extra (yyscan_t yyscanner );
 
-void yyset_extra ( YY_EXTRA_TYPE user_defined , yyscan_t yyscanner );
+void quickstep_yyset_extra (YY_EXTRA_TYPE user_defined ,yyscan_t yyscanner );
 
-FILE *yyget_in ( yyscan_t yyscanner );
+FILE *quickstep_yyget_in (yyscan_t yyscanner );
 
-void yyset_in  ( FILE * _in_str , yyscan_t yyscanner );
+void quickstep_yyset_in  (FILE * in_str ,yyscan_t yyscanner );
 
-FILE *yyget_out ( yyscan_t yyscanner );
+FILE *quickstep_yyget_out (yyscan_t yyscanner );
 
-void yyset_out  ( FILE * _out_str , yyscan_t yyscanner );
+void quickstep_yyset_out  (FILE * out_str ,yyscan_t yyscanner );
 
-			int yyget_leng ( yyscan_t yyscanner );
+yy_size_t quickstep_yyget_leng (yyscan_t yyscanner );
 
-char *yyget_text ( yyscan_t yyscanner );
+char *quickstep_yyget_text (yyscan_t yyscanner );
 
-int yyget_lineno ( yyscan_t yyscanner );
+int quickstep_yyget_lineno (yyscan_t yyscanner );
 
-void yyset_lineno ( int _line_number , yyscan_t yyscanner );
+void quickstep_yyset_lineno (int line_number ,yyscan_t yyscanner );
 
-int yyget_column  ( yyscan_t yyscanner );
+YYSTYPE * quickstep_yyget_lval (yyscan_t yyscanner );
 
-void yyset_column ( int _column_no , yyscan_t yyscanner );
+void quickstep_yyset_lval (YYSTYPE * yylval_param ,yyscan_t yyscanner );
 
-YYSTYPE * yyget_lval ( yyscan_t yyscanner );
-
-void yyset_lval ( YYSTYPE * yylval_param , yyscan_t yyscanner );
-
-       YYLTYPE *yyget_lloc ( yyscan_t yyscanner );
+       YYLTYPE *quickstep_yyget_lloc (yyscan_t yyscanner );
     
-        void yyset_lloc ( YYLTYPE * yylloc_param , yyscan_t yyscanner );
+        void quickstep_yyset_lloc (YYLTYPE * yylloc_param ,yyscan_t yyscanner );
     
 /* Macros after this point can all be overridden by user definitions in
  * section 1.
@@ -528,18 +288,18 @@ void yyset_lval ( YYSTYPE * yylval_param , yyscan_t yyscanner );
 
 #ifndef YY_SKIP_YYWRAP
 #ifdef __cplusplus
-extern "C" int yywrap ( yyscan_t yyscanner );
+extern "C" int quickstep_yywrap (yyscan_t yyscanner );
 #else
-extern int yywrap ( yyscan_t yyscanner );
+extern int quickstep_yywrap (yyscan_t yyscanner );
 #endif
 #endif
 
 #ifndef yytext_ptr
-static void yy_flex_strncpy ( char *, const char *, int , yyscan_t yyscanner);
+static void yy_flex_strncpy (char *,yyconst char *,int ,yyscan_t yyscanner);
 #endif
 
 #ifdef YY_NEED_STRLEN
-static int yy_flex_strlen ( const char * , yyscan_t yyscanner);
+static int yy_flex_strlen (yyconst char * ,yyscan_t yyscanner);
 #endif
 
 #ifndef YY_NO_INPUT
@@ -548,12 +308,7 @@ static int yy_flex_strlen ( const char * , yyscan_t yyscanner);
 
 /* Amount of stuff to slurp up with each read. */
 #ifndef YY_READ_BUF_SIZE
-#ifdef __ia64__
-/* On IA-64, the buffer size is 16k, not 8k */
-#define YY_READ_BUF_SIZE 16384
-#else
 #define YY_READ_BUF_SIZE 8192
-#endif /* __ia64__ */
 #endif
 
 /* Number of entries by which start-condition stack grows. */
@@ -567,10 +322,10 @@ static int yy_flex_strlen ( const char * , yyscan_t yyscanner);
 #ifndef YY_DECL
 #define YY_DECL_IS_OURS 1
 
-extern int yylex \
-               (YYSTYPE * yylval_param, YYLTYPE * yylloc_param , yyscan_t yyscanner);
+extern int quickstep_yylex \
+               (YYSTYPE * yylval_param,YYLTYPE * yylloc_param ,yyscan_t yyscanner);
 
-#define YY_DECL int yylex \
+#define YY_DECL int quickstep_yylex \
                (YYSTYPE * yylval_param, YYLTYPE * yylloc_param , yyscan_t yyscanner)
 #endif /* !YY_DECL */
 
@@ -588,154 +343,9 @@ extern int yylex \
 #undef YY_DECL
 #endif
 
-#ifndef quickstep_yy_create_buffer_ALREADY_DEFINED
-#undef yy_create_buffer
-#endif
-#ifndef quickstep_yy_delete_buffer_ALREADY_DEFINED
-#undef yy_delete_buffer
-#endif
-#ifndef quickstep_yy_scan_buffer_ALREADY_DEFINED
-#undef yy_scan_buffer
-#endif
-#ifndef quickstep_yy_scan_string_ALREADY_DEFINED
-#undef yy_scan_string
-#endif
-#ifndef quickstep_yy_scan_bytes_ALREADY_DEFINED
-#undef yy_scan_bytes
-#endif
-#ifndef quickstep_yy_init_buffer_ALREADY_DEFINED
-#undef yy_init_buffer
-#endif
-#ifndef quickstep_yy_flush_buffer_ALREADY_DEFINED
-#undef yy_flush_buffer
-#endif
-#ifndef quickstep_yy_load_buffer_state_ALREADY_DEFINED
-#undef yy_load_buffer_state
-#endif
-#ifndef quickstep_yy_switch_to_buffer_ALREADY_DEFINED
-#undef yy_switch_to_buffer
-#endif
-#ifndef quickstep_yypush_buffer_state_ALREADY_DEFINED
-#undef yypush_buffer_state
-#endif
-#ifndef quickstep_yypop_buffer_state_ALREADY_DEFINED
-#undef yypop_buffer_state
-#endif
-#ifndef quickstep_yyensure_buffer_stack_ALREADY_DEFINED
-#undef yyensure_buffer_stack
-#endif
-#ifndef quickstep_yylex_ALREADY_DEFINED
-#undef yylex
-#endif
-#ifndef quickstep_yyrestart_ALREADY_DEFINED
-#undef yyrestart
-#endif
-#ifndef quickstep_yylex_init_ALREADY_DEFINED
-#undef yylex_init
-#endif
-#ifndef quickstep_yylex_init_extra_ALREADY_DEFINED
-#undef yylex_init_extra
-#endif
-#ifndef quickstep_yylex_destroy_ALREADY_DEFINED
-#undef yylex_destroy
-#endif
-#ifndef quickstep_yyget_debug_ALREADY_DEFINED
-#undef yyget_debug
-#endif
-#ifndef quickstep_yyset_debug_ALREADY_DEFINED
-#undef yyset_debug
-#endif
-#ifndef quickstep_yyget_extra_ALREADY_DEFINED
-#undef yyget_extra
-#endif
-#ifndef quickstep_yyset_extra_ALREADY_DEFINED
-#undef yyset_extra
-#endif
-#ifndef quickstep_yyget_in_ALREADY_DEFINED
-#undef yyget_in
-#endif
-#ifndef quickstep_yyset_in_ALREADY_DEFINED
-#undef yyset_in
-#endif
-#ifndef quickstep_yyget_out_ALREADY_DEFINED
-#undef yyget_out
-#endif
-#ifndef quickstep_yyset_out_ALREADY_DEFINED
-#undef yyset_out
-#endif
-#ifndef quickstep_yyget_leng_ALREADY_DEFINED
-#undef yyget_leng
-#endif
-#ifndef quickstep_yyget_text_ALREADY_DEFINED
-#undef yyget_text
-#endif
-#ifndef quickstep_yyget_lineno_ALREADY_DEFINED
-#undef yyget_lineno
-#endif
-#ifndef quickstep_yyset_lineno_ALREADY_DEFINED
-#undef yyset_lineno
-#endif
-#ifndef quickstep_yyget_column_ALREADY_DEFINED
-#undef yyget_column
-#endif
-#ifndef quickstep_yyset_column_ALREADY_DEFINED
-#undef yyset_column
-#endif
-#ifndef quickstep_yywrap_ALREADY_DEFINED
-#undef yywrap
-#endif
-#ifndef quickstep_yyget_lval_ALREADY_DEFINED
-#undef yyget_lval
-#endif
-#ifndef quickstep_yyset_lval_ALREADY_DEFINED
-#undef yyset_lval
-#endif
-#ifndef quickstep_yyget_lloc_ALREADY_DEFINED
-#undef yyget_lloc
-#endif
-#ifndef quickstep_yyset_lloc_ALREADY_DEFINED
-#undef yyset_lloc
-#endif
-#ifndef quickstep_yyalloc_ALREADY_DEFINED
-#undef yyalloc
-#endif
-#ifndef quickstep_yyrealloc_ALREADY_DEFINED
-#undef yyrealloc
-#endif
-#ifndef quickstep_yyfree_ALREADY_DEFINED
-#undef yyfree
-#endif
-#ifndef quickstep_yytext_ALREADY_DEFINED
-#undef yytext
-#endif
-#ifndef quickstep_yyleng_ALREADY_DEFINED
-#undef yyleng
-#endif
-#ifndef quickstep_yyin_ALREADY_DEFINED
-#undef yyin
-#endif
-#ifndef quickstep_yyout_ALREADY_DEFINED
-#undef yyout
-#endif
-#ifndef quickstep_yy_flex_debug_ALREADY_DEFINED
-#undef yy_flex_debug
-#endif
-#ifndef quickstep_yylineno_ALREADY_DEFINED
-#undef yylineno
-#endif
-#ifndef quickstep_yytables_fload_ALREADY_DEFINED
-#undef yytables_fload
-#endif
-#ifndef quickstep_yytables_destroy_ALREADY_DEFINED
-#undef yytables_destroy
-#endif
-#ifndef quickstep_yyTABLES_NAME_ALREADY_DEFINED
-#undef yyTABLES_NAME
-#endif
-
 #line 470 "../SqlLexer.lpp"
 
 
-#line 739 "SqlLexer_gen.hpp"
+#line 350 "SqlLexer_gen.hpp"
 #undef quickstep_yyIN_HEADER
 #endif /* quickstep_yyHEADER_H */

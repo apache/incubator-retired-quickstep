@@ -61,8 +61,8 @@ class InsertTuple : public Logical {
   /**
    * @return Column values to be used to compose a new tuple.
    */
-  const std::vector<expressions::ScalarLiteralPtr>& column_values() const {
-    return column_values_;
+  const std::vector<std::vector<expressions::ScalarLiteralPtr>>& column_values() const {
+  return column_values_;
   }
 
   LogicalPtr copyWithNewChildren(
@@ -83,12 +83,12 @@ class InsertTuple : public Logical {
    * @brief Creates an InsertTuple logical node.
    *
    * @param input The input produces the relation to insert the tuple to.
-   * @param column_values The column values of the tuple to be inserted.
+   * @param column_values The column values of the tuples to be inserted.
    * @return An immutable InsertTuple node.
    */
   static InsertTuplePtr Create(
       const LogicalPtr &input,
-      const std::vector<expressions::ScalarLiteralPtr> &column_values) {
+      const std::vector<std::vector<expressions::ScalarLiteralPtr>> &column_values) {
     return InsertTuplePtr(new InsertTuple(input, column_values));
   }
 
@@ -103,13 +103,13 @@ class InsertTuple : public Logical {
 
  private:
   InsertTuple(const LogicalPtr &input,
-              const std::vector<expressions::ScalarLiteralPtr> &column_values)
+              const std::vector<std::vector<expressions::ScalarLiteralPtr>> &column_values)
       : input_(input), column_values_(column_values) {
     addChild(input_);
   }
 
   LogicalPtr input_;
-  std::vector<expressions::ScalarLiteralPtr> column_values_;
+  std::vector<std::vector<expressions::ScalarLiteralPtr>> column_values_;
 
   DISALLOW_COPY_AND_ASSIGN(InsertTuple);
 };

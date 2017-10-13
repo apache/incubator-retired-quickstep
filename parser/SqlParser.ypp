@@ -128,6 +128,7 @@ typedef void* yyscan_t;
   quickstep::NumericParseLiteralValue *numeric_literal_value_;
   quickstep::ParseLiteralValue *literal_value_;
   quickstep::PtrList<quickstep::ParseScalarLiteral> *literal_value_list_;
+  quickstep::PtrList<quickstep::PtrList<quickstep::ParseScalarLiteral>> *literal_value_list_multiple_;
 
   quickstep::ParseExpression *expression_;
 
@@ -386,6 +387,9 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 
 %type <literal_value_list_>
   literal_value_commalist
+
+%type <literal_value_list_multiple_>
+  literal_value_commalist_multiple
 
 %type <expression_>
   expression_base
@@ -1101,8 +1105,8 @@ insert_statement:
     NotSupported(&@4, yyscanner, "list of column names in INSERT statement");
     YYERROR;
   }
-  | TOKEN_INSERT TOKEN_INTO any_name TOKEN_VALUES '(' literal_value_commalist ')' {
-    $$ = new quickstep::ParseStatementInsertTuple(@1.first_line, @1.first_column, $3, $6);
+  | TOKEN_INSERT TOKEN_INTO any_name TOKEN_VALUES literal_value_commalist_multiple {
+    $$ = new quickstep::ParseStatementInsertTuple(@1.first_line, @1.first_column, $3, $5);
   }
   | TOKEN_INSERT TOKEN_INTO any_name select_query {
     $$ = new quickstep::ParseStatementInsertSelection(@1.first_line, @2.first_column, $3, $4, nullptr);
@@ -1919,6 +1923,16 @@ literal_value_commalist:
   | literal_value_commalist ',' literal_value {
     $$ = $1;
     $$->push_back(new quickstep::ParseScalarLiteral($3));
+  };
+
+literal_value_commalist_multiple:
+  '(' literal_value_commalist ')' {
+    $$ = new quickstep::PtrList<quickstep::PtrList<quickstep::ParseScalarLiteral>>();
+    $$->push_back($2);
+  }
+  | literal_value_commalist_multiple ',' '(' literal_value_commalist ')' {
+    $$ = $1;
+    $$->push_back($4);
   };
 
 attribute_ref:
