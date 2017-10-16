@@ -32,8 +32,6 @@
 #include "types/TypedValue.hpp"
 #include "types/containers/ColumnVectorsValueAccessor.hpp"
 #include "types/operations/binary_operations/BinaryOperation.hpp"
-#include "types/operations/binary_operations/BinaryOperationFactory.hpp"
-#include "types/operations/binary_operations/BinaryOperationID.hpp"
 #include "types/operations/comparisons/Comparison.hpp"
 
 #include "glog/logging.h"
@@ -71,35 +69,36 @@ WindowAggregationHandleAvg::WindowAggregationHandleAvg(
 
   sum_type_ = &(TypeFactory::GetType(type_id));
 
-  // Result is nullable, because AVG() over 0 values (or all NULL values) is
-  // NULL.
-  result_type_
-      = &(BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kDivide)
-              .resultTypeForArgumentTypes(*sum_type_, TypeFactory::GetType(kDouble))
-                  ->getNullableVersion());
-
-  // Make operators to do arithmetic:
-  // Add operator for summing argument values.
-  fast_add_operator_.reset(
-      BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kAdd)
-          .makeUncheckedBinaryOperatorForTypes(*sum_type_, *argument_type));
-
-  // Subtract operator for dropping argument values off the window.
-  fast_subtract_operator_.reset(
-      BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kSubtract)
-          .makeUncheckedBinaryOperatorForTypes(*sum_type_, *argument_type));
-
-  // Divide operator for dividing sum by count to get final average.
-  divide_operator_.reset(
-      BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kDivide)
-          .makeUncheckedBinaryOperatorForTypes(*sum_type_, TypeFactory::GetType(kDouble)));
+  LOG(FATAL) << "TODO(refactor-type)";
+//  // Result is nullable, because AVG() over 0 values (or all NULL values) is
+//  // NULL.
+//  result_type_
+//      = &(BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kDivide)
+//              .getResultType(*sum_type_, TypeFactory::GetType(kDouble))
+//                  ->getNullableVersion());
+//
+//  // Make operators to do arithmetic:
+//  // Add operator for summing argument values.
+//  fast_add_operator_.reset(
+//      BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kAdd)
+//          .makeUncheckedBinaryOperator(*sum_type_, *argument_type));
+//
+//  // Subtract operator for dropping argument values off the window.
+//  fast_subtract_operator_.reset(
+//      BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kSubtract)
+//          .makeUncheckedBinaryOperator(*sum_type_, *argument_type));
+//
+//  // Divide operator for dividing sum by count to get final average.
+//  divide_operator_.reset(
+//      BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kDivide)
+//          .makeUncheckedBinaryOperator(*sum_type_, TypeFactory::GetType(kDouble)));
 }
 
 ColumnVector* WindowAggregationHandleAvg::calculate(
     ColumnVectorsValueAccessor *tuple_accessor,
     const std::vector<ColumnVector*> &arguments) const {
   DCHECK_EQ(1u, arguments.size());
-  DCHECK(arguments[0]->isNative());
+  DCHECK(arguments[0]->getImplementation() == ColumnVector::kNative);
   DCHECK_EQ(static_cast<std::size_t>(tuple_accessor->getNumTuples()),
             static_cast<const NativeColumnVector*>(arguments[0])->size());
 

@@ -20,6 +20,7 @@
 #include "query_optimizer/expressions/Cast.hpp"
 
 #include <cstddef>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -32,8 +33,11 @@
 #include "query_optimizer/expressions/Expression.hpp"
 #include "query_optimizer/expressions/PatternMatcher.hpp"
 #include "query_optimizer/expressions/Scalar.hpp"
+#include "types/MetaType.hpp"
 #include "types/Type.hpp"
-#include "types/operations/unary_operations/NumericCastOperation.hpp"
+#include "types/operations/OperationSignature.hpp"
+#include "types/operations/OperationFactory.hpp"
+#include "types/operations/unary_operations/UnaryOperation.hpp"
 #include "utility/HashPair.hpp"
 
 #include "glog/logging.h"
@@ -53,8 +57,36 @@ ExpressionPtr Cast::copyWithNewChildren(
 
 ::quickstep::Scalar *Cast::concretize(
     const std::unordered_map<ExprId, const CatalogAttribute*> &substitution_map) const {
-  return new ::quickstep::ScalarUnaryExpression(::quickstep::NumericCastOperation::Instance(target_type_),
-                                                operand_->concretize(substitution_map));
+  const OperationSignaturePtr op_signature =
+      OperationSignature::Create(
+          "cast", {operand_->getValueType().getTypeID(), kMetaType}, 1);
+  const UnaryOperationPtr cast_operation =
+      OperationFactory::GetUnaryOperation(op_signature);
+
+  std::vector<TypedValue> meta_type_value =
+      { GenericValue::CreateWithLiteral(
+            MetaType::InstanceNonNullable(), &target_type_).toTypedValue() };
+  DCHECK(cast_operation->canApplyTo(operand_->getValueType(), meta_type_value));
+
+  return new ::quickstep::ScalarUnaryExpression(
+      op_signature, cast_operation, operand_->concretize(substitution_map),
+      std::make_shared<const std::vector<TypedValue>>(std::move(meta_type_value)));
+}
+
+TypedValue Cast::getConstantValue() const {
+  DCHECK(isConstant());
+  const Type &source_type = operand_->getValueType();
+  const UnaryOperationPtr cast_operation =
+      OperationFactory::GetCastOperation(source_type.getTypeID());
+
+  std::vector<TypedValue> meta_type_value =
+      { GenericValue::CreateWithLiteral(
+            MetaType::InstanceNonNullable(), &target_type_).toTypedValue() };
+  DCHECK(cast_operation->canApplyTo(source_type, meta_type_value));
+
+  std::unique_ptr<UncheckedUnaryOperator> cast_op(
+      cast_operation->makeUncheckedUnaryOperator(source_type, meta_type_value));
+  return cast_op->applyToTypedValue(operand_->getConstantValue());
 }
 
 std::size_t Cast::computeHash() const {

@@ -40,7 +40,7 @@
 #include "utility/Alignment.hpp"
 #include "utility/Macros.hpp"
 #include "utility/PrimeNumber.hpp"
-#include "utility/TemplateUtil.hpp"
+#include "utility/meta/Dispatchers.hpp"
 
 #include "glog/logging.h"
 
@@ -246,7 +246,7 @@ bool PackedPayloadHashTable::upsertValueAccessorCompositeKey(
     derived_accessor->beginIterationVirtual();
   }
 
-  return InvokeOnBools(
+  return meta::InvokeOnBools(
       handles_.empty(),
       !all_keys_inline_,
       [&](auto key_only,  // NOLINT(build/c++11)

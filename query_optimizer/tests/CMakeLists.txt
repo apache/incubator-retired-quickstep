@@ -50,8 +50,6 @@ target_link_libraries(quickstep_queryoptimizer_tests_OptimizerTest
                       quickstep_types_TypeFactory
                       quickstep_types_TypeID
                       quickstep_types_operations_binaryoperations_BinaryOperation
-                      quickstep_types_operations_binaryoperations_BinaryOperationFactory
-                      quickstep_types_operations_binaryoperations_BinaryOperationID
                       quickstep_types_operations_comparisons_Comparison
                       quickstep_types_operations_comparisons_ComparisonFactory
                       quickstep_types_operations_comparisons_ComparisonID

@@ -47,6 +47,7 @@ bool TypedValue::isPlausibleInstanceOf(const TypeSignature type) const {
   }
 
   switch (type_id) {
+    case kBool:
     case kInt:
     case kLong:
     case kFloat:
@@ -82,33 +83,34 @@ serialization::TypedValue TypedValue::getProto() const {
 
   // NOTE(chasseur): To represent a NULL value, only the 'type_id' field of the
   // proto is filled in, and all the optional value fields are omitted.
+  proto.mutable_type_id()->CopyFrom(TypeIDFactory::GetProto(getTypeID()));
   switch (getTypeID()) {
+    case kBool:
+      if (!isNull()) {
+        proto.set_int_value(getLiteral<bool>());
+      }
+      break;
     case kInt:
-      proto.set_type_id(serialization::Type::INT);
       if (!isNull()) {
         proto.set_int_value(getLiteral<int>());
       }
       break;
     case kLong:
-      proto.set_type_id(serialization::Type::LONG);
       if (!isNull()) {
         proto.set_long_value(getLiteral<std::int64_t>());
       }
       break;
     case kFloat:
-      proto.set_type_id(serialization::Type::FLOAT);
       if (!isNull()) {
         proto.set_float_value(getLiteral<float>());
       }
       break;
     case kDouble:
-      proto.set_type_id(serialization::Type::DOUBLE);
       if (!isNull()) {
         proto.set_double_value(getLiteral<double>());
       }
       break;
     case kDate:
-      proto.set_type_id(serialization::Type::DATE);
       if (!isNull()) {
         serialization::TypedValue::DateLit *literal_date_proto = proto.mutable_date_value();
         literal_date_proto->set_year(value_union_.date_value.year);
@@ -117,42 +119,40 @@ serialization::TypedValue TypedValue::getProto() const {
       }
       break;
     case kDatetime:
-      proto.set_type_id(serialization::Type::DATETIME);
       if (!isNull()) {
         proto.set_datetime_value(value_union_.datetime_value.ticks);
       }
       break;
     case kDatetimeInterval:
-      proto.set_type_id(serialization::Type::DATETIME_INTERVAL);
       if (!isNull()) {
         proto.set_datetime_interval_value(value_union_.datetime_interval_value.interval_ticks);
       }
       break;
     case kYearMonthInterval:
-      proto.set_type_id(serialization::Type::YEAR_MONTH_INTERVAL);
       if (!isNull()) {
         proto.set_year_month_interval_value(value_union_.year_month_interval_value.months);
       }
       break;
     case kChar:
-      proto.set_type_id(serialization::Type::CHAR);
       if (!isNull()) {
         proto.set_out_of_line_data(static_cast<const char*>(getOutOfLineData()), getDataSize());
       }
       break;
     case kVarChar:
-      proto.set_type_id(serialization::Type::VAR_CHAR);
       if (!isNull()) {
         proto.set_out_of_line_data(static_cast<const char*>(getOutOfLineData()), getDataSize());
       }
       break;
     case kNullType:
-      proto.set_type_id(serialization::Type::NULL_TYPE);
       DCHECK(isNull());
       break;
     default:
-      FATAL_ERROR("Unrecognized TypeID in TypedValue::getProto");
-  }
+//      FATAL_ERROR("Unrecognized TypeID in TypedValue::getProto");
+      if (!isNull()) {
+        proto.set_out_of_line_data(static_cast<const char*>(getOutOfLineData()), getDataSize());
+      }
+      break;
+}
 
   return proto;
 }
@@ -166,24 +166,29 @@ TypedValue TypedValue::ReconstructFromProto(const serialization::TypedValue &pro
       << "Attempted to create TypedValue from an invalid proto description:\n"
       << proto.DebugString();
 
-  switch (proto.type_id()) {
-    case serialization::Type::INT:
+  const TypeID type_id = TypeIDFactory::ReconstructFromProto(proto.type_id());
+  switch (type_id) {
+    case kBool:
+      return proto.has_bool_value() ?
+          TypedValue(static_cast<bool>(proto.bool_value())) :
+          TypedValue(kBool);
+    case kInt:
       return proto.has_int_value() ?
           TypedValue(static_cast<int>(proto.int_value())) :
           TypedValue(kInt);
-    case serialization::Type::LONG:
+    case kLong:
       return proto.has_long_value() ?
           TypedValue(static_cast<std::int64_t>(proto.long_value())) :
           TypedValue(kLong);
-    case serialization::Type::FLOAT:
+    case kFloat:
       return proto.has_float_value() ?
           TypedValue(static_cast<float>(proto.float_value())) :
           TypedValue(kFloat);
-    case serialization::Type::DOUBLE:
+    case kDouble:
       return proto.has_double_value() ?
           TypedValue(static_cast<double>(proto.double_value())) :
           TypedValue(kDouble);
-    case serialization::Type::DATE:
+    case kDate:
       if (proto.has_date_value()) {
         return TypedValue(DateLit::Create(proto.date_value().year(),
                                           proto.date_value().month(),
@@ -191,7 +196,7 @@ TypedValue TypedValue::ReconstructFromProto(const serialization::TypedValue &pro
       } else {
         return TypedValue(kDate);
       }
-    case serialization::Type::DATETIME:
+    case kDatetime:
       if (proto.has_datetime_value()) {
         DatetimeLit datetime;
         datetime.ticks = proto.datetime_value();
@@ -199,7 +204,7 @@ TypedValue TypedValue::ReconstructFromProto(const serialization::TypedValue &pro
       } else {
         return TypedValue(kDatetime);
       }
-    case serialization::Type::DATETIME_INTERVAL:
+    case kDatetimeInterval:
       if (proto.has_datetime_interval_value()) {
         DatetimeIntervalLit interval;
         interval.interval_ticks = proto.datetime_interval_value();
@@ -207,7 +212,7 @@ TypedValue TypedValue::ReconstructFromProto(const serialization::TypedValue &pro
       } else {
         return TypedValue(kDatetimeInterval);
       }
-    case serialization::Type::YEAR_MONTH_INTERVAL:
+    case kYearMonthInterval:
       if (proto.has_year_month_interval_value()) {
         YearMonthIntervalLit interval;
         interval.months = proto.year_month_interval_value();
@@ -215,22 +220,27 @@ TypedValue TypedValue::ReconstructFromProto(const serialization::TypedValue &pro
       } else {
         return TypedValue(kYearMonthInterval);
       }
-    case serialization::Type::CHAR:
+    case kChar:
       return proto.has_out_of_line_data() ?
           TypedValue(kChar,
                      static_cast<const void*>(proto.out_of_line_data().c_str()),
                      proto.out_of_line_data().size()).ensureNotReference() :
           TypedValue(kChar);
-    case serialization::Type::VAR_CHAR:
+    case kVarChar:
       return proto.has_out_of_line_data() ?
           TypedValue(kVarChar,
                      static_cast<const void*>(proto.out_of_line_data().c_str()),
                      proto.out_of_line_data().size()).ensureNotReference() :
           TypedValue(kVarChar);
-    case serialization::Type::NULL_TYPE:
+    case kNullType:
       return TypedValue(kNullType);
     default:
-      FATAL_ERROR("Unrecognized TypeID in TypedValue::ReconstructFromProto");
+//      FATAL_ERROR("Unrecognized TypeID in TypedValue::ReconstructFromProto");
+      return proto.has_out_of_line_data() ?
+          TypedValue(type_id,
+                     static_cast<const void*>(proto.out_of_line_data().c_str()),
+                     proto.out_of_line_data().size()).ensureNotReference() :
+          TypedValue(type_id);
   }
 }
 

@@ -26,6 +26,7 @@
 #include <string>
 #include <vector>
 
+#include "parser/ParseDataType.hpp"
 #include "parser/ParseExpression.hpp"
 #include "parser/ParseLiteralValue.hpp"
 #include "parser/ParseString.hpp"
@@ -35,9 +36,6 @@
 #include "utility/PtrList.hpp"
 
 namespace quickstep {
-
-class BinaryOperation;
-class UnaryOperation;
 
 /** \addtogroup Parser
  *  @{
@@ -173,155 +171,6 @@ class ParseAttribute : public ParseExpression {
 
 
 /**
- * @brief The parsed representation of an unary operation applied to an expression.
- **/
-class ParseUnaryExpression : public ParseExpression {
- public:
-  /**
-   * @brief Constructor.
-   *
-   * @param line_number Line number of the first token of this node in the SQL statement.
-   * @param column_number Column number of the first token of this node in the SQL statement.
-   * @param op The UnaryOperation from the quickstep type system to apply.
-   * @param operand The parsed scalar representation of the unary operation's
-   *        argument, which becomes owned by this ParseScalarUnaryExpression.
-   **/
-  ParseUnaryExpression(const int line_number,
-                       const int column_number,
-                       const UnaryOperation &op,
-                       ParseExpression *operand)
-      : ParseExpression(line_number, column_number),
-        op_(op),
-        operand_(operand) {
-  }
-
-  /**
-   * @brief Destructor.
-   */
-  ~ParseUnaryExpression() override {
-  }
-
-  ExpressionType getExpressionType() const override {
-    return kUnaryExpression;
-  }
-
-  std::string getName() const override;
-
-  /**
-   * @return The unary operation.
-   */
-  const UnaryOperation& op() const {
-    return op_;
-  }
-
-  /**
-   * @return The operand expression.
-   */
-  const ParseExpression* operand() const {
-    return operand_.get();
-  }
-
-  std::string generateName() const override;
-
- protected:
-  void getFieldStringItems(
-      std::vector<std::string> *inline_field_names,
-      std::vector<std::string> *inline_field_values,
-      std::vector<std::string> *non_container_child_field_names,
-      std::vector<const ParseTreeNode*> *non_container_child_fields,
-      std::vector<std::string> *container_child_field_names,
-      std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const override;
-
- private:
-  const UnaryOperation &op_;
-  std::unique_ptr<ParseExpression> operand_;
-
-  DISALLOW_COPY_AND_ASSIGN(ParseUnaryExpression);
-};
-
-/**
- * @brief The parsed representation of a binary operation applied to two
- *        expressions.
- **/
-class ParseBinaryExpression : public ParseExpression {
- public:
-  /**
-   * @brief Constructor.
-   *
-   * @param line_number Line number of the binary operator token in the SQL statement.
-   * @param column_number Column number of the binary operator token in the SQL statement.
-   * @param op The BinaryOperation from the quickstep type system to apply.
-   * @param left_operand The parsed scalar representation of the binary
-   *        operation's left argument, which becomes owned by this
-   *        ParseScalarBinaryExpression.
-   * @param right_operand The parsed scalar representation of the binary
-   *        operation's right argument, which becomes owned by this
-   *        ParseScalarBinaryExpression.
-   **/
-  ParseBinaryExpression(const int line_number,
-                        const int column_number,
-                        const BinaryOperation &op,
-                        ParseExpression *left_operand,
-                        ParseExpression *right_operand)
-      : ParseExpression(line_number, column_number),
-        op_(op),
-        left_operand_(left_operand),
-        right_operand_(right_operand) {
-  }
-
-  /**
-   * @brief Destructor.
-   */
-  ~ParseBinaryExpression() override {
-  }
-
-  ExpressionType getExpressionType() const override {
-    return kBinaryExpression;
-  }
-
-  std::string getName() const override;
-
-  /**
-   * @return The binary operation.
-   */
-  const BinaryOperation& op() const {
-    return op_;
-  }
-
-  /**
-   * @return The left operand expression.
-   */
-  const ParseExpression* left_operand() const {
-    return left_operand_.get();
-  }
-
-  /**
-   * @return The right operand expression.
-   */
-  const ParseExpression* right_operand() const {
-    return right_operand_.get();
-  }
-
-  std::string generateName() const override;
-
- protected:
-  void getFieldStringItems(
-      std::vector<std::string> *inline_field_names,
-      std::vector<std::string> *inline_field_values,
-      std::vector<std::string> *non_container_child_field_names,
-      std::vector<const ParseTreeNode*> *non_container_child_fields,
-      std::vector<std::string> *container_child_field_names,
-      std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const override;
-
- private:
-  const BinaryOperation &op_;
-  std::unique_ptr<ParseExpression> left_operand_;
-  std::unique_ptr<ParseExpression> right_operand_;
-
-  DISALLOW_COPY_AND_ASSIGN(ParseBinaryExpression);
-};
-
-/**
  * @brief The parsed representation of '*' as a function argument.
  */
 class ParseStar : public ParseTreeNode {
@@ -345,6 +194,7 @@ class ParseStar : public ParseTreeNode {
  private:
   DISALLOW_COPY_AND_ASSIGN(ParseStar);
 };
+
 
 /**
  * @brief Parsed function call in the form of a name with a list of arguments in parentheses.
@@ -496,125 +346,35 @@ class ParseFunctionCall : public ParseExpression {
 };
 
 
-/**
- * @brief Parsed representation of EXTRACT(unit FROM date).
- */
-class ParseExtractFunction : public ParseExpression {
+class ParseTypeCast : public ParseExpression {
  public:
-  /**
-   * @brief Constructor.
-   *
-   * @param line_number The line number of the token "extract" in the statement.
-   * @param column_number The column number of the token "extract in the statement.
-   * @param extract_field The field to extract.
-   * @param source_expression The expression to extract a field from.
-   */
-  ParseExtractFunction(const int line_number,
-                       const int column_number,
-                       ParseString *extract_field,
-                       ParseExpression *date_expression)
-      : ParseExpression(line_number, column_number),
-        extract_field_(extract_field),
-        date_expression_(date_expression) {
-  }
-
-  ExpressionType getExpressionType() const override {
-    return kExtract;
-  }
-
-  std::string getName() const override {
-    return "Extract";
-  }
-
-  /**
-   * @return The field to extract.
-   */
-  const ParseString* extract_field() const {
-    return extract_field_.get();
-  }
-
-  /**
-   * @return The expression to extract a field from.
-   */
-  const ParseExpression* date_expression() const {
-    return date_expression_.get();
-  }
-
-  std::string generateName() const override;
-
- protected:
-  void getFieldStringItems(
-      std::vector<std::string> *inline_field_names,
-      std::vector<std::string> *inline_field_values,
-      std::vector<std::string> *non_container_child_field_names,
-      std::vector<const ParseTreeNode*> *non_container_child_fields,
-      std::vector<std::string> *container_child_field_names,
-      std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const override;
-
- private:
-  std::unique_ptr<ParseString> extract_field_;
-  std::unique_ptr<ParseExpression> date_expression_;
-
-  DISALLOW_COPY_AND_ASSIGN(ParseExtractFunction);
-};
-
-
-/**
- * @brief Parsed representation of the substring function.
- */
-class ParseSubstringFunction : public ParseExpression {
- public:
-  static constexpr std::size_t kDefaultLength = std::numeric_limits<std::size_t>::max();
-
-  /**
-   * @brief Constructor.
-   *
-   * @param line_number The line number of the first token of the function call.
-   * @param column_number The column number of the first token of the function call.
-   * @param operand The operand of the substring.
-   * @param start_position The 1-based starting position of the substring.
-   * @param length Optional substring length.
-   */
-  ParseSubstringFunction(const int line_number,
-                         const int column_number,
-                         ParseExpression *operand,
-                         const std::size_t start_position,
-                         const std::size_t length = kDefaultLength)
+  ParseTypeCast(const int line_number,
+                const int column_number,
+                ParseExpression *operand,
+                ParseDataType *target_type)
       : ParseExpression(line_number, column_number),
         operand_(operand),
-        start_position_(start_position),
-        length_(length) {}
+        target_type_(target_type) {}
+
+  ~ParseTypeCast() override {}
 
   ExpressionType getExpressionType() const override {
-    return kSubstring;
+    return kTypeCast;
   }
 
   std::string getName() const override {
-    return "Substring";
-  }
-
-  /**
-   * @return The operand of the substring.
-   */
-  const ParseExpression* operand() const {
-    return operand_.get();
-  }
-
-  /**
-   * @return The 1-based starting position of the substring.
-   */
-  std::size_t start_position() const {
-    return start_position_;
-  }
-
-  /**
-   * @return Then substring length.
-   */
-  std::size_t length() const {
-    return length_;
+    return "TypeCast";
   }
 
   std::string generateName() const override;
+
+  const ParseExpression& operand() const {
+    return *operand_;
+  }
+
+  const ParseDataType& target_type() const {
+    return *target_type_;
+  }
 
  protected:
   void getFieldStringItems(
@@ -627,10 +387,51 @@ class ParseSubstringFunction : public ParseExpression {
 
  private:
   std::unique_ptr<ParseExpression> operand_;
-  const std::size_t start_position_;
-  const std::size_t length_;
+  std::unique_ptr<ParseDataType> target_type_;
 
-  DISALLOW_COPY_AND_ASSIGN(ParseSubstringFunction);
+  DISALLOW_COPY_AND_ASSIGN(ParseTypeCast);
+};
+
+
+class ParseArray : public ParseExpression {
+ public:
+  ParseArray(const int line_number, const int column_number)
+      : ParseExpression(line_number, column_number) {}
+
+  ~ParseArray() override {
+  }
+
+  ExpressionType getExpressionType() const override {
+    return kArray;
+  }
+
+  std::string getName() const override {
+    return "Array";
+  }
+
+  std::string generateName() const override;
+
+  const std::vector<std::unique_ptr<ParseExpression>>& elements() const {
+    return elements_;
+  }
+
+  void add(ParseExpression *element) {
+    elements_.emplace_back(std::unique_ptr<ParseExpression>(element));
+  }
+
+ protected:
+  void getFieldStringItems(
+      std::vector<std::string> *inline_field_names,
+      std::vector<std::string> *inline_field_values,
+      std::vector<std::string> *non_container_child_field_names,
+      std::vector<const ParseTreeNode*> *non_container_child_fields,
+      std::vector<std::string> *container_child_field_names,
+      std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const override;
+
+ private:
+  std::vector<std::unique_ptr<ParseExpression>> elements_;
+
+  DISALLOW_COPY_AND_ASSIGN(ParseArray);
 };
 
 /** @} */

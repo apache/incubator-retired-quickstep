@@ -20,9 +20,6 @@
 #ifndef QUICKSTEP_TYPES_NULL_COERCIBILITY_CHECK_MACRO_HPP_
 #define QUICKSTEP_TYPES_NULL_COERCIBILITY_CHECK_MACRO_HPP_
 
-#include "types/Type.hpp"
-#include "types/TypeID.hpp"
-
 /** \addtogroup Types
  *  @{
  */
@@ -34,7 +31,7 @@
  **/
 #define QUICKSTEP_NULL_COERCIBILITY_CHECK()               \
   do {                                                    \
-    if (original_type.isNullable() && !nullable_) {       \
+    if (original_type.isNullable() && !this->nullable_) {       \
       return false;                                       \
     } else if (original_type.getTypeID() == kNullType) {  \
       return true;                                        \

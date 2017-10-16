@@ -30,7 +30,7 @@
  * occurs, Bison resolves it by preferring to shift rather than reduce, which
  * is the correct, expected behavior for both cases in this parser.
  **/
-%expect 2
+%expect 1
 
 %{
 
@@ -72,6 +72,7 @@ typedef struct YYLTYPE {
 #include "parser/ParseBasicExpressions.hpp"
 #include "parser/ParseBlockProperties.hpp"
 #include "parser/ParseCaseExpressions.hpp"
+#include "parser/ParseDataType.hpp"
 #include "parser/ParseExpression.hpp"
 #include "parser/ParseGeneratorTableReference.hpp"
 #include "parser/ParseGroupBy.hpp"
@@ -102,15 +103,9 @@ typedef struct YYLTYPE {
 #include "types/Type.hpp"
 #include "types/TypeFactory.hpp"
 #include "types/TypeID.hpp"
-#include "types/operations/binary_operations/BinaryOperation.hpp"
-#include "types/operations/binary_operations/BinaryOperationFactory.hpp"
-#include "types/operations/binary_operations/BinaryOperationID.hpp"
 #include "types/operations/comparisons/Comparison.hpp"
 #include "types/operations/comparisons/ComparisonFactory.hpp"
 #include "types/operations/comparisons/ComparisonID.hpp"
-#include "types/operations/unary_operations/UnaryOperation.hpp"
-#include "types/operations/unary_operations/UnaryOperationFactory.hpp"
-#include "types/operations/unary_operations/UnaryOperationID.hpp"
 #include "utility/PtrList.hpp"
 #include "utility/PtrVector.hpp"
 
@@ -189,9 +184,10 @@ typedef void* yyscan_t;
   quickstep::ParseStatementQuit *quit_statement_;
 
   const quickstep::Comparison *comparison_;
-  const quickstep::UnaryOperation *unary_operation_;
-  const quickstep::BinaryOperation *binary_operation_;
+  quickstep::ParseString *unary_operation_;
+  quickstep::ParseString *binary_operation_;
 
+  quickstep::ParseArray *array_expression_;
   quickstep::ParseFunctionCall *function_call_;
   quickstep::PtrList<quickstep::ParseExpression> *expression_list_;
 
@@ -252,7 +248,6 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_AND;
 %token TOKEN_AS;
 %token TOKEN_ASC;
-%token TOKEN_BIGINT;
 %token TOKEN_BIT;
 %token TOKEN_BITWEAVING;
 %token TOKEN_BLOCKPROPERTIES;
@@ -261,22 +256,19 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_CSB_TREE;
 %token TOKEN_BY;
 %token TOKEN_CASE;
-%token TOKEN_CHARACTER;
+%token TOKEN_CAST;
 %token TOKEN_CHECK;
 %token TOKEN_COLUMN;
 %token TOKEN_CONSTRAINT;
 %token TOKEN_COPY;
 %token TOKEN_CREATE;
 %token TOKEN_CURRENT;
-%token TOKEN_DATE;
-%token TOKEN_DATETIME;
 %token TOKEN_DAY;
-%token TOKEN_DECIMAL;
 %token TOKEN_DEFAULT;
 %token TOKEN_DELETE;
 %token TOKEN_DESC;
 %token TOKEN_DISTINCT;
-%token TOKEN_DOUBLE;
+%token TOKEN_DOUBLECOLON;
 %token TOKEN_DROP;
 %token TOKEN_ELSE;
 %token TOKEN_END;
@@ -284,7 +276,6 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_EXTRACT;
 %token TOKEN_FALSE;
 %token TOKEN_FIRST;
-%token TOKEN_FLOAT;
 %token TOKEN_FOLLOWING;
 %token TOKEN_FOR;
 %token TOKEN_FOREIGN;
@@ -298,16 +289,15 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_INDEX;
 %token TOKEN_INNER;
 %token TOKEN_INSERT;
-%token TOKEN_INTEGER;
 %token TOKEN_INTERSECT;
 %token TOKEN_INTERVAL;
 %token TOKEN_INTO;
 %token TOKEN_JOIN;
 %token TOKEN_KEY;
 %token TOKEN_LAST;
+%token TOKEN_LBRACE;
 %token TOKEN_LEFT;
 %token TOKEN_LIMIT;
-%token TOKEN_LONG;
 %token TOKEN_MINUTE;
 %token TOKEN_MONTH;
 %token TOKEN_NOT;
@@ -327,6 +317,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_PRIORITY;
 %token TOKEN_QUIT;
 %token TOKEN_RANGE;
+%token TOKEN_RBRACE;
 %token TOKEN_REAL;
 %token TOKEN_REFERENCES;
 %token TOKEN_REGEXP;
@@ -338,14 +329,11 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_SELECT;
 %token TOKEN_SET;
 %token TOKEN_SMA;
-%token TOKEN_SMALLINT;
 %token TOKEN_STDERR;
 %token TOKEN_STDOUT;
 %token TOKEN_SUBSTRING;
 %token TOKEN_TABLE;
 %token TOKEN_THEN;
-%token TOKEN_TIME;
-%token TOKEN_TIMESTAMP;
 %token TOKEN_TO;
 %token TOKEN_TRUE;
 %token TOKEN_TUPLESAMPLE;
@@ -355,13 +343,11 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_UPDATE;
 %token TOKEN_USING;
 %token TOKEN_VALUES;
-%token TOKEN_VARCHAR;
 %token TOKEN_WHEN;
 %token TOKEN_WHERE;
 %token TOKEN_WINDOW;
 %token TOKEN_WITH;
 %token TOKEN_YEAR;
-%token TOKEN_YEARMONTH;
 %token TOKEN_EOF;
 %token TOKEN_LEX_ERROR;
 
@@ -376,6 +362,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
   boolean_value
   frame_mode
   opt_all_distinct
+  opt_nullable
 
 %type <literal_value_>
   literal_value
@@ -394,8 +381,14 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
   add_expression
   case_expression
   opt_else_clause
+  cast_function
   extract_function
   substr_function
+
+
+%type <array_expression_>
+  array_expression
+  array_element_commalist
 
 %type <attribute_>
   attribute_ref
@@ -453,6 +446,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 
 %type <data_type_>
   data_type
+  data_type_parameter_commalist
 
 %type <attribute_definition_>
   column_def
@@ -624,8 +618,6 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 
 %destructor { } <boolean_value_>
 %destructor { } <comparison_>
-%destructor { } <unary_operation_>
-%destructor { } <binary_operation_>
 %destructor { } <join_type_>
 
 %destructor {
@@ -765,102 +757,46 @@ column_def_commalist:
   };
 
 data_type:
-  TOKEN_BIT {
-    $$ = nullptr;
-    NotSupported(&@1, yyscanner, "BIT data type");
-    YYERROR;
+  any_name {
+    $$ = new quickstep::ParseDataType(@1.first_line, @1.first_column, $1);
   }
-  | TOKEN_DATE {
-    $$ = new quickstep::ParseDataType(quickstep::TypeFactory::GetType(quickstep::kDate));
+  | data_type_parameter_commalist ')' {
+    $$ = $1;
+  };
+
+data_type_parameter_commalist:
+  any_name '(' data_type opt_nullable {
+    $$ = new quickstep::ParseDataType(@1.first_line, @1.first_column, $1);
+    $3->setNullable($4);
+    $$->addParameter(
+        new quickstep::ParseDataTypeParameterDataType($3->line_number(), $3->column_number(), $3));
   }
-  | TOKEN_DATETIME {
-    $$ = new quickstep::ParseDataType(quickstep::TypeFactory::GetType(quickstep::kDatetime));
+  | data_type_parameter_commalist ',' data_type opt_nullable {
+    $$ = $1;
+    $3->setNullable($4);
+    $$->addParameter(
+        new quickstep::ParseDataTypeParameterDataType($3->line_number(), $3->column_number(), $3));
   }
-  | TOKEN_TIME {
-    $$ = nullptr;
-    NotSupported(&@1, yyscanner, "TIME data type");
-    YYERROR;
+  | any_name '(' literal_value {
+    $$ = new quickstep::ParseDataType(@1.first_line, @1.first_column, $1);
+    $$->addParameter(
+        new quickstep::ParseDataTypeParameterLiteralValue($3->line_number(), $3->column_number(), $3));
   }
-  | TOKEN_TIMESTAMP {
-    $$ = new quickstep::ParseDataType(quickstep::TypeFactory::GetType(quickstep::kDatetime));
+  | data_type_parameter_commalist ',' literal_value {
+    $$ = $1;
+    $$->addParameter(
+        new quickstep::ParseDataTypeParameterLiteralValue($3->line_number(), $3->column_number(), $3));
+  };
+
+opt_nullable:
+  {
+    $$ = false;  // NOT NULL
   }
-  | TOKEN_DECIMAL {
-    $$ = new quickstep::ParseDataType(quickstep::TypeFactory::GetType(quickstep::kDouble));
+  | TOKEN_NULL {
+    $$ = true;  // NULL
   }
-  | TOKEN_REAL {
-    $$ = new quickstep::ParseDataType(quickstep::TypeFactory::GetType(quickstep::kDouble));
-  }
-  | TOKEN_DOUBLE {
-    $$ = new quickstep::ParseDataType(quickstep::TypeFactory::GetType(quickstep::kDouble));
-  }
-  | TOKEN_FLOAT {
-    $$ = new quickstep::ParseDataType(quickstep::TypeFactory::GetType(quickstep::kFloat));
-  }
-  | TOKEN_SMALLINT {
-    $$ = new quickstep::ParseDataType(quickstep::TypeFactory::GetType(quickstep::kInt));
-  }
-  | TOKEN_INTEGER {
-    $$ = new quickstep::ParseDataType(quickstep::TypeFactory::GetType(quickstep::kInt));
-  }
-  | TOKEN_BIGINT {
-    $$ = new quickstep::ParseDataType(quickstep::TypeFactory::GetType(quickstep::kLong));
-  }
-  | TOKEN_LONG {
-    $$ = new quickstep::ParseDataType(quickstep::TypeFactory::GetType(quickstep::kLong));
-  }
-  | TOKEN_INTERVAL {
-    /**
-     * NOTE(chasseur): This pattern exhibits a shift/reduce conflict with the
-     * TOKEN_INTERVAL case in 'literal_value'. Bison prefers to shift rather
-     * than reduce, so the case in 'literal_value' has precedence over this.
-     **/
-    $$ = nullptr;
-    quickstep_yyerror(&@1, yyscanner, nullptr,
-        "INTERVAL is ambiguous as a column type. Specify either DATETIME INTERVAL "
-        "or YEARMONTH INTERVAL");
-    YYERROR;
-  }
-  | TOKEN_DATETIME TOKEN_INTERVAL {
-    $$ = new quickstep::ParseDataType(quickstep::TypeFactory::GetType(quickstep::kDatetimeInterval));
-  }
-  | TOKEN_YEARMONTH TOKEN_INTERVAL {
-    $$ = new quickstep::ParseDataType(quickstep::TypeFactory::GetType(quickstep::kYearMonthInterval));
-  }
-  | TOKEN_CHARACTER '(' TOKEN_UNSIGNED_NUMVAL ')' {
-    if ($3->float_like()) {
-      delete $3;
-      $$ = NULL;
-      quickstep_yyerror(&@3, yyscanner, nullptr, "Non-integer length supplied for CHAR type");
-      YYERROR;
-    } else {
-      if ($3->long_value() <= 0) {
-        delete $3;
-        $$ = NULL;
-        quickstep_yyerror(&@3, yyscanner, nullptr, "Length for CHAR type must be at least 1");
-        YYERROR;
-      } else {
-        $$ = new quickstep::ParseDataType(quickstep::TypeFactory::GetType(quickstep::kChar, $3->long_value(), false));
-        delete $3;
-      }
-    }
-  }
-  | TOKEN_VARCHAR '(' TOKEN_UNSIGNED_NUMVAL ')' {
-    if ($3->float_like()) {
-      delete $3;
-      $$ = NULL;
-      quickstep_yyerror(&@3, yyscanner, nullptr, "Non-integer length supplied for VARCHAR type");
-      YYERROR;
-    } else {
-      if ($3->long_value() < 0) {
-        delete $3;
-        $$ = NULL;
-        quickstep_yyerror(&@3, yyscanner, nullptr, "Negative length supplied for VARCHAR type");
-        YYERROR;
-      } else {
-        $$ = new quickstep::ParseDataType(quickstep::TypeFactory::GetType(quickstep::kVarChar, $3->long_value(), false));
-        delete $3;
-      }
-    }
+  | TOKEN_NOT TOKEN_NULL {
+    $$ = true;  // NOT NULL
   };
 
 column_constraint_def:
@@ -1676,7 +1612,10 @@ predicate_expression_base:
 /* Scalars */
 add_expression:
   add_expression add_operation multiply_expression {
-    $$ = new quickstep::ParseBinaryExpression(@2.first_line, @2.first_column, *$2, $1, $3);
+    auto *arguments = new quickstep::PtrList<quickstep::ParseExpression>();
+    arguments->push_back($1);
+    arguments->push_back($3);
+    $$ = new quickstep::ParseFunctionCall(@1.first_line, @1.first_column, false, $2, arguments);
   }
   | multiply_expression {
     $$ = $1;
@@ -1684,7 +1623,10 @@ add_expression:
 
 multiply_expression:
   multiply_expression multiply_operation unary_expression {
-    $$ = new quickstep::ParseBinaryExpression(@2.first_line, @2.first_column, *$2, $1, $3);
+    auto *arguments = new quickstep::PtrList<quickstep::ParseExpression>();
+    arguments->push_back($1);
+    arguments->push_back($3);
+    $$ = new quickstep::ParseFunctionCall(@1.first_line, @1.first_column, false, $2, arguments);
   }
   | unary_expression {
     $$ = $1;
@@ -1692,7 +1634,9 @@ multiply_expression:
 
 unary_expression:
   unary_operation expression_base {
-    $$ = new quickstep::ParseUnaryExpression(@1.first_line, @1.first_column, *$1, $2);
+    auto *arguments = new quickstep::PtrList<quickstep::ParseExpression>();
+    arguments->push_back($2);
+    $$ = new quickstep::ParseFunctionCall(@1.first_line, @1.first_column, false, $1, arguments);
   }
   | expression_base {
     $$ = $1;
@@ -1705,6 +1649,9 @@ expression_base:
   | literal_value {
     $$ = new quickstep::ParseScalarLiteral($1);
   }
+  | array_expression {
+    $$ = $1;
+  }
   | function_call {
     $$ = $1;
   }
@@ -1714,6 +1661,9 @@ expression_base:
   }
   | function_call TOKEN_OVER '(' window_definition ')' {
     $1->setWindow($4);
+    $$ = $1;
+  }
+  | cast_function {
     $$ = $1;
   }
   | extract_function {
@@ -1732,6 +1682,26 @@ expression_base:
     $$ = $1;
   };
 
+array_expression:
+  array_element_commalist TOKEN_RBRACE {
+    $$ = $1;
+  }
+  | TOKEN_LBRACE TOKEN_RBRACE {
+    $$ = new quickstep::ParseArray(@1.first_line, @1.first_column);
+  }
+  ;
+
+array_element_commalist:
+  array_element_commalist ',' add_expression {
+    $$ = $1;
+    $$->add($3);
+  }
+  | TOKEN_LBRACE add_expression {
+    $$ = new quickstep::ParseArray(@1.first_line, @1.first_column);
+    $$->add($2);
+  }
+  ;
+
 function_call:
   any_name '(' ')' {
     $$ = new quickstep::ParseFunctionCall(
@@ -1748,19 +1718,42 @@ function_call:
     $$ = new quickstep::ParseFunctionCall(@1.first_line, @1.first_column, true, $1, $4);
   };
 
+cast_function:
+  TOKEN_CAST '(' add_expression TOKEN_AS data_type ')' {
+    $$ = new quickstep::ParseTypeCast(@1.first_line, @1.first_column, $3, $5);
+  }
+  | expression_base TOKEN_DOUBLECOLON data_type {
+    $$ = new quickstep::ParseTypeCast(@2.first_line, @2.first_column, $1, $3);
+  };
+
 extract_function:
   TOKEN_EXTRACT '(' datetime_unit TOKEN_FROM add_expression ')' {
-    $$ = new quickstep::ParseExtractFunction(@1.first_line, @1.first_column, $3, $5);
+    auto *arguments = new quickstep::PtrList<quickstep::ParseExpression>();
+    arguments->push_back($5);
+    arguments->push_back(new quickstep::ParseScalarLiteral(
+        new quickstep::StringParseLiteralValue($3, nullptr)));
+    auto *name = new quickstep::ParseString(@1.first_line, @1.first_column, "extract");
+    $$ = new quickstep::ParseFunctionCall(
+        @1.first_line, @1.first_column, false, name, arguments);
   };
 
 substr_function:
   TOKEN_SUBSTRING '(' add_expression TOKEN_FROM TOKEN_UNSIGNED_NUMVAL ')' {
-    $$ = new quickstep::ParseSubstringFunction(
-        @1.first_line, @1.first_column, $3, $5->long_value());
+    auto *arguments = new quickstep::PtrList<quickstep::ParseExpression>();
+    arguments->push_back($3);
+    arguments->push_back(new quickstep::ParseScalarLiteral($5));
+    auto *name = new quickstep::ParseString(@1.first_line, @1.first_column, "substring");
+    $$ = new quickstep::ParseFunctionCall(
+        @1.first_line, @1.first_column, false, name, arguments);
   }
   | TOKEN_SUBSTRING '(' add_expression TOKEN_FROM TOKEN_UNSIGNED_NUMVAL TOKEN_FOR TOKEN_UNSIGNED_NUMVAL ')' {
-    $$ = new quickstep::ParseSubstringFunction(
-        @1.first_line, @1.first_column, $3, $5->long_value(), $7->long_value());
+    auto *arguments = new quickstep::PtrList<quickstep::ParseExpression>();
+    arguments->push_back($3);
+    arguments->push_back(new quickstep::ParseScalarLiteral($5));
+    arguments->push_back(new quickstep::ParseScalarLiteral($7));
+    auto *name = new quickstep::ParseString(@1.first_line, @1.first_column, "substring");
+    $$ = new quickstep::ParseFunctionCall(
+        @1.first_line, @1.first_column, false, name, arguments);
   };
 
 case_expression:
@@ -1876,20 +1869,7 @@ literal_value:
       quickstep_yyerror(&@3, yyscanner, nullptr, "Failed to parse literal as specified type");
       YYERROR;
     }
-  }
-  | data_type TOKEN_STRING_SINGLE_QUOTED {
-    quickstep::StringParseLiteralValue *parse_value
-        = new quickstep::StringParseLiteralValue($2, &($1->getType()));
-    delete $1;
-    if (!parse_value->tryExplicitTypeParse()) {
-      delete parse_value;
-      $$ = nullptr;
-      quickstep_yyerror(&@2, yyscanner, nullptr, "Failed to parse literal as specified type");
-      YYERROR;
-    } else {
-      $$ = parse_value;
-    }
-  }
+  };
 
 datetime_unit:
   TOKEN_YEAR {
@@ -1980,26 +1960,26 @@ unary_operation:
      * to shift rather than reduce, the case in 'literal_value' has precedence
      * over this one.
      **/
-    $$ = &quickstep::UnaryOperationFactory::GetUnaryOperation(quickstep::UnaryOperationID::kNegate);
+    $$ = new quickstep::ParseString(@1.first_line, @1.first_column, std::string("-"));
   };
 
 add_operation:
   '+' {
-    $$ = &quickstep::BinaryOperationFactory::GetBinaryOperation(quickstep::BinaryOperationID::kAdd);
+    $$ = new quickstep::ParseString(@1.first_line, @1.first_column, std::string("+"));
   }
   | '-' {
-    $$ = &quickstep::BinaryOperationFactory::GetBinaryOperation(quickstep::BinaryOperationID::kSubtract);
+    $$ = new quickstep::ParseString(@1.first_line, @1.first_column, std::string("-"));
   };
 
 multiply_operation:
   '%' {
-    $$ = &quickstep::BinaryOperationFactory::GetBinaryOperation(quickstep::BinaryOperationID::kModulo);
+    $$ = new quickstep::ParseString(@1.first_line, @1.first_column, std::string("%"));
   }
   | '*' {
-    $$ = &quickstep::BinaryOperationFactory::GetBinaryOperation(quickstep::BinaryOperationID::kMultiply);
+    $$ = new quickstep::ParseString(@1.first_line, @1.first_column, std::string("*"));
   }
   | '/' {
-    $$ = &quickstep::BinaryOperationFactory::GetBinaryOperation(quickstep::BinaryOperationID::kDivide);
+    $$ = new quickstep::ParseString(@1.first_line, @1.first_column, std::string("/"));
   };
 
 /* General Utility Stuff */

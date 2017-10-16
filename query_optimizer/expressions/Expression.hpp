@@ -80,6 +80,11 @@ class Expression : public OptimizerTree<Expression> {
    */
   virtual bool isConstant() const = 0;
 
+  virtual TypedValue getConstantValue() const {
+    LOG(FATAL) << "Not implemented";
+  }
+
+
  protected:
   Expression() {}
 

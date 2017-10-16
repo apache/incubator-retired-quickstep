@@ -90,6 +90,16 @@ class TypedValue {
   }
 
   /**
+   * @brief Constructor for a literal value of BoolType.
+   **/
+  explicit TypedValue(const bool literal_bool)
+      : value_info_(static_cast<std::uint64_t>(kBool)) {
+    // Zero-out all bytes in the union for getHash() and fastEqualCheck().
+    value_union_.hash64 = 0;
+    value_union_.bool_value = literal_bool;
+  }
+
+  /**
    * @brief Constructor for a literal value of IntType.
    **/
   explicit TypedValue(const int literal_int)
@@ -264,9 +274,9 @@ class TypedValue {
    *        TypedValue will take ownership of this memory.
    * @param value_size The number of bytes of data at value_ptr.
    **/
-  static TypedValue CreateWithOwnedData(const TypeID type_id,
-                                        void *value_ptr,
-                                        const std::size_t value_size) {
+  inline static TypedValue CreateWithOwnedData(const TypeID type_id,
+                                               void *value_ptr,
+                                               const std::size_t value_size) {
     TypedValue val(type_id, value_ptr, value_size);
     val.value_info_ |= kOwnershipMask;
     return val;
@@ -282,6 +292,7 @@ class TypedValue {
    **/
   static bool RepresentedInline(const TypeID type_id) {
     switch (type_id) {
+      case kBool:
       case kInt:
       case kLong:
       case kFloat:
@@ -313,6 +324,8 @@ class TypedValue {
    **/
   static bool HashIsReversible(const TypeID type_id) {
     switch (type_id) {
+      case kBool:
+        return true;
       case kInt:
       case kFloat:
         return sizeof(value_union_.int_value) <= sizeof(std::size_t);
@@ -391,6 +404,8 @@ class TypedValue {
   inline std::size_t getDataSize() const {
     DCHECK(!isNull());
     switch (getTypeID()) {
+      case kBool:
+        return sizeof(bool);
       case kInt:
       case kFloat:
         return sizeof(int);
@@ -478,7 +493,8 @@ class TypedValue {
    * @return The out-of-line data this TypedValue points to.
    **/
   inline const void* getOutOfLineData() const {
-    DCHECK(!(getTypeID() == kInt
+    DCHECK(!(getTypeID() == kBool
+                   || getTypeID() == kInt
                    || getTypeID() == kLong
                    || getTypeID() == kFloat
                    || getTypeID() == kDouble
@@ -488,6 +504,28 @@ class TypedValue {
                    || getTypeID() == kYearMonthInterval));
     DCHECK(!isNull());
     return value_union_.out_of_line_data;
+  }
+
+  inline void* releaseOutOfLineData() {
+    DCHECK(!(getTypeID() == kBool
+                   || getTypeID() == kInt
+                   || getTypeID() == kLong
+                   || getTypeID() == kFloat
+                   || getTypeID() == kDouble
+                   || getTypeID() == kDate
+                   || getTypeID() == kDatetime
+                   || getTypeID() == kDatetimeInterval
+                   || getTypeID() == kYearMonthInterval));
+    DCHECK(!isNull());
+    if (ownsOutOfLineData()) {
+      value_info_ &= ~kOwnershipMask;
+      return const_cast<void*>(value_union_.out_of_line_data);
+    } else {
+      const std::size_t length = value_info_ >> kSizeShift;
+      void *data = std::malloc(length);
+      std::memcpy(data, value_union_.out_of_line_data, length);
+      return data;
+    }
   }
 
   /**
@@ -547,6 +585,10 @@ class TypedValue {
                   value_info_ >> kSizeShift);
     } else {
       switch (getTypeID()) {
+        case kBool:
+          // 1 byte copy.
+          *static_cast<bool*>(destination) = value_union_.bool_value;
+          break;
         case kInt:
         case kFloat:
           // 4 bytes byte-for-byte copy.
@@ -574,6 +616,7 @@ class TypedValue {
    **/
   inline std::size_t getHash() const {
     switch (getTypeID()) {
+      case kBool:
       case kInt:
       case kLong:
       case kFloat:
@@ -670,6 +713,7 @@ class TypedValue {
     DCHECK(!other.isNull());
     DCHECK_EQ(getTypeID(), other.getTypeID());
     switch (getTypeID()) {
+      case kBool:
       case kInt:
       case kLong:
       case kFloat:
@@ -708,6 +752,16 @@ class TypedValue {
                                 len) == 0));
       }
     }
+  }
+
+  bool operator==(const TypedValue &other) const {
+    if (getTypeID() != other.getTypeID()) {
+      return false;
+    }
+    if (isNull() || other.isNull()) {
+      return isNull() == other.isNull();
+    }
+    return fastEqualCheck(other);
   }
 
   /**
@@ -789,6 +843,7 @@ class TypedValue {
   inline void reverseHash(const std::size_t hash);
 
   union ValueUnion {
+    bool bool_value;
     int int_value;
     std::int64_t long_value;
     float float_value;
@@ -841,6 +896,13 @@ class TypedValue {
 /** @} */
 
 // Explicit specializations of getLiteral().
+template <>
+inline bool TypedValue::getLiteral<bool>() const {
+  DCHECK_EQ(kBool, getTypeID());
+  DCHECK(!isNull());
+  return value_union_.bool_value;
+}
+
 template <>
 inline int TypedValue::getLiteral<int>() const {
   DCHECK_EQ(kInt, getTypeID());

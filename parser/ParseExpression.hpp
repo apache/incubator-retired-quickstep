@@ -37,16 +37,15 @@ namespace quickstep {
 class ParseExpression : public ParseTreeNode {
  public:
   enum ExpressionType {
+    kArray,
     kAttribute,
     kBinaryExpression,
-    kExtract,
     kFunctionCall,
     kScalarLiteral,
     kSearchedCaseExpression,
     kSimpleCaseExpression,
     kSubqueryExpression,
-    kSubstring,
-    kUnaryExpression,
+    kTypeCast,
   };
 
   /**

@@ -47,6 +47,7 @@ target_link_libraries(quickstep_queryoptimizer_resolver_Resolver
                       quickstep_parser_ParseBasicExpressions
                       quickstep_parser_ParseBlockProperties
                       quickstep_parser_ParseCaseExpressions
+                      quickstep_parser_ParseDataType
                       quickstep_parser_ParseExpression
                       quickstep_parser_ParseGeneratorTableReference
                       quickstep_parser_ParseGroupBy
@@ -121,16 +122,22 @@ target_link_libraries(quickstep_queryoptimizer_resolver_Resolver
                       quickstep_queryoptimizer_resolver_NameResolver
                       quickstep_storage_StorageBlockLayout_proto
                       quickstep_storage_StorageConstants
+                      quickstep_types_ArrayType
+                      quickstep_types_GenericValue
                       quickstep_types_IntType
+                      quickstep_types_LongType
+                      quickstep_types_MetaType
+                      quickstep_types_NullType
                       quickstep_types_Type
+                      quickstep_types_TypeUtil
                       quickstep_types_TypedValue
                       quickstep_types_TypeFactory
+                      quickstep_types_operations_OperationFactory
+                      quickstep_types_operations_OperationSignature
                       quickstep_types_operations_binaryoperations_BinaryOperation
                       quickstep_types_operations_comparisons_Comparison
                       quickstep_types_operations_comparisons_ComparisonFactory
                       quickstep_types_operations_comparisons_ComparisonID
-                      quickstep_types_operations_unaryoperations_DateExtractOperation
-                      quickstep_types_operations_unaryoperations_SubstringOperation
                       quickstep_types_operations_unaryoperations_UnaryOperation
                       quickstep_utility_BulkIoConfiguration
                       quickstep_utility_Macros

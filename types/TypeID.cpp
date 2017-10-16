@@ -22,6 +22,7 @@
 namespace quickstep {
 
 const char *kTypeNames[] = {
+  "Bool",
   "Int",
   "Long",
   "Float",
@@ -32,6 +33,9 @@ const char *kTypeNames[] = {
   "Datetime",
   "DatetimeInterval",
   "YearMonthInterval",
+  "Text",
+  "Array",
+  "MetaType",
   "NullType"
 };
 

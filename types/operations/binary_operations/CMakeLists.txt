@@ -16,185 +16,98 @@
 # under the License.
 
 # Declare micro-libs:
-add_library(quickstep_types_operations_binaryoperations_AddBinaryOperation
-            AddBinaryOperation.cpp
-            AddBinaryOperation.hpp)
-add_library(quickstep_types_operations_binaryoperations_ArithmeticBinaryOperation
+add_library(quickstep_types_operations_binaryoperations_ArithmeticBinaryFunctors
             ../../../empty_src.cpp
-            ArithmeticBinaryOperation.hpp)
-add_library(quickstep_types_operations_binaryoperations_ArithmeticBinaryOperators
+            ArithmeticBinaryFunctors.hpp)
+add_library(quickstep_types_operations_binaryoperations_ArithmeticBinaryFunctorOverloads
             ../../../empty_src.cpp
-            ArithmeticBinaryOperators.hpp)
+            ArithmeticBinaryFunctorOverloads.hpp)
+add_library(quickstep_types_operations_binaryoperations_AsciiStringBinaryFunctors
+            ../../../empty_src.cpp
+            AsciiStringBinaryFunctors.hpp)
 add_library(quickstep_types_operations_binaryoperations_BinaryOperation
             BinaryOperation.cpp
             BinaryOperation.hpp)
-add_library(quickstep_types_operations_binaryoperations_BinaryOperationFactory
-            BinaryOperationFactory.cpp
-            BinaryOperationFactory.hpp)
-add_library(quickstep_types_operations_binaryoperations_BinaryOperationID
-            BinaryOperationID.cpp
-            BinaryOperationID.hpp)
-add_library(quickstep_types_operations_binaryoperations_DivideBinaryOperation
-            DivideBinaryOperation.cpp
-            DivideBinaryOperation.hpp)
-add_library(quickstep_types_operations_binaryoperations_ModuloBinaryOperation
-            ModuloBinaryOperation.cpp
-            ModuloBinaryOperation.hpp)
-add_library(quickstep_types_operations_binaryoperations_MultiplyBinaryOperation
-            MultiplyBinaryOperation.cpp
-            MultiplyBinaryOperation.hpp)
-add_library(quickstep_types_operations_binaryoperations_SubtractBinaryOperation
-            SubtractBinaryOperation.cpp
-            SubtractBinaryOperation.hpp)
+add_library(quickstep_types_operations_binaryoperations_BinaryOperationSynthesizer
+            ../../../empty_src.cpp
+            BinaryOperationSynthesizer.hpp)
+add_library(quickstep_types_operations_binaryoperations_CMathBinaryFunctors
+            ../../../empty_src.cpp
+            CMathBinaryFunctors.hpp)
 
 # Link dependencies:
-target_link_libraries(quickstep_types_operations_binaryoperations_AddBinaryOperation
-                      glog
+target_link_libraries(quickstep_types_operations_binaryoperations_ArithmeticBinaryFunctorOverloads
                       quickstep_types_DateOperatorOverloads
+                      quickstep_utility_meta_Common)
+target_link_libraries(quickstep_types_operations_binaryoperations_ArithmeticBinaryFunctors
                       quickstep_types_DateType
                       quickstep_types_DatetimeIntervalType
                       quickstep_types_DatetimeLit
                       quickstep_types_DatetimeType
                       quickstep_types_IntervalLit
-                      quickstep_types_Type
-                      quickstep_types_TypeErrors
-                      quickstep_types_TypeFactory
-                      quickstep_types_TypeID
-                      quickstep_types_TypedValue
-                      quickstep_types_YearMonthIntervalType
-                      quickstep_types_operations_binaryoperations_ArithmeticBinaryOperation
-                      quickstep_types_operations_binaryoperations_ArithmeticBinaryOperators
-                      quickstep_types_operations_binaryoperations_BinaryOperationID
-                      quickstep_utility_EqualsAnyConstant
-                      quickstep_utility_Macros)
-target_link_libraries(quickstep_types_operations_binaryoperations_ArithmeticBinaryOperation
-                      glog
-                      quickstep_types_DoubleType
-                      quickstep_types_FloatType
-                      quickstep_types_IntType
-                      quickstep_types_LongType
                       quickstep_types_NumericTypeUnifier
                       quickstep_types_Type
                       quickstep_types_TypeErrors
                       quickstep_types_TypeFactory
                       quickstep_types_TypeID
                       quickstep_types_TypedValue
-                      quickstep_types_operations_binaryoperations_BinaryOperation
-                      quickstep_types_operations_binaryoperations_BinaryOperationID
-                      quickstep_utility_Macros)
-target_link_libraries(quickstep_types_operations_binaryoperations_ArithmeticBinaryOperators
+                      quickstep_types_YearMonthIntervalType
+                      quickstep_types_operations_binaryoperations_ArithmeticBinaryFunctorOverloads
+                      quickstep_types_operations_binaryoperations_BinaryOperationSynthesizer
+                      quickstep_utility_meta_Common)
+target_link_libraries(quickstep_types_operations_binaryoperations_AsciiStringBinaryFunctors
                       glog
-                      quickstep_catalog_CatalogTypedefs
-                      quickstep_storage_StorageBlockInfo
-                      quickstep_storage_ValueAccessor
-                      quickstep_storage_ValueAccessorUtil
-                      quickstep_types_TypedValue
-                      quickstep_types_containers_ColumnVector
-                      quickstep_types_operations_binaryoperations_BinaryOperation
-                      quickstep_utility_Macros)
+                      quickstep_types_CharType
+                      quickstep_types_IntType
+                      quickstep_types_TextType
+                      quickstep_types_Type
+                      quickstep_types_TypeFactory
+                      quickstep_types_TypeID
+                      quickstep_types_VarCharType
+                      quickstep_types_operations_unaryoperations_UnaryOperationSynthesizer
+                      quickstep_types_operations_utility_OperationSynthesizeUtil
+                      quickstep_types_port_strnlen)
 target_link_libraries(quickstep_types_operations_binaryoperations_BinaryOperation
                       quickstep_catalog_CatalogTypedefs
                       quickstep_storage_StorageBlockInfo
                       quickstep_types_TypedValue
                       quickstep_types_operations_Operation
-                      quickstep_types_operations_Operation_proto
-                      quickstep_types_operations_binaryoperations_BinaryOperationID
+                      quickstep_types_operations_OperationSignature
                       quickstep_utility_Macros)
-target_link_libraries(quickstep_types_operations_binaryoperations_BinaryOperationFactory
+target_link_libraries(quickstep_types_operations_binaryoperations_BinaryOperationSynthesizer
                       glog
-                      quickstep_types_operations_Operation_proto
-                      quickstep_types_operations_binaryoperations_AddBinaryOperation
-                      quickstep_types_operations_binaryoperations_BinaryOperationID
-                      quickstep_types_operations_binaryoperations_DivideBinaryOperation
-                      quickstep_types_operations_binaryoperations_ModuloBinaryOperation
-                      quickstep_types_operations_binaryoperations_MultiplyBinaryOperation
-                      quickstep_types_operations_binaryoperations_SubtractBinaryOperation
-                      quickstep_utility_Macros)
-target_link_libraries(quickstep_types_operations_binaryoperations_DivideBinaryOperation
-                      glog
-                      quickstep_types_DateOperatorOverloads
-                      quickstep_types_DatetimeIntervalType
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_storage_ValueAccessor
+                      quickstep_storage_ValueAccessorUtil
+                      quickstep_types_Type
+                      quickstep_types_TypeFactory
+                      quickstep_types_TypeID
+                      quickstep_types_TypedValue
+                      quickstep_types_containers_ColumnVector
+                      quickstep_types_operations_OperationSignature
+                      quickstep_types_operations_binaryoperations_BinaryOperation
+                      quickstep_types_operations_utility_OperationSynthesizeUtil
+                      quickstep_utility_Macros
+                      quickstep_utility_meta_Common)
+target_link_libraries(quickstep_types_operations_binaryoperations_CMathBinaryFunctors
                       quickstep_types_DoubleType
                       quickstep_types_FloatType
                       quickstep_types_IntType
-                      quickstep_types_IntervalLit
                       quickstep_types_LongType
-                      quickstep_types_Type
-                      quickstep_types_TypeErrors
-                      quickstep_types_TypeFactory
-                      quickstep_types_TypeID
-                      quickstep_types_TypedValue
-                      quickstep_types_YearMonthIntervalType
-                      quickstep_types_operations_binaryoperations_ArithmeticBinaryOperation
-                      quickstep_types_operations_binaryoperations_ArithmeticBinaryOperators
-                      quickstep_types_operations_binaryoperations_BinaryOperationID
-                      quickstep_utility_EqualsAnyConstant
-                      quickstep_utility_Macros)
-target_link_libraries(quickstep_types_operations_binaryoperations_ModuloBinaryOperation
-                      glog
-                      quickstep_types_Type
-                      quickstep_types_TypeErrors
-                      quickstep_types_TypeFactory
-                      quickstep_types_TypeID
-                      quickstep_types_TypedValue
-                      quickstep_types_operations_binaryoperations_ArithmeticBinaryOperation
-                      quickstep_types_operations_binaryoperations_ArithmeticBinaryOperators
-                      quickstep_types_operations_binaryoperations_BinaryOperationID
-                      quickstep_utility_EqualsAnyConstant
-                      quickstep_utility_Macros)
-target_link_libraries(quickstep_types_operations_binaryoperations_MultiplyBinaryOperation
-                      glog
-                      quickstep_types_DateOperatorOverloads
-                      quickstep_types_DatetimeIntervalType
-                      quickstep_types_DoubleType
-                      quickstep_types_FloatType
-                      quickstep_types_IntType
-                      quickstep_types_IntervalLit
-                      quickstep_types_LongType
-                      quickstep_types_Type
-                      quickstep_types_TypeErrors
-                      quickstep_types_TypeFactory
-                      quickstep_types_TypeID
-                      quickstep_types_TypedValue
-                      quickstep_types_YearMonthIntervalType
-                      quickstep_types_operations_binaryoperations_ArithmeticBinaryOperation
-                      quickstep_types_operations_binaryoperations_ArithmeticBinaryOperators
-                      quickstep_types_operations_binaryoperations_BinaryOperationID
-                      quickstep_utility_EqualsAnyConstant
-                      quickstep_utility_Macros)
-target_link_libraries(quickstep_types_operations_binaryoperations_SubtractBinaryOperation
-                      glog
-                      quickstep_types_DateOperatorOverloads
-                      quickstep_types_DateType
-                      quickstep_types_DatetimeIntervalType
-                      quickstep_types_DatetimeLit
-                      quickstep_types_DatetimeType
-                      quickstep_types_IntervalLit
-                      quickstep_types_Type
-                      quickstep_types_TypeErrors
-                      quickstep_types_TypeFactory
-                      quickstep_types_TypeID
-                      quickstep_types_TypedValue
-                      quickstep_types_YearMonthIntervalType
-                      quickstep_types_operations_binaryoperations_ArithmeticBinaryOperation
-                      quickstep_types_operations_binaryoperations_ArithmeticBinaryOperators
-                      quickstep_types_operations_binaryoperations_BinaryOperationID
-                      quickstep_utility_EqualsAnyConstant
-                      quickstep_utility_Macros)
+                      quickstep_types_operations_binaryoperations_BinaryOperationSynthesizer
+                      quickstep_types_operations_utility_OperationSynthesizeUtil
+                      quickstep_utility_meta_Common)
 
 # Module all-in-one library:
 add_library(quickstep_types_operations_binaryoperations ../../../empty_src.cpp)
 target_link_libraries(quickstep_types_operations_binaryoperations
                       quickstep_types_operations_binaryoperations_AddBinaryOperation
-                      quickstep_types_operations_binaryoperations_ArithmeticBinaryOperation
-                      quickstep_types_operations_binaryoperations_ArithmeticBinaryOperators
+                      quickstep_types_operations_binaryoperations_ArithmeticBinaryFunctors
+                      quickstep_types_operations_binaryoperations_ArithmeticBinaryFunctorOverloads
+                      quickstep_types_operations_binaryoperations_AsciiStringBinaryFunctors
                       quickstep_types_operations_binaryoperations_BinaryOperation
-                      quickstep_types_operations_binaryoperations_BinaryOperationFactory
-                      quickstep_types_operations_binaryoperations_BinaryOperationID
-                      quickstep_types_operations_binaryoperations_DivideBinaryOperation
-                      quickstep_types_operations_binaryoperations_ModuloBinaryOperation
-                      quickstep_types_operations_binaryoperations_MultiplyBinaryOperation
-                      quickstep_types_operations_binaryoperations_SubtractBinaryOperation)
+                      quickstep_types_operations_binaryoperations_BinaryOperationSynthesizer
+                      quickstep_types_operations_binaryoperations_CMathBinaryFunctors)
 
 # Tests:
 add_library(quickstep_types_operations_binaryoperations_tests_BinaryOperationTestUtil
@@ -228,14 +141,7 @@ target_link_libraries(BinaryOperation_tests
                       quickstep_types_TypeID
                       quickstep_types_TypedValue
                       quickstep_types_operations_Operation_proto
-                      quickstep_types_operations_binaryoperations_AddBinaryOperation
                       quickstep_types_operations_binaryoperations_BinaryOperation
-                      quickstep_types_operations_binaryoperations_BinaryOperationFactory
-                      quickstep_types_operations_binaryoperations_BinaryOperationID
-                      quickstep_types_operations_binaryoperations_DivideBinaryOperation
-                      quickstep_types_operations_binaryoperations_ModuloBinaryOperation
-                      quickstep_types_operations_binaryoperations_MultiplyBinaryOperation
-                      quickstep_types_operations_binaryoperations_SubtractBinaryOperation
                       quickstep_types_operations_binaryoperations_tests_BinaryOperationTestUtil
                       quickstep_utility_Macros)
 add_test(BinaryOperation_tests BinaryOperation_tests)

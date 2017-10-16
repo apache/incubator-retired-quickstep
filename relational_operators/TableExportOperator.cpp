@@ -326,7 +326,7 @@ void TableExportToStringWorkOrder::writeToString(ValueAccessor *accessor,
       if (value.isNull()) {
         return null_string_;
       } else {
-        return value_types[idx]->printValueToString(value);
+        return value_types[idx]->printTypedValueToString(value);
       }
     });
     output->push_back('\n');

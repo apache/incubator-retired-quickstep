@@ -20,16 +20,9 @@
 #ifndef QUICKSTEP_TYPES_NUMERIC_TYPE_UNIFIER_HPP_
 #define QUICKSTEP_TYPES_NUMERIC_TYPE_UNIFIER_HPP_
 
+#include "types/NumericTypeSafeCoercibility.hpp"
+
 namespace quickstep {
-
-class DoubleType;
-class FloatType;
-class IntType;
-class LongType;
-
-/** \addtogroup Types
- *  @{
- */
 
 /**
  * @brief A traits template that resolves what the "unifying" Type of two
@@ -51,92 +44,47 @@ class LongType;
  * @tparam RightType The second Quickstep numeric Type class to unify.
  **/
 template <typename LeftType, typename RightType>
-struct NumericTypeUnifier {
+struct NumericTypeUnifier;
+
+
+namespace internal {
+
+template <typename LeftType, typename RightType, typename EnableT = void>
+struct NumericTypeUnifierHelper;
+
+template <typename LeftType, typename RightType>
+struct NumericTypeUnifierHelper<
+    LeftType, RightType,
+    std::enable_if_t<NumericTypeSafeCoercibility<LeftType, RightType>::value>> {
+  typedef RightType type;
 };
+
+template <typename LeftType, typename RightType>
+struct NumericTypeUnifierHelper<
+    LeftType, RightType,
+    std::enable_if_t<!std::is_same<LeftType, RightType>::value &&
+                     NumericTypeSafeCoercibility<RightType, LeftType>::value>> {
+  typedef LeftType type;
+};
+
+// Explicit template specializations
+template<>
+struct NumericTypeUnifierHelper<LongType, FloatType> {
+  typedef DoubleType type;
+};
+
+template<>
+struct NumericTypeUnifierHelper<FloatType, LongType> {
+  typedef DoubleType type;
+};
+
+}  // namespace internal
+
+template <typename LeftType, typename RightType>
+struct NumericTypeUnifier
+    : internal::NumericTypeUnifierHelper<LeftType, RightType> {};
 
 /** @} */
-
-// Explicit template specializations for all combinations of builtin numeric
-// types.
-template<>
-struct NumericTypeUnifier<IntType, IntType> {
-  typedef IntType type;
-};
-
-template<>
-struct NumericTypeUnifier<IntType, LongType> {
-  typedef LongType type;
-};
-
-template<>
-struct NumericTypeUnifier<IntType, FloatType> {
-  typedef FloatType type;
-};
-
-template<>
-struct NumericTypeUnifier<IntType, DoubleType> {
-  typedef DoubleType type;
-};
-
-template<>
-struct NumericTypeUnifier<LongType, IntType> {
-  typedef LongType type;
-};
-
-template<>
-struct NumericTypeUnifier<LongType, LongType> {
-  typedef LongType type;
-};
-
-template<>
-struct NumericTypeUnifier<LongType, FloatType> {
-  typedef DoubleType type;
-};
-
-template<>
-struct NumericTypeUnifier<LongType, DoubleType> {
-  typedef DoubleType type;
-};
-
-template<>
-struct NumericTypeUnifier<FloatType, IntType> {
-  typedef FloatType type;
-};
-
-template<>
-struct NumericTypeUnifier<FloatType, LongType> {
-  typedef DoubleType type;
-};
-
-template<>
-struct NumericTypeUnifier<FloatType, FloatType> {
-  typedef FloatType type;
-};
-
-template<>
-struct NumericTypeUnifier<FloatType, DoubleType> {
-  typedef DoubleType type;
-};
-
-template<>
-struct NumericTypeUnifier<DoubleType, IntType> {
-  typedef DoubleType type;
-};
-
-template<>
-struct NumericTypeUnifier<DoubleType, LongType> {
-  typedef DoubleType type;
-};
-
-template<>
-struct NumericTypeUnifier<DoubleType, FloatType> {
-  typedef DoubleType type;
-};
-
-template<>
-struct NumericTypeUnifier<DoubleType, DoubleType> {
-  typedef DoubleType type;
-};
 
 }  // namespace quickstep
 

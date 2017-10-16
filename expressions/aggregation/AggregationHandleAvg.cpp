@@ -32,9 +32,8 @@
 #include "types/TypeFactory.hpp"
 #include "types/TypeID.hpp"
 #include "types/TypedValue.hpp"
+#include "types/operations/OperationFactory.hpp"
 #include "types/operations/binary_operations/BinaryOperation.hpp"
-#include "types/operations/binary_operations/BinaryOperationFactory.hpp"
-#include "types/operations/binary_operations/BinaryOperationID.hpp"
 
 #include "glog/logging.h"
 
@@ -69,24 +68,23 @@ AggregationHandleAvg::AggregationHandleAvg(const Type &type)
   // Make operators to do arithmetic:
   // Add operator for summing argument values.
   fast_add_operator_.reset(
-      BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kAdd)
-          .makeUncheckedBinaryOperatorForTypes(sum_type, argument_type_));
+      OperationFactory::GetAddOperation(type_precision_id, argument_type_.getTypeID())
+          ->makeUncheckedBinaryOperator(sum_type, argument_type_));
   // Add operator for merging states.
   merge_add_operator_.reset(
-      BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kAdd)
-          .makeUncheckedBinaryOperatorForTypes(sum_type, sum_type));
+      OperationFactory::GetAddOperation(type_precision_id, type_precision_id)
+          ->makeUncheckedBinaryOperator(sum_type, sum_type));
   // Divide operator for dividing sum by count to get final average.
   divide_operator_.reset(
-      BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kDivide)
-          .makeUncheckedBinaryOperatorForTypes(sum_type,
-                                               TypeFactory::GetType(kDouble)));
+      OperationFactory::GetDivideOperation(type_precision_id, kDouble)
+          ->makeUncheckedBinaryOperator(sum_type, TypeFactory::GetType(kDouble)));
 
   // Result is nullable, because AVG() over 0 values (or all NULL values) is
   // NULL.
   result_type_ =
-      &(BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kDivide)
-            .resultTypeForArgumentTypes(sum_type, TypeFactory::GetType(kDouble))
-            ->getNullableVersion());
+      &OperationFactory::GetDivideOperation(type_precision_id, kDouble)
+          ->getResultType(sum_type, TypeFactory::GetType(kDouble))
+              ->getNullableVersion();
 }
 
 AggregationState* AggregationHandleAvg::accumulateValueAccessor(

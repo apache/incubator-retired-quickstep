@@ -16,80 +16,127 @@
 # under the License.
 
 # Declare micro-libs:
-add_library(quickstep_types_operations_unaryoperations_ArithmeticUnaryOperations ArithmeticUnaryOperations.cpp ArithmeticUnaryOperations.hpp)
-add_library(quickstep_types_operations_unaryoperations_ArithmeticUnaryOperators ../../../empty_src.cpp ArithmeticUnaryOperators.hpp)
-add_library(quickstep_types_operations_unaryoperations_DateExtractOperation DateExtractOperation.cpp DateExtractOperation.hpp)
-add_library(quickstep_types_operations_unaryoperations_NumericCastOperation ../../../empty_src.cpp NumericCastOperation.hpp)
-add_library(quickstep_types_operations_unaryoperations_SubstringOperation SubstringOperation.cpp SubstringOperation.hpp)
+add_library(quickstep_types_operations_unaryoperations_ArithmeticUnaryFunctors
+            ../../../empty_src.cpp
+            ArithmeticUnaryFunctors.hpp)
+add_library(quickstep_types_operations_unaryoperations_AsciiStringUnaryFunctors
+            ../../../empty_src.cpp
+            AsciiStringUnaryFunctors.hpp)
+add_library(quickstep_types_operations_unaryoperations_CMathUnaryFunctors
+            ../../../empty_src.cpp
+            CMathUnaryFunctors.hpp)
+add_library(quickstep_types_operations_unaryoperations_CastFunctorOverloads
+            ../../../empty_src.cpp
+            CastFunctorOverloads.hpp)
+add_library(quickstep_types_operations_unaryoperations_CastOperation CastOperation.cpp CastOperation.hpp)
+add_library(quickstep_types_operations_unaryoperations_DateExtractOperation
+            DateExtractOperation.cpp
+            DateExtractOperation.hpp)
+add_library(quickstep_types_operations_unaryoperations_SubstringOperation
+            SubstringOperation.cpp
+            SubstringOperation.hpp)
 add_library(quickstep_types_operations_unaryoperations_UnaryOperation UnaryOperation.cpp UnaryOperation.hpp)
-add_library(quickstep_types_operations_unaryoperations_UnaryOperationFactory UnaryOperationFactory.cpp UnaryOperationFactory.hpp)
-add_library(quickstep_types_operations_unaryoperations_UnaryOperationID UnaryOperationID.cpp UnaryOperationID.hpp)
+add_library(quickstep_types_operations_unaryoperations_UnaryOperationSynthesizer
+            ../../../empty_src.cpp
+            UnaryOperationSynthesizer.hpp)
 
 # Link dependencies:
-target_link_libraries(quickstep_types_operations_unaryoperations_ArithmeticUnaryOperations
+target_link_libraries(quickstep_types_operations_unaryoperations_ArithmeticUnaryFunctors
                       glog
                       quickstep_types_DatetimeIntervalType
                       quickstep_types_DoubleType
                       quickstep_types_FloatType
                       quickstep_types_IntType
                       quickstep_types_LongType
-                      quickstep_types_Type
-                      quickstep_types_TypeErrors
-                      quickstep_types_TypeID
-                      quickstep_types_TypedValue
                       quickstep_types_YearMonthIntervalType
-                      quickstep_types_operations_unaryoperations_ArithmeticUnaryOperators
-                      quickstep_types_operations_unaryoperations_UnaryOperation
-                      quickstep_types_operations_unaryoperations_UnaryOperationID
-                      quickstep_utility_EqualsAnyConstant
-                      quickstep_utility_Macros)
-target_link_libraries(quickstep_types_operations_unaryoperations_ArithmeticUnaryOperators
-                      glog
-                      quickstep_catalog_CatalogTypedefs
-                      quickstep_storage_StorageBlockInfo
-                      quickstep_storage_ValueAccessor
-                      quickstep_storage_ValueAccessorUtil
-                      quickstep_types_TypedValue
-                      quickstep_types_containers_ColumnVector
-                      quickstep_types_operations_unaryoperations_UnaryOperation
-                      quickstep_utility_Macros)
-target_link_libraries(quickstep_types_operations_unaryoperations_DateExtractOperation
-                      glog
-                      quickstep_catalog_CatalogTypedefs
-                      quickstep_storage_StorageBlockInfo
-                      quickstep_storage_ValueAccessor
-                      quickstep_storage_ValueAccessorUtil
-                      quickstep_types_DatetimeLit
+                      quickstep_types_operations_unaryoperations_UnaryOperationSynthesizer
+                      quickstep_types_operations_utility_OperationSynthesizeUtil)
+target_link_libraries(quickstep_types_operations_unaryoperations_AsciiStringUnaryFunctors
+                      quickstep_types_CharType
                       quickstep_types_IntType
-                      quickstep_types_LongType
                       quickstep_types_Type
                       quickstep_types_TypeFactory
                       quickstep_types_TypeID
-                      quickstep_types_TypedValue
-                      quickstep_types_containers_ColumnVector
-                      quickstep_types_operations_Operation_proto
-                      quickstep_types_operations_unaryoperations_UnaryOperation
-                      quickstep_types_operations_unaryoperations_UnaryOperationID
-                      quickstep_utility_Macros)
-target_link_libraries(quickstep_types_operations_unaryoperations_NumericCastOperation
-                      glog
-                      quickstep_catalog_CatalogTypedefs
-                      quickstep_storage_ValueAccessor
-                      quickstep_storage_ValueAccessorUtil
+                      quickstep_types_VarCharType
+                      quickstep_types_operations_unaryoperations_UnaryOperationSynthesizer
+                      quickstep_types_operations_utility_OperationSynthesizeUtil
+                      quickstep_types_port_strnlen
+                      quickstep_utility_meta_Common)
+target_link_libraries(quickstep_types_operations_unaryoperations_CMathUnaryFunctors
                       quickstep_types_DoubleType
                       quickstep_types_FloatType
                       quickstep_types_IntType
                       quickstep_types_LongType
+                      quickstep_types_operations_unaryoperations_UnaryOperationSynthesizer
+                      quickstep_types_operations_utility_OperationSynthesizeUtil
+                      quickstep_utility_meta_Common)
+target_link_libraries(quickstep_types_operations_unaryoperations_CastFunctorOverloads
+                      quickstep_types_TypeRegistrar
+                      quickstep_types_TypedValue
+                      quickstep_types_operations_unaryoperations_UnaryOperationSynthesizer
+                      quickstep_utility_meta_TypeList)
+target_link_libraries(quickstep_types_operations_unaryoperations_CastOperation
+                      glog
+                      quickstep_types_CharType
+                      quickstep_types_DoubleType
+                      quickstep_types_FloatType
+                      quickstep_types_GenericValue
+                      quickstep_types_IntType
+                      quickstep_types_LongType
+                      quickstep_types_MetaType
+                      quickstep_types_Type
+                      quickstep_types_TypeFactory
+                      quickstep_types_TypeID
+                      quickstep_types_TypeUtil
+                      quickstep_types_TypedValue
+                      quickstep_types_VarCharType
+                      quickstep_types_operations_unaryoperations_CastFunctorOverloads
+                      quickstep_types_operations_unaryoperations_UnaryOperation
+                      quickstep_types_operations_unaryoperations_UnaryOperationSynthesizer
+                      quickstep_types_port_strnlen
+                      quickstep_utility_EqualsAnyConstant
+                      quickstep_utility_Macros
+                      quickstep_utility_StringUtil
+                      quickstep_utility_meta_Common)
+target_link_libraries(quickstep_types_operations_unaryoperations_DateExtractOperation
+                      glog
+                      quickstep_types_DateType
+                      quickstep_types_DatetimeLit
+                      quickstep_types_DatetimeType
+                      quickstep_types_IntType
+                      quickstep_types_LongType
                       quickstep_types_Type
                       quickstep_types_TypeID
                       quickstep_types_TypedValue
-                      quickstep_types_containers_ColumnVector
-                      quickstep_types_operations_Operation_proto
                       quickstep_types_operations_unaryoperations_UnaryOperation
-                      quickstep_types_operations_unaryoperations_UnaryOperationID
+                      quickstep_types_operations_unaryoperations_UnaryOperationSynthesizer
                       quickstep_utility_Macros
-                      quickstep_utility_PtrMap)
+                      quickstep_utility_StringUtil)
 target_link_libraries(quickstep_types_operations_unaryoperations_SubstringOperation
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_storage_ValueAccessor
+                      quickstep_storage_ValueAccessorUtil
+                      quickstep_types_CharType
+                      quickstep_types_Type
+                      quickstep_types_TypeFactory
+                      quickstep_types_TypeID
+                      quickstep_types_TypedValue
+                      quickstep_types_VarCharType
+                      quickstep_types_containers_ColumnVector
+                      quickstep_types_containers_ColumnVectorUtil
+                      quickstep_types_operations_unaryoperations_UnaryOperation
+                      quickstep_types_port_strnlen
+                      quickstep_utility_Macros
+                      quickstep_utility_meta_Dispatchers)
+target_link_libraries(quickstep_types_operations_unaryoperations_UnaryOperation
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_types_TypedValue
+                      quickstep_types_operations_Operation
+                      quickstep_types_operations_OperationSignature
+                      quickstep_types_operations_Operation_proto
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_types_operations_unaryoperations_UnaryOperationSynthesizer
+                      glog
                       quickstep_catalog_CatalogTypedefs
                       quickstep_storage_ValueAccessor
                       quickstep_storage_ValueAccessorUtil
@@ -98,44 +145,23 @@ target_link_libraries(quickstep_types_operations_unaryoperations_SubstringOperat
                       quickstep_types_TypeID
                       quickstep_types_TypedValue
                       quickstep_types_containers_ColumnVector
-                      quickstep_types_containers_ColumnVectorUtil
-                      quickstep_types_operations_Operation_proto
+                      quickstep_types_operations_OperationSignature
                       quickstep_types_operations_unaryoperations_UnaryOperation
-                      quickstep_types_operations_unaryoperations_UnaryOperationID
-                      quickstep_types_port_strnlen
-                      quickstep_utility_HashPair
-                      quickstep_utility_Macros
-                      quickstep_utility_TemplateUtil)
-target_link_libraries(quickstep_types_operations_unaryoperations_UnaryOperation
-                      quickstep_catalog_CatalogTypedefs
-                      quickstep_storage_StorageBlockInfo
-                      quickstep_types_TypedValue
-                      quickstep_types_operations_Operation
-                      quickstep_types_operations_Operation_proto
-                      quickstep_types_operations_unaryoperations_UnaryOperationID
-                      quickstep_utility_Macros)
-target_link_libraries(quickstep_types_operations_unaryoperations_UnaryOperationFactory
-                      glog
-                      quickstep_types_TypeFactory
-                      quickstep_types_operations_Operation_proto
-                      quickstep_types_operations_unaryoperations_ArithmeticUnaryOperations
-                      quickstep_types_operations_unaryoperations_DateExtractOperation
-                      quickstep_types_operations_unaryoperations_NumericCastOperation
-                      quickstep_types_operations_unaryoperations_SubstringOperation
-                      quickstep_types_operations_unaryoperations_UnaryOperationID
+                      quickstep_types_operations_utility_OperationSynthesizeUtil
                       quickstep_utility_Macros)
 
 # Module all-in-one library:
 add_library(quickstep_types_operations_unaryoperations ../../../empty_src.cpp)
 target_link_libraries(quickstep_types_operations_unaryoperations
-                      quickstep_types_operations_unaryoperations_ArithmeticUnaryOperations
-                      quickstep_types_operations_unaryoperations_ArithmeticUnaryOperators
+                      quickstep_types_operations_unaryoperations_ArithmeticUnaryFunctors
+                      quickstep_types_operations_unaryoperations_AsciiStringUnaryFunctors
+                      quickstep_types_operations_unaryoperations_CMathUnaryFunctors
+                      quickstep_types_operations_unaryoperations_CastFunctorOverloads
+                      quickstep_types_operations_unaryoperations_CastOperation
                       quickstep_types_operations_unaryoperations_DateExtractOperation
-                      quickstep_types_operations_unaryoperations_NumericCastOperation
                       quickstep_types_operations_unaryoperations_SubstringOperation
                       quickstep_types_operations_unaryoperations_UnaryOperation
-                      quickstep_types_operations_unaryoperations_UnaryOperationFactory
-                      quickstep_types_operations_unaryoperations_UnaryOperationID)
+                      quickstep_types_operations_unaryoperations_UnaryOperationSynthesizer)
 
 # Tests:
 
@@ -159,12 +185,10 @@ target_link_libraries(UnaryOperation_tests
                       quickstep_types_TypedValue
                       quickstep_types_containers_ColumnVector
                       quickstep_types_operations_Operation_proto
-                      quickstep_types_operations_unaryoperations_ArithmeticUnaryOperations
+                      quickstep_types_operations_unaryoperations_ArithmeticUnaryFunctors
+                      quickstep_types_operations_unaryoperations_CastOperation
                       quickstep_types_operations_unaryoperations_DateExtractOperation
-                      quickstep_types_operations_unaryoperations_NumericCastOperation
                       quickstep_types_operations_unaryoperations_UnaryOperation
-                      quickstep_types_operations_unaryoperations_UnaryOperationFactory
-                      quickstep_types_operations_unaryoperations_UnaryOperationID
                       quickstep_utility_EqualsAnyConstant
                       quickstep_utility_Macros)
 add_test(UnaryOperation_tests UnaryOperation_tests)

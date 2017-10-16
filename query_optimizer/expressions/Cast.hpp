@@ -55,13 +55,23 @@ typedef std::shared_ptr<const Cast> CastPtr;
  */
 class Cast : public Scalar {
  public:
-  ExpressionType getExpressionType() const override { return ExpressionType::kCast; }
+  ExpressionType getExpressionType() const override {
+    return ExpressionType::kCast;
+  }
 
-  std::string getName() const override { return "Cast"; }
+  std::string getName() const override {
+    return "Cast";
+  }
 
-  const Type& getValueType() const override { return target_type_; }
+  const Type& getValueType() const override {
+    return target_type_;
+  }
 
-  bool isConstant() const override { return operand_->isConstant(); }
+  bool isConstant() const override {
+    return operand_->isConstant();
+  }
+
+  TypedValue getConstantValue() const override;
 
   /**
    * @return The expression to be coerced.
@@ -77,6 +87,7 @@ class Cast : public Scalar {
 
   ::quickstep::Scalar* concretize(
       const std::unordered_map<ExprId, const CatalogAttribute*> &substitution_map) const override;
+
 
   bool equals(const ScalarPtr &other) const override;
 

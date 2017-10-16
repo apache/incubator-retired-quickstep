@@ -24,10 +24,13 @@
 #include <cstdint>
 #include <cstdio>
 #include <string>
+#include <vector>
 
 #include "types/Type.pb.h"
 #include "types/TypeID.hpp"
+#include "types/TypeRegistrar.hpp"
 #include "types/TypedValue.hpp"
+#include "utility/CharStream.hpp"
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
@@ -93,15 +96,6 @@ struct YearMonthIntervalLit;
 class Type {
  public:
   /**
-   * @brief Categories of intermediate supertypes.
-   **/
-  enum SuperTypeID {
-    kNumeric = 0,  // Fixed-length numeric types (Int, Long, Float, Double)
-    kAsciiString,  // ASCII strings (Char, VarChar)
-    kOther         // Others (Date, Datetime, DatetimeInterval, YearMonthInterval)
-  };
-
-  /**
    * @brief Virtual destructor.
    **/
   virtual ~Type() {
@@ -112,7 +106,7 @@ class Type {
    *
    * @return The serialized Protocol Buffer representation of this Type.
    **/
-  virtual serialization::Type getProto() const;
+  virtual serialization::Type getProto() const = 0;
 
   /**
    * @brief Determine what supertype this type belongs to.
@@ -132,6 +126,10 @@ class Type {
     return type_id_;
   }
 
+  inline MemoryLayout getMemoryLayout() const {
+    return memory_layout_;
+  }
+
   /**
    * @brief Determine whether this Type allows NULL values.
    *
@@ -139,32 +137,6 @@ class Type {
    **/
   inline bool isNullable() const {
     return nullable_;
-  }
-
-  /**
-   * @brief Get this Type's signature.
-   *
-   * @note The signature does not necessarily uniquely identify this Type. It
-   *       merely provides some basic information for debugging that can be
-   *       passed to TypedValue::isPlausibleInstanceOf().
-   *
-   * @return This Type's signature.
-   **/
-  inline TypeSignature getSignature() const {
-    TypeSignature sig;
-    sig.id = type_id_;
-    sig.nullable = nullable_;
-    switch (type_id_) {
-      case kChar:
-        sig.length = maximum_byte_length_;
-        break;
-      case kVarChar:
-        sig.length = maximum_byte_length_ - 1;
-        break;
-      default:
-        sig.length = 0;
-    }
-    return sig;
   }
 
   /**
@@ -227,7 +199,7 @@ class Type {
    * @return An estimate of the average number of bytes used by data items of
    *         this type.
    **/
-  virtual std::size_t estimateAverageByteLength() const = 0;
+  virtual std::size_t estimateAverageByteLength() const;
 
   /**
    * @brief Determine whether this Type is exactly the same as another.
@@ -264,7 +236,7 @@ class Type {
    * @note It is NOT possible to coerce a nullable type to a non-nullable type,
    *       even if coercion would otherwise be possible.
    * @note Integer types are safely coercible to other integer or
-   *       floating-poin types of equal or greater length.
+   *       floating-point types of equal or greater length.
    * @note Floating-point types are safely coercible to other floating-point
    *       types of equal or greater precision.
    * @note ASCII string types are safely coercible to other ASCII string types
@@ -277,7 +249,7 @@ class Type {
    * @param original_type The original Type for coercion to this Type.
    * @return true if coercion is supported, false otherwise.
    **/
-  virtual bool isSafelyCoercibleFrom(const Type &original_type) const = 0;
+  virtual bool isSafelyCoercibleFrom(const Type &original_type) const;
 
   /**
    * @brief Determine whether data items of this type are always guaranteed to
@@ -322,34 +294,19 @@ class Type {
    **/
   virtual int getPrintWidth() const = 0;
 
-  /**
-   * @brief "Print" a value of this Type as a human-readable string.
-   * @warning It is an error to call this with a NULL value. This method prints
-   *          non-NULL values only.
-   *
-   * @param value A value of this Type.
-   * @return The human-readable string representation of value.
-   **/
-  virtual std::string printValueToString(const TypedValue &value) const = 0;
 
-  /**
-   * @brief Print the human-readable string representation of a value of this
-   *        type to a FILE stream.
-   * @warning It is an error to call this with a NULL value. This method prints
-   *          non-NULL values only.
-   *
-   * @param value A value of this Type.
-   * @param file An open FILE stream to print to.
-   * @param padding If nonzero, left-pad the printed value with spaces up to
-   *        this length. If padding is less than the number of characters
-   *        needed to print the value, then more than padding characters will
-   *        be printed (see getPrintWidth() for information about how long a
-   *        printed string may be).
-   **/
-  virtual void printValueToFile(const TypedValue &value,
+  virtual std::string printValueToString(const UntypedLiteral *value) const = 0;
+
+  virtual std::string printTypedValueToString(const TypedValue &value) const = 0;
+
+
+  virtual void printValueToFile(const UntypedLiteral *value,
                                 FILE *file,
-                                const int padding = 0) const = 0;
+                                const int padding = 0) const;
 
+  virtual void printTypedValueToFile(const TypedValue &value,
+                                     FILE *file,
+                                     const int padding = 0) const = 0;
   /**
    * @brief Make a TypedValue of this Type.
    *
@@ -426,8 +383,8 @@ class Type {
    * @return true if value_string was successfully parsed and value was
    *         written. false if value_string was not in the correct format.
    **/
-  virtual bool parseValueFromString(const std::string &value_string,
-                                    TypedValue *value) const = 0;
+  virtual bool parseTypedValueFromString(const std::string &value_string,
+                                         TypedValue *value) const = 0;
 
   /**
    * @brief Coerce a value of another Type to this Type.
@@ -445,17 +402,46 @@ class Type {
    * @return A new TypedValue that represents original_value as an instance of
    *         this Type.
    **/
-  virtual TypedValue coerceValue(const TypedValue &original_value,
-                                 const Type &original_type) const;
+  virtual TypedValue coerceTypedValue(const TypedValue &original_value,
+                                      const Type &original_type) const;
+
+  virtual std::size_t getHash() const = 0;
+
+  virtual bool checkValuesEqual(const UntypedLiteral *lhs,
+                                const UntypedLiteral *rhs,
+                                const Type &rhs_type) const = 0;
+
+  inline bool checkValuesEqual(const UntypedLiteral *lhs,
+                               const UntypedLiteral *rhs) const {
+    return checkValuesEqual(lhs, rhs, *this);
+  }
+
+  virtual UntypedLiteral* coerceValue(const UntypedLiteral *original_value,
+                                      const Type &original_type) const;
+
+  virtual UntypedLiteral* cloneValue(const UntypedLiteral *value) const = 0;
+
+  virtual void destroyValue(UntypedLiteral *value) const = 0;
+
+  virtual std::size_t hashValue(const UntypedLiteral *value) const = 0;
+
+  virtual TypedValue marshallValue(const UntypedLiteral *value) const = 0;
+
+  virtual UntypedLiteral* unmarshallValue(const void *data,
+                                          const std::size_t length) const = 0;
+
+  virtual UntypedLiteral* unmarshallTypedValue(const TypedValue &value) const = 0;
 
  protected:
   Type(const SuperTypeID super_type_id,
        const TypeID type_id,
+       const MemoryLayout memory_layout,
        const bool nullable,
        const std::size_t minimum_byte_length,
        const std::size_t maximum_byte_length)
       : super_type_id_(super_type_id),
         type_id_(type_id),
+        memory_layout_(memory_layout),
         nullable_(nullable),
         minimum_byte_length_(minimum_byte_length),
         maximum_byte_length_(maximum_byte_length) {
@@ -463,44 +449,13 @@ class Type {
 
   const SuperTypeID super_type_id_;
   const TypeID type_id_;
+  const MemoryLayout memory_layout_;
   const bool nullable_;
   const std::size_t minimum_byte_length_;
   const std::size_t maximum_byte_length_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(Type);
-};
-
-/**
- * @brief A superclass for ASCII string types.
- **/
-class AsciiStringSuperType : public Type {
- public:
-  bool isCoercibleFrom(const Type &original_type) const override;
-
-  /**
-   * @brief Get the character-length of this string type.
-   *
-   * @return The maximum length of a string of this type.
-   **/
-  inline std::size_t getStringLength() const {
-    return length_;
-  }
-
- protected:
-  AsciiStringSuperType(const TypeID type_id,
-                       const bool nullable,
-                       const std::size_t minimum_byte_length,
-                       const std::size_t maximum_byte_length,
-                       const std::size_t string_length)
-      : Type(Type::kAsciiString, type_id, nullable, minimum_byte_length, maximum_byte_length),
-        length_(string_length) {
-  }
-
-  const std::size_t length_;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(AsciiStringSuperType);
 };
 
 /** @} */

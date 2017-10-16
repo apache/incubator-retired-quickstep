@@ -22,6 +22,8 @@
 
 #include "types/containers/ColumnVector.hpp"
 
+#include "glog/logging.h"
+
 namespace quickstep {
 
 /** \addtogroup Types
@@ -43,9 +45,11 @@ namespace quickstep {
 template <typename FunctorT>
 auto InvokeOnColumnVector(const ColumnVector &column_vector,
                           const FunctorT &functor) {
-  if (column_vector.isNative()) {
+  // TODO(refactor-type):
+  if (column_vector.getImplementation() == ColumnVector::kNative) {
     return functor(static_cast<const NativeColumnVector&>(column_vector));
   } else {
+    DCHECK(column_vector.getImplementation() == ColumnVector::kIndirect);
     return functor(static_cast<const IndirectColumnVector&>(column_vector));
   }
 }

@@ -21,6 +21,12 @@
 
 #include <cstddef>
 
+#include "types/TypeID.hpp"
+#include "types/TypeUtil.hpp"
+#include "types/TypeRegistrar.hpp"
+#include "types/TypeIDSelectors.hpp"
+#include "utility/Macros.hpp"
+
 namespace quickstep {
 
 class Type;
@@ -30,15 +36,36 @@ ColumnVector* ColumnVector::MakeVectorOfValue(
     const Type &value_type,
     const TypedValue &value,
     const std::size_t num_copies) {
-  if (NativeColumnVector::UsableForType(value_type)) {
-    NativeColumnVector *result = new NativeColumnVector(value_type, num_copies);
-    result->fillWithValue(value);
-    return result;
-  } else {
-    IndirectColumnVector *result = new IndirectColumnVector(value_type, num_copies);
-    result->fillWithValue(value);
-    return result;
+  switch (value_type.getMemoryLayout()) {
+    case kCxxInlinePod:  // Fall through
+    case kParInlinePod: {
+      NativeColumnVector *result = new NativeColumnVector(value_type, num_copies);
+      result->fillWithValue(value);
+      return result;
+    }
+    case kParOutOfLinePod: {
+      IndirectColumnVector *result = new IndirectColumnVector(value_type, num_copies);
+      result->fillWithValue(value);
+      return result;
+    }
+    case kCxxGeneric: {
+      // TODO(refactor-type): Omit non-supported types.
+      return InvokeOnTypeID<TypeIDSelectorMemoryLayout<kCxxGeneric>>(
+          value_type.getTypeID(),
+          [&](auto tid) -> ColumnVector* {
+        using TypeClass = typename TypeIDTrait<decltype(tid)::value>::TypeClass;
+        GenericColumnVector<TypeClass> *result =
+            new GenericColumnVector<TypeClass>(value_type, num_copies);
+        result->fillWithValue(value);
+        return result;
+      });
+    }
   }
+  QUICKSTEP_UNREACHABLE();
 }
+
+constexpr ColumnVector::Implementation NativeColumnVector::kImplementation;
+
+constexpr ColumnVector::Implementation IndirectColumnVector::kImplementation;
 
 }  // namespace quickstep

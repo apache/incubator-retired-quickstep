@@ -42,38 +42,6 @@ using std::string;
 
 namespace quickstep {
 
-template <bool nullable_internal>
-const VarCharType& VarCharType::InstanceInternal(const std::size_t length) {
-  static PtrMap<size_t, VarCharType> instance_map;
-  PtrMap<size_t, VarCharType>::iterator imit = instance_map.find(length);
-  if (imit == instance_map.end()) {
-    imit = instance_map.insert(length, new VarCharType(length, nullable_internal)).first;
-  }
-  return *(imit->second);
-}
-
-const VarCharType& VarCharType::InstanceNonNullable(const std::size_t length) {
-  return InstanceInternal<false>(length);
-}
-
-const VarCharType& VarCharType::InstanceNullable(const std::size_t length) {
-  return InstanceInternal<true>(length);
-}
-
-const VarCharType& VarCharType::InstanceFromProto(const serialization::Type &proto) {
-  return Instance(proto.GetExtension(serialization::VarCharType::length), proto.nullable());
-}
-
-serialization::Type VarCharType::getProto() const {
-  serialization::Type proto;
-  proto.set_type_id(serialization::Type::VAR_CHAR);
-
-  proto.set_nullable(nullable_);
-
-  proto.SetExtension(serialization::VarCharType::length, length_);
-  return proto;
-}
-
 size_t VarCharType::estimateAverageByteLength() const {
   if (length_ > 160) {
     return 80;
@@ -118,25 +86,25 @@ string VarCharType::getName() const {
   return name;
 }
 
-std::string VarCharType::printValueToString(const TypedValue &value) const {
-  DCHECK(!value.isNull());
+std::string VarCharType::printValueToString(const UntypedLiteral *value) const {
+  DCHECK(value != nullptr);
 
-  return std::string(static_cast<const char*>(value.getOutOfLineData()));
+  return std::string(static_cast<const char*>(castValueToLiteral(value).getOutOfLineData()));
 }
 
-void VarCharType::printValueToFile(const TypedValue &value,
+void VarCharType::printValueToFile(const UntypedLiteral *value,
                                    FILE *file,
                                    const int padding) const {
-  DCHECK(!value.isNull());
+  DCHECK(value != nullptr);
 
   std::fprintf(file,
                "%*s",
                static_cast<int>(padding),
-               static_cast<const char*>(value.getOutOfLineData()));
+               static_cast<const char*>(castValueToLiteral(value).getOutOfLineData()));
 }
 
-bool VarCharType::parseValueFromString(const std::string &value_string,
-                                       TypedValue *value) const {
+bool VarCharType::parseTypedValueFromString(const std::string &value_string,
+                                            TypedValue *value) const {
   if (value_string.length() > length_) {
     return false;
   }
@@ -146,8 +114,8 @@ bool VarCharType::parseValueFromString(const std::string &value_string,
   return true;
 }
 
-TypedValue VarCharType::coerceValue(const TypedValue &original_value,
-                                    const Type &original_type) const {
+TypedValue VarCharType::coerceTypedValue(const TypedValue &original_value,
+                                         const Type &original_type) const {
   DCHECK(isCoercibleFrom(original_type))
       << "Can't coerce value of Type " << original_type.getName()
       << " to Type " << getName();

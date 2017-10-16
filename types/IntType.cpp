@@ -19,12 +19,9 @@
 
 #include "types/IntType.hpp"
 
-#include <cstdint>
 #include <cstdio>
 #include <string>
 
-#include "types/NullCoercibilityCheckMacro.hpp"
-#include "types/Type.hpp"
 #include "types/TypeID.hpp"
 #include "types/TypedValue.hpp"
 
@@ -32,57 +29,25 @@
 
 namespace quickstep {
 
-const TypeID IntType::kStaticTypeID = kInt;
+std::string IntType::printValueToString(const UntypedLiteral *value) const {
+  DCHECK(value != nullptr);
 
-bool IntType::isSafelyCoercibleFrom(const Type &original_type) const {
-  QUICKSTEP_NULL_COERCIBILITY_CHECK();
-  return original_type.getTypeID() == kInt;
+  return std::to_string(castValueToLiteral(value));
 }
 
-TypedValue IntType::coerceValue(const TypedValue &original_value,
-                                const Type &original_type) const {
-  DCHECK(isCoercibleFrom(original_type))
-      << "Can't coerce value of Type " << original_type.getName()
-      << " to Type " << getName();
-
-  if (original_value.isNull()) {
-    return makeNullValue();
-  }
-
-  switch (original_type.getTypeID()) {
-    case kInt:
-      return original_value;
-    case kLong:
-      return TypedValue(static_cast<int>(original_value.getLiteral<std::int64_t>()));
-    case kFloat:
-      return TypedValue(static_cast<int>(original_value.getLiteral<float>()));
-    case kDouble:
-      return TypedValue(static_cast<int>(original_value.getLiteral<double>()));
-    default:
-      LOG(FATAL) << "Attempted to coerce Type " << original_type.getName()
-                 << " (not recognized as a numeric Type) to " << getName();
-  }
-}
-
-std::string IntType::printValueToString(const TypedValue &value) const {
-  DCHECK(!value.isNull());
-
-  return std::to_string(value.getLiteral<int>());
-}
-
-void IntType::printValueToFile(const TypedValue &value,
+void IntType::printValueToFile(const UntypedLiteral *value,
                                FILE *file,
                                const int padding) const {
-  DCHECK(!value.isNull());
+  DCHECK(value != nullptr);
 
   std::fprintf(file,
                "%*d",
                static_cast<int>(padding),
-               value.getLiteral<int>());
+               castValueToLiteral(value));
 }
 
-bool IntType::parseValueFromString(const std::string &value_string,
-                                   TypedValue *value) const {
+bool IntType::parseTypedValueFromString(const std::string &value_string,
+                                        TypedValue *value) const {
   int parsed_int;
   int read_chars;
   int matched = std::sscanf(value_string.c_str(),

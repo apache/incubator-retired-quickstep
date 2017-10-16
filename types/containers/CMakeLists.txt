@@ -29,6 +29,7 @@ add_library(quickstep_types_containers_Tuple_proto ${types_containers_Tuple_prot
 target_link_libraries(quickstep_types_containers_ColumnVector
                       glog
                       quickstep_types_Type
+                      quickstep_types_TypeRegistrar
                       quickstep_types_TypedValue
                       quickstep_utility_BitVector
                       quickstep_utility_Macros)

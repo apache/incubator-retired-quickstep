@@ -32,7 +32,7 @@
 #include "query_optimizer/expressions/Expression.hpp"
 #include "query_optimizer/expressions/ExpressionType.hpp"
 #include "query_optimizer/expressions/Scalar.hpp"
-#include "types/TypedValue.hpp"
+#include "types/GenericValue.hpp"
 #include "utility/Macros.hpp"
 
 namespace quickstep {
@@ -65,12 +65,18 @@ class ScalarLiteral : public Scalar {
 
   const Type& getValueType() const override;
 
-  bool isConstant() const override { return true; }
+  bool isConstant() const override {
+    return true;
+  }
+
+  TypedValue getConstantValue() const override {
+    return value_.toTypedValue();
+  }
 
   /**
    * @return The literal value.
    */
-  const TypedValue& value() const { return value_; }
+  const GenericValue& value() const { return value_; }
 
   ExpressionPtr copyWithNewChildren(
       const std::vector<ExpressionPtr> &new_children) const override;
@@ -89,9 +95,8 @@ class ScalarLiteral : public Scalar {
    * @param literal_value The literal value.
    * @return An immutable ScalarLiteral with the given literal value.
    */
-  static const ScalarLiteralPtr Create(const TypedValue &literal_value,
-                                       const Type &literal_value_type) {
-    return ScalarLiteralPtr(new ScalarLiteral(literal_value, literal_value_type));
+  static const ScalarLiteralPtr Create(const GenericValue &literal_value) {
+    return ScalarLiteralPtr(new ScalarLiteral(literal_value));
   }
 
  protected:
@@ -106,13 +111,11 @@ class ScalarLiteral : public Scalar {
       std::vector<std::vector<OptimizerTreeBaseNodePtr>> *container_child_fields) const override;
 
  private:
-  ScalarLiteral(const TypedValue &literal_value,
-                const Type &literal_value_type)
-      : value_(literal_value),
-        value_type_(literal_value_type) {}
+  ScalarLiteral(const GenericValue &literal_value)
+      : value_(literal_value) {}
 
-  const TypedValue value_;
-  const Type &value_type_;
+  const GenericValue value_;
+
   DISALLOW_COPY_AND_ASSIGN(ScalarLiteral);
 };
 

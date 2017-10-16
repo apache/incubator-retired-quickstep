@@ -20,6 +20,7 @@ syntax = "proto2";
 package quickstep.serialization;
 
 import "types/Type.proto";
+import "types/TypedValue.proto";
 
 message Comparison {
   enum ComparisonID {
@@ -38,58 +39,8 @@ message Comparison {
   required ComparisonID comparison_id = 1;
 }
 
-message UnaryOperation {
-  enum UnaryOperationID {
-    NEGATE = 0;
-    CAST = 1;
-    DATE_EXTRACT = 2;
-    SUBSTRING = 3;
-  }
-
-  required UnaryOperationID operation_id = 1;
-
-  extensions 32 to max;
-}
-
-message CastOperation {
-  extend UnaryOperation {
-    // Required when operation_id = CAST.
-    optional Type target_type = 64;
-  }
-}
-
-message DateExtractOperation {
-  enum Unit {
-    YEAR = 0;
-    MONTH = 1;
-    DAY = 2;
-    HOUR = 3;
-    MINUTE = 4;
-    SECOND = 5;
-  }
-
-  extend UnaryOperation {
-    // Required when operation_id = DATE_EXTRACT.
-    optional Unit unit = 96;
-  }
-}
-
-message SubstringOperation {
-  extend UnaryOperation {
-    // Required when operation_id = SUBSTRING.
-    optional int64 start_position = 100;
-    optional int64 substring_length = 101;
-  }
-}
-
-message BinaryOperation {
-  enum BinaryOperationID {
-    ADD = 0;
-    SUBTRACT = 1;
-    MULTIPLY = 2;
-    DIVIDE = 3;
-    MODULO = 4;
-  }
-
-  required BinaryOperationID operation_id = 1;
+message OperationSignature {
+  required string operation_name = 1;
+  repeated TypeID argument_type_ids = 2;
+  required uint32 num_static_arguments = 3;
 }

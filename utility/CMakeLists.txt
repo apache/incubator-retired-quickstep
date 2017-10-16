@@ -159,9 +159,13 @@ QS_PROTOBUF_GENERATE_CPP(quickstep_utility_SortConfiguration_proto_srcs
                          SortConfiguration.proto)
 
 add_subdirectory(lip_filter)
+add_subdirectory(meta)
 
 # Declare micro-libs:
 add_library(quickstep_utility_Alignment ../empty_src.cpp Alignment.hpp)
+add_library(quickstep_utility_BarrieredReadWriteConcurrentBitVector
+            ../empty_src.cpp
+            BarrieredReadWriteConcurrentBitVector.hpp)
 add_library(quickstep_utility_BitManipulation ../empty_src.cpp BitManipulation.hpp)
 add_library(quickstep_utility_BitVector ../empty_src.cpp BitVector.hpp)
 add_library(quickstep_utility_BloomFilter ../empty_src.cpp BloomFilter.hpp)
@@ -171,12 +175,10 @@ add_library(quickstep_utility_BloomFilter_proto
 add_library(quickstep_utility_BulkIoConfiguration BulkIoConfiguration.cpp BulkIoConfiguration.hpp)
 add_library(quickstep_utility_CalculateInstalledMemory CalculateInstalledMemory.cpp CalculateInstalledMemory.hpp)
 add_library(quickstep_utility_Cast ../empty_src.cpp Cast.hpp)
+add_library(quickstep_utility_CharStream ../empty_src.cpp CharStream.hpp)
 add_library(quickstep_utility_CheckSnprintf ../empty_src.cpp CheckSnprintf.hpp)
 add_library(quickstep_utility_ColumnVectorCache ../empty_src.cpp ColumnVectorCache.hpp)
 add_library(quickstep_utility_CompositeHash ../empty_src.cpp CompositeHash.hpp)
-add_library(quickstep_utility_BarrieredReadWriteConcurrentBitVector
-            ../empty_src.cpp
-            BarrieredReadWriteConcurrentBitVector.hpp)
 add_library(quickstep_utility_DAG ../empty_src.cpp DAG.hpp)
 add_library(quickstep_utility_DisjointTreeForest ../empty_src.cpp DisjointTreeForest.hpp)
 add_library(quickstep_utility_EqualsAnyConstant ../empty_src.cpp EqualsAnyConstant.hpp)
@@ -204,7 +206,6 @@ add_library(quickstep_utility_SortConfiguration_proto
             ${quickstep_utility_SortConfiguration_proto_hdrs})
 add_library(quickstep_utility_SqlError SqlError.cpp SqlError.hpp)
 add_library(quickstep_utility_StringUtil StringUtil.cpp StringUtil.hpp)
-add_library(quickstep_utility_TemplateUtil ../empty_src.cpp TemplateUtil.hpp)
 # Note that TextBasedTest.{hpp, cpp} are not in this static library.
 # Any tests that use them need to include them in the
 # executable.
@@ -336,7 +337,6 @@ target_link_libraries(quickstep_utility_ShardedLockManager
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_utility_StringUtil
                       glog)
-target_link_libraries(quickstep_utility_TemplateUtil)
 target_link_libraries(quickstep_utility_TextBasedTestDriver
                       glog
                       gtest
@@ -388,7 +388,6 @@ target_link_libraries(quickstep_utility
                       quickstep_utility_SortConfiguration_proto
                       quickstep_utility_SqlError
                       quickstep_utility_StringUtil
-                      quickstep_utility_TemplateUtil
                       quickstep_utility_TextBasedTestDriver
                       quickstep_utility_ThreadSafeQueue
                       quickstep_utility_TreeStringSerializable
@@ -508,14 +507,6 @@ target_link_libraries(TreeStringSerializable_unittest
                       gtest_main
                       quickstep_utility_TreeStringSerializable)
 add_test(TreeStringSerializable_unittest TreeStringSerializable_unittest)
-
-add_executable(TemplateUtil_unittest "${CMAKE_CURRENT_SOURCE_DIR}/tests/TemplateUtil_unittest.cpp")
-target_link_libraries(TemplateUtil_unittest
-                      gtest
-                      gtest_main
-                      quickstep_utility_Macros
-                      quickstep_utility_TemplateUtil)
-add_test(TemplateUtil_unittest TemplateUtil_unittest)
 
 # Benchmarks:
 if (UNIX)

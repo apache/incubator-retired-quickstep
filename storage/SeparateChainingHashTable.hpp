@@ -565,7 +565,8 @@ const ValueT* SeparateChainingHashTable<ValueT, resizable, serializable, force_k
     ::getSingle(const TypedValue &key) const {
   DEBUG_ASSERT(!allow_duplicate_keys);
   DEBUG_ASSERT(this->key_types_.size() == 1);
-  DEBUG_ASSERT(key.isPlausibleInstanceOf(this->key_types_.front()->getSignature()));
+//  DEBUG_ASSERT(key.isPlausibleInstanceOf(this->key_types_.front()->getSignature()));
+  // TODO(refactor-type): fix signature.
 
   const std::size_t hash_code = key.getHash();
   std::size_t bucket_ref = slots_[hash_code % header_->num_slots].load(std::memory_order_relaxed);
@@ -621,7 +622,8 @@ template <typename ValueT,
 void SeparateChainingHashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_keys>
     ::getAll(const TypedValue &key, std::vector<const ValueT*> *values) const {
   DEBUG_ASSERT(this->key_types_.size() == 1);
-  DEBUG_ASSERT(key.isPlausibleInstanceOf(this->key_types_.front()->getSignature()));
+//  DEBUG_ASSERT(key.isPlausibleInstanceOf(this->key_types_.front()->getSignature()));
+  // TODO(refactor-type): fix signature.
 
   const std::size_t hash_code = key.getHash();
   std::size_t bucket_ref = slots_[hash_code % header_->num_slots].load(std::memory_order_relaxed);
@@ -680,7 +682,8 @@ HashTablePutResult
                       const ValueT &value,
                       HashTablePreallocationState *prealloc_state) {
   DEBUG_ASSERT(this->key_types_.size() == 1);
-  DEBUG_ASSERT(key.isPlausibleInstanceOf(this->key_types_.front()->getSignature()));
+//  DEBUG_ASSERT(key.isPlausibleInstanceOf(this->key_types_.front()->getSignature()));
+  // TODO(refactor-type): fix signature.
 
   if (prealloc_state == nullptr) {
     // Early check for a free bucket.
@@ -822,7 +825,8 @@ ValueT* SeparateChainingHashTable<ValueT, resizable, serializable, force_key_cop
                      const ValueT &initial_value) {
   DEBUG_ASSERT(!allow_duplicate_keys);
   DEBUG_ASSERT(this->key_types_.size() == 1);
-  DEBUG_ASSERT(key.isPlausibleInstanceOf(this->key_types_.front()->getSignature()));
+//  DEBUG_ASSERT(key.isPlausibleInstanceOf(this->key_types_.front()->getSignature()));
+  // TODO(refactor-type): fix signature.
 
   if (variable_key_size > 0) {
     // Don't allocate yet, since the key may already be present. However, we
@@ -988,7 +992,8 @@ bool SeparateChainingHashTable<ValueT, resizable, serializable, force_key_copy, 
                          const ValueT **value,
                          std::size_t *entry_num) const {
   DEBUG_ASSERT(this->key_types_.size() == 1);
-  DEBUG_ASSERT(key.isPlausibleInstanceOf(this->key_types_.front()->getSignature()));
+//  DEBUG_ASSERT(key.isPlausibleInstanceOf(this->key_types_.front()->getSignature()));
+  // TODO(refactor-type): fix signature.
 
   if (*entry_num == 0) {
     *entry_num = slots_[hash_code % header_->num_slots].load(std::memory_order_relaxed);
@@ -1066,7 +1071,8 @@ template <typename ValueT,
 bool SeparateChainingHashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_keys>
     ::hasKey(const TypedValue &key) const {
   DEBUG_ASSERT(this->key_types_.size() == 1);
-  DEBUG_ASSERT(key.isPlausibleInstanceOf(this->key_types_.front()->getSignature()));
+//  DEBUG_ASSERT(key.isPlausibleInstanceOf(this->key_types_.front()->getSignature()));
+  // TODO(refactor-type): fix signature.
 
   const std::size_t hash_code = key.getHash();
   std::size_t bucket_ref = slots_[hash_code % header_->num_slots].load(std::memory_order_relaxed);

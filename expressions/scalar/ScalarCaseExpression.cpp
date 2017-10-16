@@ -470,7 +470,7 @@ ColumnVectorPtr ScalarCaseExpression::multiplexColumnVectors(
     for (std::vector<std::unique_ptr<TupleIdSequence>>::size_type case_idx = 0;
          case_idx < case_matches.size();
          ++case_idx) {
-      DCHECK(case_results[case_idx]->isNative());
+      DCHECK(case_results[case_idx]->getImplementation() == ColumnVector::kNative);
       if (!case_matches[case_idx]->empty()) {
         MultiplexNativeColumnVector(
             source_sequence,
@@ -481,7 +481,7 @@ ColumnVectorPtr ScalarCaseExpression::multiplexColumnVectors(
     }
 
     if (else_result != nullptr) {
-      DCHECK(else_result->isNative());
+      DCHECK(else_result->getImplementation() == ColumnVector::kNative);
       DCHECK(!else_matches.empty());
       MultiplexNativeColumnVector(source_sequence,
                                   else_matches,
@@ -498,7 +498,7 @@ ColumnVectorPtr ScalarCaseExpression::multiplexColumnVectors(
     for (std::vector<std::unique_ptr<TupleIdSequence>>::size_type case_idx = 0;
          case_idx < case_matches.size();
          ++case_idx) {
-      DCHECK(!case_results[case_idx]->isNative());
+      DCHECK(case_results[case_idx]->getImplementation() == ColumnVector::kIndirect);
       if (!case_matches[case_idx]->empty()) {
         MultiplexIndirectColumnVector(
             source_sequence,
@@ -509,7 +509,7 @@ ColumnVectorPtr ScalarCaseExpression::multiplexColumnVectors(
     }
 
     if (else_result != nullptr) {
-      DCHECK(!else_result->isNative());
+      DCHECK(else_result->getImplementation() == ColumnVector::kIndirect);
       DCHECK(!else_matches.empty());
       MultiplexIndirectColumnVector(source_sequence,
                                     else_matches,
@@ -540,7 +540,7 @@ void ScalarCaseExpression::getFieldStringItems(
     if (static_value_.isNull()) {
       inline_field_values->emplace_back("NULL");
     } else {
-      inline_field_values->emplace_back(type_.printValueToString(static_value_));
+      inline_field_values->emplace_back(type_.printTypedValueToString(static_value_));
     }
   }
 

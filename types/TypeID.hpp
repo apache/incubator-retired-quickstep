@@ -21,8 +21,21 @@
 #define QUICKSTEP_TYPES_TYPE_ID_HPP_
 
 #include <cstddef>
+#include <type_traits>
+
+#include "types/Type.pb.h"
+#include "utility/Macros.hpp"
 
 namespace quickstep {
+
+/**
+ * @brief Categories of intermediate supertypes.
+ **/
+enum class SuperTypeID {
+  kNumeric = 0,  // Fixed-length numeric types (Int, Long, Float, Double)
+  kAsciiString,  // ASCII strings (Char, VarChar)
+  kOther         // Others (Date, Datetime, DatetimeInterval, YearMonthInterval)
+};
 
 /**
  * @brief Concrete Types.
@@ -30,7 +43,8 @@ namespace quickstep {
  * @note TypedValue assumes that this doesn't exceed 64 TypeIDs.
  **/
 enum TypeID {
-  kInt = 0,
+  kBool = 0,
+  kInt,
   kLong,
   kFloat,
   kDouble,
@@ -40,8 +54,18 @@ enum TypeID {
   kDatetime,
   kDatetimeInterval,
   kYearMonthInterval,
+  kText,
+  kArray,
+  kMetaType,
   kNullType,
   kNumTypeIDs  // Not a real TypeID, exists for counting purposes.
+};
+
+enum MemoryLayout {
+  kCxxInlinePod,
+  kParInlinePod,
+  kParOutOfLinePod,
+  kCxxGeneric
 };
 
 /**
@@ -65,6 +89,37 @@ struct TypeSignature {
  **/
 extern const char *kTypeNames[kNumTypeIDs];
 
+class TypeIDFactory {
+ public:
+  inline static serialization::TypeID GetProto(const TypeID type_id) {
+    serialization::TypeID proto;
+    proto.set_id(static_cast<std::underlying_type_t<TypeID>>(type_id));
+    return proto;
+  }
+
+  inline static TypeID ReconstructFromProto(const serialization::TypeID &proto) {
+    return static_cast<TypeID>(proto.id());
+  }
+
+  inline static bool ProtoIsValid(const serialization::TypeID &proto) {
+    return proto.id() < static_cast<std::underlying_type_t<TypeID>>(kNumTypeIDs);
+  }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(TypeIDFactory);
+};
+
 }  // namespace quickstep
+
+namespace std {
+
+template <>
+struct hash<quickstep::TypeID> {
+  size_t operator()(const quickstep::TypeID &arg) const {
+    return static_cast<typename std::underlying_type<quickstep::TypeID>::type>(arg);
+  }
+};
+
+}  // namespace std
 
 #endif  // QUICKSTEP_TYPES_TYPE_ID_HPP_

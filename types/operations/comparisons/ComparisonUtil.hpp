@@ -28,11 +28,13 @@
 #include <type_traits>
 
 #include "catalog/CatalogTypedefs.hpp"
+#include "types/CharType.hpp"
 #include "types/DatetimeLit.hpp"
 #include "types/IntervalLit.hpp"
 #include "types/Type.hpp"
 #include "types/TypeID.hpp"
 #include "types/TypedValue.hpp"
+#include "types/VarCharType.hpp"
 #include "types/containers/Tuple.hpp"
 #include "types/operations/comparisons/AsciiStringComparators.hpp"
 #include "types/operations/comparisons/AsciiStringComparators-inl.hpp"
@@ -153,7 +155,7 @@ auto InvokeOnLessComparatorForTypeIgnoreNullability(const Type &type,
     }
     case kChar: {
       const std::size_t string_length
-          = static_cast<const AsciiStringSuperType&>(type).getStringLength();
+          = static_cast<const CharType&>(type).getStringLength();
       LessAsciiStringUncheckedComparator<false, false, false,
                                          false, false, false>
           comp(string_length, string_length);
@@ -340,11 +342,11 @@ auto InvokeOnLessComparatorForDifferentTypesIgnoreNullability(
     }
     case kChar: {
       const std::size_t left_string_length
-          = static_cast<const AsciiStringSuperType&>(left_type).getStringLength();
+          = static_cast<const CharType&>(left_type).getStringLength();
       switch (right_type.getTypeID()) {
         case kChar: {
           const std::size_t right_string_length
-              = static_cast<const AsciiStringSuperType&>(right_type).getStringLength();
+              = static_cast<const CharType&>(right_type).getStringLength();
           if (left_string_length < right_string_length) {
             LessAsciiStringUncheckedComparator<false, false, false,
                                                false, false, true>
@@ -364,7 +366,7 @@ auto InvokeOnLessComparatorForDifferentTypesIgnoreNullability(
         }
         case kVarChar: {
           const std::size_t right_string_length
-              = static_cast<const AsciiStringSuperType&>(right_type).getStringLength();
+              = static_cast<const VarCharType&>(right_type).getStringLength();
           if (left_string_length < right_string_length) {
             LessAsciiStringUncheckedComparator<false, false, false,
                                                false, true, true>
@@ -389,11 +391,11 @@ auto InvokeOnLessComparatorForDifferentTypesIgnoreNullability(
     }
     case kVarChar: {
       const std::size_t left_string_length
-          = static_cast<const AsciiStringSuperType&>(left_type).getStringLength();
+          = static_cast<const VarCharType&>(left_type).getStringLength();
       switch (right_type.getTypeID()) {
         case kChar: {
           const std::size_t right_string_length
-              = static_cast<const AsciiStringSuperType&>(right_type).getStringLength();
+              = static_cast<const CharType&>(right_type).getStringLength();
           if (left_string_length < right_string_length) {
             LessAsciiStringUncheckedComparator<false, true, false,
                                                false, false, true>
@@ -413,7 +415,7 @@ auto InvokeOnLessComparatorForDifferentTypesIgnoreNullability(
         }
         case kVarChar: {
           const std::size_t right_string_length
-              = static_cast<const AsciiStringSuperType&>(right_type).getStringLength();
+              = static_cast<const VarCharType&>(right_type).getStringLength();
           if (left_string_length < right_string_length) {
             LessAsciiStringUncheckedComparator<false, true, false,
                                                false, true, true>
@@ -653,11 +655,11 @@ auto InvokeOnBothLessComparatorsForDifferentTypesIgnoreNullability(
     }
     case kChar: {
       const std::size_t left_string_length
-          = static_cast<const AsciiStringSuperType&>(left_type).getStringLength();
+          = static_cast<const CharType&>(left_type).getStringLength();
       switch (right_type.getTypeID()) {
         case kChar: {
           const std::size_t right_string_length
-              = static_cast<const AsciiStringSuperType&>(right_type).getStringLength();
+              = static_cast<const CharType&>(right_type).getStringLength();
           if (left_string_length < right_string_length) {
             LessAsciiStringUncheckedComparator<false, false, false,
                                                false, false, true>
@@ -686,7 +688,7 @@ auto InvokeOnBothLessComparatorsForDifferentTypesIgnoreNullability(
         }
         case kVarChar: {
           const std::size_t right_string_length
-              = static_cast<const AsciiStringSuperType&>(right_type).getStringLength();
+              = static_cast<const VarCharType&>(right_type).getStringLength();
           if (left_string_length < right_string_length) {
             LessAsciiStringUncheckedComparator<false, false, false,
                                                false, true, true>
@@ -720,11 +722,11 @@ auto InvokeOnBothLessComparatorsForDifferentTypesIgnoreNullability(
     }
     case kVarChar: {
       const std::size_t left_string_length
-          = static_cast<const AsciiStringSuperType&>(left_type).getStringLength();
+          = static_cast<const VarCharType&>(left_type).getStringLength();
       switch (right_type.getTypeID()) {
         case kChar: {
           const std::size_t right_string_length
-              = static_cast<const AsciiStringSuperType&>(right_type).getStringLength();
+              = static_cast<const CharType&>(right_type).getStringLength();
           if (left_string_length < right_string_length) {
             LessAsciiStringUncheckedComparator<false, true, false,
                                                false, false, true>
@@ -753,7 +755,7 @@ auto InvokeOnBothLessComparatorsForDifferentTypesIgnoreNullability(
         }
         case kVarChar: {
           const std::size_t right_string_length
-              = static_cast<const AsciiStringSuperType&>(right_type).getStringLength();
+              = static_cast<const VarCharType&>(right_type).getStringLength();
           if (left_string_length < right_string_length) {
             LessAsciiStringUncheckedComparator<false, true, false,
                                                false, true, true>
@@ -991,7 +993,7 @@ inline bool CheckUntypedValuesEqual(const Type &type, const void *left, const vo
     case kDouble:
       return STLLiteralEqual<double>()(left, right);
     case kChar:
-      return STLCharEqual(static_cast<const AsciiStringSuperType&>(type).getStringLength())(left, right);
+      return STLCharEqual(static_cast<const CharType&>(type).getStringLength())(left, right);
     case kVarChar:
       return STLVarCharEqual()(left, right);
     case kDate:

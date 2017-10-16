@@ -28,6 +28,7 @@
 #include <vector>
 
 #include "types/Type.hpp"
+#include "types/TypeRegistrar.hpp"
 #include "types/TypedValue.hpp"
 #include "utility/BitVector.hpp"
 #include "utility/Macros.hpp"
@@ -70,13 +71,25 @@ typedef std::shared_ptr<const ColumnVector> ColumnVectorPtr;
  **/
 class ColumnVector {
  public:
+   /**
+    * @brief Enum with cases for different subclasses of ColumnVector.
+    */
+   enum Implementation {
+     kNative = 0,
+     kIndirect,
+     kGeneric
+   };
+
   /**
    * @brief Constructor.
    *
    * @param type The Type of values to hold.
    **/
-  explicit ColumnVector(const Type &type)
-      : type_(type) {
+  explicit ColumnVector(const Implementation implementation,
+                        const Type &type)
+      : implementation_(implementation),
+        type_(type) {
+    // TODO: check that impl matches type.
   }
 
   /**
@@ -101,14 +114,15 @@ class ColumnVector {
       const TypedValue &value,
       const std::size_t num_copies);
 
+
   /**
-   * @brief Check whether this ColumnVector is a NativeColumnVector or an
-   *        IndirectColumnVector.
+   * @brief Determine the concrete type of this ColumnVector.
    *
-   * @return true if this is a NativeColumnVector, false if this is an
-   *         IndirectColumnVector.
+   * @return The implementation type of this ColumnVector.
    **/
-  virtual bool isNative() const = 0;
+  inline Implementation getImplementation() const {
+    return implementation_;
+  }
 
   /**
    * @brief Get the number of values in this ColumnVector.
@@ -117,7 +131,12 @@ class ColumnVector {
    **/
   virtual std::size_t size() const = 0;
 
+  virtual TypedValue getTypedValueVirtual(const std::size_t position) const {
+    LOG(FATAL) << "Unexpected call to ColumnVector::getTypedValueVirtual()";
+  }
+
  protected:
+  const Implementation implementation_;
   const Type &type_;
 
  private:
@@ -129,6 +148,8 @@ class ColumnVector {
  **/
 class NativeColumnVector : public ColumnVector {
  public:
+  static constexpr Implementation kImplementation = ColumnVector::kNative;
+
   /**
    * @brief Constructor for a NativeColumnVector which owns its own array of
    *        values.
@@ -138,16 +159,13 @@ class NativeColumnVector : public ColumnVector {
    *        NativeColumnVector will hold.
    **/
   NativeColumnVector(const Type &type, const std::size_t reserved_length)
-      : ColumnVector(type),
+      : ColumnVector(kImplementation, type),
         type_length_(type.maximumByteLength()),
-        values_(std::malloc(type.maximumByteLength() * reserved_length)),
         reserved_length_(reserved_length),
+        values_(std::malloc(type.maximumByteLength() * reserved_length)),
         actual_length_(0u),
         null_bitmap_(type.isNullable() ? new BitVector<false>(reserved_length) : nullptr) {
     DCHECK(UsableForType(type_));
-    if (null_bitmap_) {
-      null_bitmap_->clear();
-    }
   }
 
   /**
@@ -165,11 +183,8 @@ class NativeColumnVector : public ColumnVector {
    *         IndirectColumnVector must be used instead.
    **/
   static bool UsableForType(const Type &type) {
-    return !type.isVariableLength();
-  }
-
-  bool isNative() const override {
-    return true;
+    return type.getMemoryLayout() == kCxxInlinePod ||
+           type.getMemoryLayout() == kParInlinePod;
   }
 
   /**
@@ -256,7 +271,8 @@ class NativeColumnVector : public ColumnVector {
    **/
   inline void appendTypedValue(const TypedValue &value) {
     DCHECK_LT(actual_length_, reserved_length_);
-    DCHECK(value.isPlausibleInstanceOf(type_.getSignature()));
+//    DCHECK(value.isPlausibleInstanceOf(type_.getSignature()));
+    // TODO(refactor-type): fix signature.
     if (null_bitmap_ && value.isNull()) {
       null_bitmap_->setBit(actual_length_, true);
     } else {
@@ -295,7 +311,8 @@ class NativeColumnVector : public ColumnVector {
    * @param value A value to fill this ColumnVector with.
    **/
   inline void fillWithValue(const TypedValue &value) {
-    DCHECK(value.isPlausibleInstanceOf(type_.getSignature()));
+//    DCHECK(value.isPlausibleInstanceOf(type_.getSignature()));
+    // TODO(refactor-type): fix signature.
     if (value.isNull()) {
       fillWithNulls();
     } else {
@@ -384,7 +401,8 @@ class NativeColumnVector : public ColumnVector {
   inline void positionalWriteTypedValue(const std::size_t position,
                                         const TypedValue &value) {
     DCHECK_LT(position, actual_length_);
-    DCHECK(value.isPlausibleInstanceOf(type_.getSignature()));
+//    DCHECK(value.isPlausibleInstanceOf(type_.getSignature()));
+    // TODO(refactor-type): fix signature.
     if (null_bitmap_ && value.isNull()) {
       null_bitmap_->setBit(position, true);
     } else {
@@ -395,8 +413,9 @@ class NativeColumnVector : public ColumnVector {
 
  private:
   const std::size_t type_length_;
-  void *values_;
   const std::size_t reserved_length_;
+
+  void *values_;
   std::size_t actual_length_;
   std::unique_ptr<BitVector<false>> null_bitmap_;
 
@@ -409,6 +428,8 @@ class NativeColumnVector : public ColumnVector {
  **/
 class IndirectColumnVector : public ColumnVector {
  public:
+  static constexpr Implementation kImplementation = ColumnVector::kIndirect;
+
   /**
    * @brief Constructor.
    *
@@ -416,7 +437,7 @@ class IndirectColumnVector : public ColumnVector {
    * @param reserved_length The number of values to reserve space for.
    **/
   IndirectColumnVector(const Type &type, const std::size_t reserved_length)
-      : ColumnVector(type),
+      : ColumnVector(kImplementation, type),
         type_is_nullable_(type.isNullable()),
         reserved_length_(reserved_length) {
     values_.reserve(reserved_length);
@@ -426,10 +447,6 @@ class IndirectColumnVector : public ColumnVector {
    * @brief Destructor.
    **/
   ~IndirectColumnVector() override {
-  }
-
-  bool isNative() const override {
-    return false;
   }
 
   /**
@@ -492,7 +509,8 @@ class IndirectColumnVector : public ColumnVector {
    * @param value A value to append to this NativeColumnVector.
    **/
   inline void appendTypedValue(const TypedValue &value) {
-    DCHECK(value.isPlausibleInstanceOf(type_.getSignature()));
+//    DCHECK(value.isPlausibleInstanceOf(type_.getSignature()));
+    // TODO(refactor-type): fix signature.
     DCHECK_LT(values_.size(), reserved_length_);
     values_.emplace_back(value);
   }
@@ -503,9 +521,20 @@ class IndirectColumnVector : public ColumnVector {
    * @param value A value to append to this NativeColumnVector.
    **/
   inline void appendTypedValue(TypedValue &&value) {
-    DCHECK(value.isPlausibleInstanceOf(type_.getSignature()));
+//    DCHECK(value.isPlausibleInstanceOf(type_.getSignature())) << type_.getName();
+    // TODO(refactor-type): fix signature.
     DCHECK_LT(values_.size(), reserved_length_);
     values_.emplace_back(std::move(value));
+  }
+
+  inline void appendNullValue() {
+    DCHECK(type_.isNullable());
+    DCHECK_LT(values_.size(), reserved_length_);
+    values_.emplace_back(type_.makeNullValue());
+  }
+
+  inline void fillWithNulls() {
+    fillWithValue(type_.makeNullValue());
   }
 
   /**
@@ -514,7 +543,8 @@ class IndirectColumnVector : public ColumnVector {
    * @param value A value to fill this ColumnVector with.
    **/
   inline void fillWithValue(const TypedValue &value) {
-    DCHECK(value.isPlausibleInstanceOf(type_.getSignature()));
+//    DCHECK(value.isPlausibleInstanceOf(type_.getSignature()));
+    // TODO(refactor-type): fix signature.
     values_.assign(reserved_length_, value);
   }
 
@@ -543,7 +573,8 @@ class IndirectColumnVector : public ColumnVector {
    **/
   inline void positionalWriteTypedValue(const std::size_t position,
                                         const TypedValue &value) {
-    DCHECK(value.isPlausibleInstanceOf(type_.getSignature()));
+//    DCHECK(value.isPlausibleInstanceOf(type_.getSignature()));
+    // TODO(refactor-type): fix signature.
     DCHECK_LT(position, values_.size());
     values_[position] = value;
   }
@@ -561,7 +592,8 @@ class IndirectColumnVector : public ColumnVector {
    **/
   inline void positionalWriteTypedValue(const std::size_t position,
                                         TypedValue &&value) {  // NOLINT(whitespace/operators)
-    DCHECK(value.isPlausibleInstanceOf(type_.getSignature()));
+//    DCHECK(value.isPlausibleInstanceOf(type_.getSignature()));
+    // TODO(refactor-type): fix signature.
     DCHECK_LT(position, values_.size());
     values_[position] = std::move(value);
   }
@@ -569,10 +601,107 @@ class IndirectColumnVector : public ColumnVector {
  private:
   const bool type_is_nullable_;
   const std::size_t reserved_length_;
+
   std::vector<TypedValue> values_;
 
   DISALLOW_COPY_AND_ASSIGN(IndirectColumnVector);
 };
+
+template <typename TypeClass>
+class GenericColumnVector : public ColumnVector {
+ public:
+  static constexpr Implementation kImplementation = ColumnVector::kGeneric;
+
+  using cpptype = typename TypeClass::cpptype;
+
+  GenericColumnVector(const Type &type, const std::size_t reserved_length)
+      : ColumnVector(kImplementation, type),
+        type_(static_cast<const TypeClass&>(type)),
+        reserved_length_(reserved_length) {
+    DCHECK(TypeClass::kStaticTypeID == type.getTypeID());
+    values_.reserve(reserved_length_);
+    if (type.isNullable()) {
+      null_bitmap_ = std::make_unique<BitVector<false>>(reserved_length_);
+    }
+  }
+
+  static bool UsableForType(const Type &type) {
+    return type.getMemoryLayout() == kCxxGeneric;
+  }
+
+  inline bool typeIsNullable() const {
+    return null_bitmap_.get() != nullptr;
+  }
+
+  inline std::size_t size() const override {
+    return values_.size();
+  }
+
+  template <bool check_null = true>
+  inline cpptype& getLiteralValue(const std::size_t position) const {
+    DCHECK_LT(position, values_.size());
+    return (check_null && null_bitmap_ && null_bitmap_->getBit(position))
+        ? nullptr
+        : values_[position];
+  }
+
+  TypedValue getTypedValueVirtual(const std::size_t position) const override {
+    return getTypedValue(position);
+  }
+
+  inline TypedValue getTypedValue(const std::size_t position) const {
+    DCHECK_LT(position, values_.size());
+    // TODO(refactor-type): Implement marshallValueMaybeReference() to improve performance.
+    return (null_bitmap_ && null_bitmap_->getBit(position))
+        ? type_.makeNullValue()
+        : type_.marshallValue(&values_[position]);
+  }
+
+  inline void appendNullValue() {
+    DCHECK_LT(values_.size(), reserved_length_);
+    DCHECK(null_bitmap_);
+    null_bitmap_->setBit(values_.size(), true);
+    // TODO(refactor-type): Specialize nullable GenericColumnVector.
+    LOG(FATAL) << "Not implemented";
+  }
+
+  inline void fillWithNulls() {
+    DCHECK(null_bitmap_);
+    null_bitmap_->setBitRange(0, reserved_length_, true);
+    // TODO(refactor-type): Specialize nullable GenericColumnVector.
+    LOG(FATAL) << "Not implemented";
+  }
+
+  inline void fillWithValue(const TypedValue &value) {
+    std::unique_ptr<cpptype> cppvalue = std::unique_ptr<cpptype>(
+        static_cast<cpptype*>(type_.unmarshallTypedValue(value)));
+    for (std::size_t i = 0; i < reserved_length_; ++i) {
+      values_.emplace_back(*cppvalue);
+    }
+  }
+
+  inline void appendLiteralValue(const cpptype &value) {
+    DCHECK_LT(values_.size(), reserved_length_);
+    values_.emplace_back(value);
+  }
+
+  inline void appendLiteralValue(cpptype &&value) {
+    DCHECK_LT(values_.size(), reserved_length_);
+    values_.emplace_back(std::move(value));
+  }
+
+ private:
+  const TypeClass &type_;
+  const std::size_t reserved_length_;
+
+  std::vector<cpptype> values_;
+  std::unique_ptr<BitVector<false>> null_bitmap_;
+
+  DISALLOW_COPY_AND_ASSIGN(GenericColumnVector);
+};
+
+template <typename TypeClass>
+constexpr ColumnVector::Implementation GenericColumnVector<TypeClass>::kImplementation;
 
 /** @} */
 

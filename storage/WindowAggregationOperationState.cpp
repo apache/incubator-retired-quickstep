@@ -261,7 +261,7 @@ void WindowAggregationOperationState::windowAggregateBlocks(
 
         for (std::size_t attr_id = 0; attr_id < attribute_vecs.size(); ++attr_id) {
           ColumnVector *attr_vec = attribute_vecs[attr_id];
-          if (attr_vec->isNative()) {
+          if (attr_vec->getImplementation() == ColumnVector::kNative) {
             static_cast<NativeColumnVector*>(attr_vec)->appendTypedValue(
                 tuple_accessor->getTypedValue(attr_id));
           } else {
@@ -274,7 +274,7 @@ void WindowAggregationOperationState::windowAggregateBlocks(
              argument_idx < argument_vecs.size();
              ++argument_idx) {
           ColumnVector *argument = argument_vecs[argument_idx];
-          if (argument->isNative()) {
+          if (argument->getImplementation() == ColumnVector::kNative) {
             static_cast<NativeColumnVector*>(argument)->appendTypedValue(
                 argument_accessor->getTypedValue(argument_idx));
           } else {

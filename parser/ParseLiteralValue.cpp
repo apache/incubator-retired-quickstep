@@ -87,15 +87,15 @@ TypedValue NumericParseLiteralValue::concretize(
     const Type **concretized_type) const {
   TypedValue parsed_value;
   if ((type_hint != nullptr)
-      && (type_hint->getSuperTypeID() == Type::kNumeric)
-      && (type_hint->parseValueFromString(numeric_string_, &parsed_value))) {
+      && (type_hint->getSuperTypeID() == SuperTypeID::kNumeric)
+      && (type_hint->parseTypedValueFromString(numeric_string_, &parsed_value))) {
     *concretized_type = &(type_hint->getNonNullableVersion());
     return parsed_value;
   }
 
   if (float_like_) {
     *concretized_type = &DoubleType::InstanceNonNullable();
-    CHECK((*concretized_type)->parseValueFromString(numeric_string_, &parsed_value))
+    CHECK((*concretized_type)->parseTypedValueFromString(numeric_string_, &parsed_value))
         << "Failed to parse double from numeric string \""
         << numeric_string_ << "\"";
     return parsed_value;
@@ -153,7 +153,7 @@ TypedValue StringParseLiteralValue::concretize(const Type *type_hint,
   if (explicit_type_ != nullptr) {
     if ((type_hint != nullptr) && (type_hint->isSafelyCoercibleFrom(*explicit_type_))) {
       *concretized_type = type_hint;
-      return type_hint->coerceValue(explicit_parsed_value_, *explicit_type_);
+      return type_hint->coerceTypedValue(explicit_parsed_value_, *explicit_type_);
     } else {
       *concretized_type = explicit_type_;
       return explicit_parsed_value_;
@@ -161,12 +161,12 @@ TypedValue StringParseLiteralValue::concretize(const Type *type_hint,
   } else {
     TypedValue parsed_value;
     if ((type_hint != nullptr)
-        && (type_hint->parseValueFromString(value_->value(), &parsed_value))) {
+        && (type_hint->parseTypedValueFromString(value_->value(), &parsed_value))) {
       *concretized_type = &(type_hint->getNonNullableVersion());
       return parsed_value;
     } else {
       *concretized_type = &VarCharType::InstanceNonNullable(value_->value().length());
-      CHECK((*concretized_type)->parseValueFromString(value_->value(), &parsed_value));
+      CHECK((*concretized_type)->parseTypedValueFromString(value_->value(), &parsed_value));
       return parsed_value;
     }
   }
@@ -189,7 +189,7 @@ std::string StringParseLiteralValue::generateName() const {
 
 bool StringParseLiteralValue::tryExplicitTypeParse() {
   DCHECK(explicit_type_ != nullptr);
-  return explicit_type_->parseValueFromString(value_->value(), &explicit_parsed_value_);
+  return explicit_type_->parseTypedValueFromString(value_->value(), &explicit_parsed_value_);
 }
 
 void StringParseLiteralValue::getFieldStringItems(

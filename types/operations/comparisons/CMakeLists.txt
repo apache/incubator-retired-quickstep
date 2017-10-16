@@ -105,11 +105,13 @@ target_link_libraries(quickstep_types_operations_comparisons_ComparisonID
 target_link_libraries(quickstep_types_operations_comparisons_ComparisonUtil
                       glog
                       quickstep_catalog_CatalogTypedefs
+                      quickstep_types_CharType
                       quickstep_types_DatetimeLit
                       quickstep_types_IntervalLit
                       quickstep_types_Type
                       quickstep_types_TypeID
                       quickstep_types_TypedValue
+                      quickstep_types_VarCharType
                       quickstep_types_containers_Tuple
                       quickstep_types_operations_comparisons_AsciiStringComparators
                       quickstep_types_operations_comparisons_Comparison
@@ -179,8 +181,8 @@ target_link_libraries(quickstep_types_operations_comparisons_PatternMatchingComp
                       quickstep_types_operations_comparisons_PatternMatchingComparators
                       quickstep_types_operations_comparisons_Comparison
                       quickstep_types_operations_comparisons_ComparisonID
-                      quickstep_utility_TemplateUtil
-                      quickstep_utility_Macros)
+                      quickstep_utility_Macros
+                      quickstep_utility_meta_Dispatchers)
 
 # Module all-in-one library:
 add_library(quickstep_types_operations_comparisons ../../../empty_src.cpp)

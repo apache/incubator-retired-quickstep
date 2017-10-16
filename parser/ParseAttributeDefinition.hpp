@@ -24,6 +24,7 @@
 #include <string>
 #include <vector>
 
+#include "parser/ParseDataType.hpp"
 #include "parser/ParseString.hpp"
 #include "parser/ParseTreeNode.hpp"
 #include "utility/Macros.hpp"
@@ -31,47 +32,12 @@
 namespace quickstep {
 
 class ParseColumnConstraint;
-class Type;
 
 template <class T> class PtrList;
 
 /** \addtogroup Parser
  *  @{
  */
-
-/**
- * @brief Parsed representation of a data type.
- **/
-class ParseDataType {
- public:
-  /**
-   * @brief Constructor.
-   *
-   * @param type The Type of the data.
-   **/
-  explicit ParseDataType(const Type &type)
-      : type_(&type) {
-  }
-
-  /**
-   * @brief Get the type.
-   *
-   * @return The Type.
-   **/
-  const Type& getType() const {
-    return *type_;
-  }
-
- private:
-  // Use a pointer instead of a reference so that it may be modified by column
-  // constraints.
-  const Type *type_;
-
-  friend class ParseColumnConstraintNull;
-  friend class ParseColumnConstraintNotNull;
-
-  DISALLOW_COPY_AND_ASSIGN(ParseDataType);
-};
 
 /**
  * @brief Parsed representation of an attribute definition
@@ -122,6 +88,14 @@ class ParseAttributeDefinition : public ParseTreeNode {
     return *data_type_;
   }
 
+  const bool nullable() const {
+    return nullable_;
+  }
+
+  void setNullable(const bool nullable) {
+    nullable_ = nullable;
+  }
+
  protected:
   void getFieldStringItems(
       std::vector<std::string> *inline_field_names,
@@ -134,9 +108,7 @@ class ParseAttributeDefinition : public ParseTreeNode {
  private:
   std::unique_ptr<ParseString> name_;
   std::unique_ptr<ParseDataType> data_type_;
-
-  friend class ParseColumnConstraintNull;
-  friend class ParseColumnConstraintNotNull;
+  bool nullable_;
 
   DISALLOW_COPY_AND_ASSIGN(ParseAttributeDefinition);
 };

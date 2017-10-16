@@ -103,16 +103,18 @@ message ScalarAttribute {
 
 message ScalarUnaryExpression {
   extend Scalar {
-    optional UnaryOperation operation = 96;
-    optional Scalar operand = 97;
+    optional OperationSignature op_signature = 97;
+    optional Scalar operand = 98;
+    repeated TypedValue static_arguments = 99;
   }
 }
 
 message ScalarBinaryExpression {
   extend Scalar {
-    optional BinaryOperation operation = 128;
-    optional Scalar left_operand = 129;
-    optional Scalar right_operand = 130;
+    optional OperationSignature op_signature = 129;
+    optional Scalar left_operand = 130;
+    optional Scalar right_operand = 131;
+    repeated TypedValue static_arguments = 132;
   }
 }
 

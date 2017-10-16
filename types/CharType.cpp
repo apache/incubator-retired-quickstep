@@ -19,6 +19,7 @@
 
 #include "types/CharType.hpp"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
@@ -33,46 +34,11 @@
 #include "types/port/strnlen.hpp"
 #include "utility/PtrMap.hpp"
 
+#include "third_party/src/farmhash/farmhash.h"
+
 #include "glog/logging.h"
 
-using std::pair;
-using std::size_t;
-using std::strcmp;
-using std::string;
-
 namespace quickstep {
-
-template <bool nullable_internal>
-const CharType& CharType::InstanceInternal(const std::size_t length) {
-  static PtrMap<size_t, CharType> instance_map;
-  PtrMap<size_t, CharType>::iterator imit = instance_map.find(length);
-  if (imit == instance_map.end()) {
-    imit = instance_map.insert(length, new CharType(length, nullable_internal)).first;
-  }
-  return *(imit->second);
-}
-
-const CharType& CharType::InstanceNonNullable(const std::size_t length) {
-  return InstanceInternal<false>(length);
-}
-
-const CharType& CharType::InstanceNullable(const std::size_t length) {
-  return InstanceInternal<true>(length);
-}
-
-const CharType& CharType::InstanceFromProto(const serialization::Type &proto) {
-  return Instance(proto.GetExtension(serialization::CharType::length), proto.nullable());
-}
-
-serialization::Type CharType::getProto() const {
-  serialization::Type proto;
-  proto.set_type_id(serialization::Type::CHAR);
-
-  proto.set_nullable(nullable_);
-
-  proto.SetExtension(serialization::CharType::length, length_);
-  return proto;
-}
 
 bool CharType::isSafelyCoercibleFrom(const Type &original_type) const {
   QUICKSTEP_NULL_COERCIBILITY_CHECK();
@@ -87,8 +53,8 @@ bool CharType::isSafelyCoercibleFrom(const Type &original_type) const {
   }
 }
 
-string CharType::getName() const {
-  string name("Char(");
+std::string CharType::getName() const {
+  std::string name("Char(");
   name.append(std::to_string(length_));
   name.push_back(')');
   if (nullable_) {
@@ -97,17 +63,65 @@ string CharType::getName() const {
   return name;
 }
 
-std::string CharType::printValueToString(const TypedValue &value) const {
-  DCHECK(!value.isNull());
+std::size_t CharType::hashValue(const UntypedLiteral *value) const {
+  const char *cstr = static_cast<const char*>(castValueToLiteral(value));
+  const std::size_t len = strnlen(cstr, length_);
+  return util::Hash(cstr, len);
+}
 
-  const char *cstr = static_cast<const char*>(value.getOutOfLineData());
+bool CharType::checkValuesEqual(const UntypedLiteral *lhs,
+                                const UntypedLiteral *rhs,
+                                const Type &rhs_type) const {
+  return std::strncmp(static_cast<const char*>(castValueToLiteral(lhs)),
+                      static_cast<const char*>(castValueToLiteral(rhs)),
+                      length_);
+}
+
+UntypedLiteral* CharType::cloneValue(const UntypedLiteral *value) const {
+  DCHECK(value != nullptr);
+
+  const char *cstr = static_cast<const char*>(castValueToLiteral(value));
+  const std::size_t len = strnlen(cstr, length_);
+  char *value_copy = static_cast<char*>(std::malloc(length_));
+  std::memcpy(value_copy, cstr, len);
+  if (len < length_) {
+    value_copy[len] = 0;
+  }
+  return new cpptype(value_copy);
+}
+
+
+TypedValue CharType::marshallValue(const UntypedLiteral *value) const {
+  DCHECK(value != nullptr);
+
+  const char *cstr = static_cast<const char*>(castValueToLiteral(value));
+  const std::size_t len = std::min(strnlen(cstr, length_) + 1, length_);
+  return TypedValue(kChar, cstr, len).ensureNotReference();
+}
+
+UntypedLiteral* CharType::unmarshallValue(const void *data,
+                                          const std::size_t length) const {
+  const char *cstr = static_cast<const char*>(data);
+  const std::size_t len = std::min(strnlen(cstr, length), length_);
+  char *value = static_cast<char*>(std::malloc(length_));
+  std::memcpy(value, cstr, len);
+  if (len < length_) {
+    value[len] = 0;
+  }
+  return new cpptype(value);
+}
+
+std::string CharType::printValueToString(const UntypedLiteral *value) const {
+  DCHECK(value != nullptr);
+
+  const char *cstr = static_cast<const char*>(castValueToLiteral(value));
   return std::string(cstr, strnlen(cstr, length_));
 }
 
-void CharType::printValueToFile(const TypedValue &value,
+void CharType::printValueToFile(const UntypedLiteral *value,
                                 FILE *file,
                                 const int padding) const {
-  DCHECK(!value.isNull());
+  DCHECK(value != nullptr);
   DCHECK_EQ(length_, static_cast<decltype(length_)>(static_cast<int>(length_)))
       << "Can not convert CHAR Type's maximum length " << length_
       << " to int for fprintf()";
@@ -116,11 +130,11 @@ void CharType::printValueToFile(const TypedValue &value,
                "%*.*s",
                padding,
                static_cast<int>(length_),
-               static_cast<const char*>(value.getOutOfLineData()));
+               castValueToLiteral(value));
 }
 
-bool CharType::parseValueFromString(const std::string &value_string,
-                                    TypedValue *value) const {
+bool CharType::parseTypedValueFromString(const std::string &value_string,
+                                         TypedValue *value) const {
   if (value_string.length() > length_) {
     return false;
   }
@@ -134,8 +148,8 @@ bool CharType::parseValueFromString(const std::string &value_string,
   return true;
 }
 
-TypedValue CharType::coerceValue(const TypedValue &original_value,
-                                 const Type &original_type) const {
+TypedValue CharType::coerceTypedValue(const TypedValue &original_value,
+                                      const Type &original_type) const {
   DCHECK(isCoercibleFrom(original_type))
       << "Can't coerce value of Type " << original_type.getName()
       << " to Type " << getName();

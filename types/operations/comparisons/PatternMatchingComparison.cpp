@@ -29,7 +29,7 @@
 #include "types/operations/comparisons/ComparisonID.hpp"
 #include "types/operations/comparisons/PatternMatchingComparators.hpp"
 #include "types/operations/comparisons/PatternMatchingComparators-inl.hpp"
-#include "utility/TemplateUtil.hpp"
+#include "utility/meta/Dispatchers.hpp"
 
 #include "glog/logging.h"
 
@@ -121,11 +121,19 @@ UncheckedComparator* PatternMatchingComparison::makeUncheckedComparatorForTypes(
                  << " in PatternMatchinComparison::makeUncheckedComparatorForTypes()";
   }
 
-  return CreateBoolInstantiatedInstance<PatternMatchingUncheckedComparator, UncheckedComparator>(
-      std::forward_as_tuple(left_max_length, right_max_length),
+  return meta::InvokeOnBools(
       is_like_pattern, is_negation,
-      left.isNullable(), right.isNullable());
+      left.isNullable(), right.isNullable(),
+      [&](auto is_like_pattern,  // NOLINT(build/c++11)
+          auto is_negation,
+          auto is_left_nullable,
+          auto is_right_nullable) -> UncheckedComparator* {
+    return new PatternMatchingUncheckedComparator<
+        decltype(is_like_pattern)::value,
+        decltype(is_negation)::value,
+        decltype(is_left_nullable)::value,
+        decltype(is_right_nullable)::value>(left_max_length, right_max_length);
+  });
 }
-
 
 }  // namespace quickstep

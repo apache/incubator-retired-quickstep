@@ -30,7 +30,6 @@
 
 #include "types/IntervalLit.hpp"
 #include "types/IntervalParser.hpp"
-#include "types/NullCoercibilityCheckMacro.hpp"
 #include "types/Type.hpp"
 #include "types/TypeID.hpp"
 #include "types/TypedValue.hpp"
@@ -46,20 +45,10 @@ using std::snprintf;
 
 namespace quickstep {
 
-bool YearMonthIntervalType::isCoercibleFrom(const Type &original_type) const {
-  QUICKSTEP_NULL_COERCIBILITY_CHECK();
-  return (original_type.getTypeID() == kYearMonthInterval);
-}
+std::string YearMonthIntervalType::printValueToString(const UntypedLiteral *value) const {
+  DCHECK(value != nullptr);
 
-bool YearMonthIntervalType::isSafelyCoercibleFrom(const Type &original_type) const {
-  QUICKSTEP_NULL_COERCIBILITY_CHECK();
-  return (original_type.getTypeID() == kYearMonthInterval);
-}
-
-std::string YearMonthIntervalType::printValueToString(const TypedValue &value) const {
-  DCHECK(!value.isNull());
-
-  std::int64_t months = value.getLiteral<YearMonthIntervalLit>().months;
+  std::int64_t months = castValueToLiteral(value).months;
   const bool negative_interval = months < 0;
   if (negative_interval) {
     months = -months;
@@ -127,16 +116,8 @@ std::string YearMonthIntervalType::printValueToString(const TypedValue &value) c
   return std::string(interval_buf);
 }
 
-void YearMonthIntervalType::printValueToFile(const TypedValue &value,
-                                             FILE *file,
-                                             const int padding) const {
-  // We simply re-use the logic from printValueToString(), as trying to do
-  // padding on-the fly with so many different fields is too much of a hassle.
-  std::fprintf(file, "%*s", static_cast<int>(padding), printValueToString(value).c_str());
-}
-
-bool YearMonthIntervalType::parseValueFromString(const std::string &value_string,
-                                                 TypedValue *value) const {
+bool YearMonthIntervalType::parseTypedValueFromString(const std::string &value_string,
+                                                      TypedValue *value) const {
   // Try simple-format parse first.
   std::int64_t count;
   std::string units;

@@ -41,6 +41,8 @@ namespace quickstep {
 class CatalogDatabase;
 class CatalogRelation;
 class Comparison;
+class ParseArray;
+class ParseDataType;
 class ParseExpression;
 class ParseFunctionCall;
 class ParseGeneratorTableReference;
@@ -446,6 +448,11 @@ class Resolver {
       const Type *type_hint,
       ExpressionResolutionInfo *expression_resolution_info);
 
+  expressions::ScalarPtr resolveArray(
+      const ParseArray &parse_array,
+      const Type *type_hint,
+      ExpressionResolutionInfo *expression_resolution_info);
+
   /**
    * @brief Resolves a searched CASE expression.
    *
@@ -480,9 +487,6 @@ class Resolver {
    * @brief Resolves a function call. For a non-scalar function, the returned
    *        expression is an AttributeReference to the actual resolved expression.
    *
-   * @note This currently only handles resolving aggregate functions and window
-   *       aggregate functions.
-   *
    * @param parse_function_call The function call to be resolved.
    * @param expression_resolution_info Resolution info that contains the name
    *                                   resolver and info to be updated after
@@ -491,6 +495,12 @@ class Resolver {
    */
   expressions::ScalarPtr resolveFunctionCall(
       const ParseFunctionCall &parse_function_call,
+      ExpressionResolutionInfo *expression_resolution_info);
+
+  expressions::ScalarPtr resolveScalarFunction(
+      const ParseFunctionCall &parse_function_call,
+      const std::string &function_name,
+      const std::vector<expressions::ScalarPtr> &resolved_arguments,
       ExpressionResolutionInfo *expression_resolution_info);
 
   /**
@@ -571,6 +581,8 @@ class Resolver {
    * @return The CatalogRelation.
    */
   const CatalogRelation *resolveRelationName(const ParseString *relation_name);
+
+  const Type& resolveDataType(const ParseDataType &parse_data_type);
 
   /**
    * @brief Determines whether \p op can apply to \p left_operand and \p

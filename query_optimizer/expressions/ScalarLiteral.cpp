@@ -40,18 +40,18 @@ namespace optimizer {
 namespace expressions {
 
 const Type& ScalarLiteral::getValueType() const {
-  return value_type_;
+  return value_.getType();
 }
 
 ExpressionPtr ScalarLiteral::copyWithNewChildren(
     const std::vector<ExpressionPtr> &new_children) const {
   DCHECK_EQ(new_children.size(), children().size());
-  return ScalarLiteral::Create(value_, value_type_);
+  return ScalarLiteral::Create(value_);
 }
 
 ::quickstep::Scalar *ScalarLiteral::concretize(
     const std::unordered_map<ExprId, const CatalogAttribute*> &substitution_map) const {
-  return new ::quickstep::ScalarLiteral(value_, value_type_);
+  return new ::quickstep::ScalarLiteral(value_.toTypedValue(), value_.getType());
 }
 
 std::size_t ScalarLiteral::computeHash() const {
@@ -64,12 +64,8 @@ std::size_t ScalarLiteral::computeHash() const {
 
 bool ScalarLiteral::equals(const ScalarPtr &other) const {
   ScalarLiteralPtr lit;
-  if (SomeScalarLiteral::MatchesWithConditionalCast(other, &lit) &&
-      value_type_.equals(lit->value_type_)) {
-    if (value_.isNull() || lit->value_.isNull()) {
-      return value_.isNull() && lit->value_.isNull();
-    }
-    return value_.fastEqualCheck(lit->value_);
+  if (SomeScalarLiteral::MatchesWithConditionalCast(other, &lit)) {
+    return value_.equals(lit->value_);
   }
   return false;
 }
@@ -85,7 +81,7 @@ void ScalarLiteral::getFieldStringItems(
   if (value_.isNull()) {
     inline_field_values->push_back("NULL");
   } else {
-    inline_field_values->push_back(value_type_.printValueToString(value_));
+    inline_field_values->push_back(value_.toString());
   }
 
   inline_field_names->push_back("type");

@@ -54,12 +54,12 @@ void ParseAttributeDefinition::getFieldStringItems(
     std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const {
   inline_field_names->push_back("name");
   inline_field_values->push_back(name_->value());
-  inline_field_names->push_back("type");
-  inline_field_values->push_back(data_type_->getType().getName());
+  non_container_child_field_names->push_back("type");
+  non_container_child_fields->push_back(data_type_.get());
 }
 
 void ParseColumnConstraintNull::applyTo(ParseAttributeDefinition *target) const {
-  target->data_type_->type_ = &(target->data_type_->type_->getNullableVersion());
+  target->setNullable(true);
 }
 
 void ParseColumnConstraintNull::getFieldStringItems(
@@ -74,7 +74,7 @@ void ParseColumnConstraintNull::getFieldStringItems(
 }
 
 void ParseColumnConstraintNotNull::applyTo(ParseAttributeDefinition *target) const {
-  target->data_type_->type_ = &(target->data_type_->type_->getNonNullableVersion());
+  target->setNullable(false);
 }
 
 void ParseColumnConstraintNotNull::getFieldStringItems(

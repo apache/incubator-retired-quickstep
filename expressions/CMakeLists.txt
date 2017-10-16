@@ -56,9 +56,9 @@ target_link_libraries(quickstep_expressions_ExpressionFactories
                       quickstep_expressions_scalar_ScalarUnaryExpression
                       quickstep_types_TypeFactory
                       quickstep_types_TypedValue
-                      quickstep_types_operations_binaryoperations_BinaryOperationFactory
+                      quickstep_types_operations_OperationFactory
+                      quickstep_types_operations_OperationSignature
                       quickstep_types_operations_comparisons_ComparisonFactory
-                      quickstep_types_operations_unaryoperations_UnaryOperationFactory
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_expressions_Expressions_proto
                       quickstep_types_Type_proto

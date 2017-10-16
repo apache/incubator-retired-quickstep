@@ -28,68 +28,32 @@
 #include <cstdio>
 #include <string>
 
-#include "types/NullCoercibilityCheckMacro.hpp"
-#include "types/Type.hpp"
 #include "types/TypeID.hpp"
 #include "types/TypedValue.hpp"
-#include "utility/EqualsAnyConstant.hpp"
 
 #include "glog/logging.h"
 
 namespace quickstep {
 
-const TypeID LongType::kStaticTypeID = kLong;
+std::string LongType::printValueToString(const UntypedLiteral *value) const {
+  DCHECK(value != nullptr);
 
-bool LongType::isSafelyCoercibleFrom(const Type &original_type) const {
-  QUICKSTEP_NULL_COERCIBILITY_CHECK();
-  return QUICKSTEP_EQUALS_ANY_CONSTANT(original_type.getTypeID(),
-                                       kInt, kLong);
+  return std::to_string(castValueToLiteral(value));
 }
 
-TypedValue LongType::coerceValue(const TypedValue &original_value,
-                                 const Type &original_type) const {
-  DCHECK(isCoercibleFrom(original_type))
-      << "Can't coerce value of Type " << original_type.getName()
-      << " to Type " << getName();
-
-  if (original_value.isNull()) {
-    return makeNullValue();
-  }
-
-  switch (original_type.getTypeID()) {
-    case kInt:
-      return TypedValue(static_cast<std::int64_t>(original_value.getLiteral<int>()));
-    case kLong:
-      return original_value;
-    case kFloat:
-      return TypedValue(static_cast<std::int64_t>(original_value.getLiteral<float>()));
-    case kDouble:
-      return TypedValue(static_cast<std::int64_t>(original_value.getLiteral<double>()));
-    default:
-      LOG(FATAL) << "Attempted to coerce Type " << original_type.getName()
-                 << " (not recognized as a numeric Type) to " << getName();
-  }
-}
-
-std::string LongType::printValueToString(const TypedValue &value) const {
-  DCHECK(!value.isNull());
-
-  return std::to_string(value.getLiteral<std::int64_t>());
-}
-
-void LongType::printValueToFile(const TypedValue &value,
+void LongType::printValueToFile(const UntypedLiteral *value,
                                 FILE *file,
                                 const int padding) const {
-  DCHECK(!value.isNull());
+  DCHECK(value != nullptr);
 
   std::fprintf(file,
                "%*" PRId64,
                static_cast<int>(padding),
-               value.getLiteral<std::int64_t>());
+               castValueToLiteral(value));
 }
 
-bool LongType::parseValueFromString(const std::string &value_string,
-                                    TypedValue *value) const {
+bool LongType::parseTypedValueFromString(const std::string &value_string,
+                                         TypedValue *value) const {
   std::int64_t parsed_long;
   int read_chars;
   int matched = std::sscanf(value_string.c_str(),

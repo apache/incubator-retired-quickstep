@@ -31,8 +31,8 @@
 #include "query_optimizer/expressions/ExprId.hpp"
 #include "query_optimizer/expressions/Expression.hpp"
 #include "query_optimizer/expressions/PatternMatcher.hpp"
+#include "query_optimizer/expressions/ScalarLiteral.hpp"
 #include "types/operations/binary_operations/BinaryOperation.hpp"
-#include "types/operations/binary_operations/BinaryOperationID.hpp"
 #include "utility/HashPair.hpp"
 
 #include "glog/logging.h"
@@ -44,37 +44,8 @@ class Type;
 namespace optimizer {
 namespace expressions {
 
-BinaryExpression::BinaryExpression(const BinaryOperation &operation,
-                                   const ScalarPtr &left,
-                                   const ScalarPtr &right)
-    : operation_(operation), left_(left), right_(right) {
-  DCHECK(operation_.canApplyToTypes(left_->getValueType(),
-                                    right_->getValueType()))
-      << toString();
-  addChild(left_);
-  addChild(right_);
-}
-
 std::string BinaryExpression::getName() const {
-  switch (operation_.getBinaryOperationID()) {
-    case BinaryOperationID::kAdd:
-      return "Add";
-    case BinaryOperationID::kSubtract:
-      return "Subtract";
-    case BinaryOperationID::kMultiply:
-      return "Multiply";
-    case BinaryOperationID::kDivide:
-      return "Divide";
-    case BinaryOperationID::kModulo:
-      return "Modulo";
-    default:
-      LOG(FATAL) << "Unknown binary operation";
-  }
-}
-
-const Type &BinaryExpression::getValueType() const {
-  return *operation_.resultTypeForArgumentTypes(left_->getValueType(),
-                                                right_->getValueType());
+  return op_signature_->getName();
 }
 
 ExpressionPtr BinaryExpression::copyWithNewChildren(
@@ -83,9 +54,11 @@ ExpressionPtr BinaryExpression::copyWithNewChildren(
   DCHECK(SomeScalar::Matches(new_children[0]));
   DCHECK(SomeScalar::Matches(new_children[1]));
   return BinaryExpression::Create(
+      op_signature_,
       operation_,
       std::static_pointer_cast<const Scalar>(new_children[0]),
-      std::static_pointer_cast<const Scalar>(new_children[1]));
+      std::static_pointer_cast<const Scalar>(new_children[1]),
+      static_arguments_);
 }
 
 std::vector<AttributeReferencePtr> BinaryExpression::getReferencedAttributes() const {
@@ -102,33 +75,40 @@ std::vector<AttributeReferencePtr> BinaryExpression::getReferencedAttributes() c
 ::quickstep::Scalar *BinaryExpression::concretize(
     const std::unordered_map<ExprId, const CatalogAttribute*> &substitution_map) const {
   return new ::quickstep::ScalarBinaryExpression(
+      op_signature_,
       operation_,
       left_->concretize(substitution_map),
-      right_->concretize(substitution_map));
+      right_->concretize(substitution_map),
+      static_arguments_cache_);
 }
 
 std::size_t BinaryExpression::computeHash() const {
+  std::size_t hash_code = op_signature_->hash();
   std::size_t left_hash = left_->hash();
   std::size_t right_hash = right_->hash();
 
-  if (operation_.isCommutative() && left_hash > right_hash) {
+  if (operation_->isCommutative() && left_hash > right_hash) {
     std::swap(left_hash, right_hash);
   }
+  hash_code = CombineHashes(hash_code, left_hash);
+  hash_code = CombineHashes(hash_code, right_hash);
 
-  return CombineHashes(
-      CombineHashes(static_cast<std::size_t>(ExpressionType::kBinaryExpression),
-                    static_cast<std::size_t>(operation_.getBinaryOperationID())),
-      CombineHashes(left_hash, right_hash));
+  for (const GenericValue &st_arg : *static_arguments_) {
+    hash_code = CombineHashes(hash_code, st_arg.getHash());
+  }
+  return hash_code;
 }
 
 bool BinaryExpression::equals(const ScalarPtr &other) const {
+  // TODO
   BinaryExpressionPtr expr;
   if (SomeBinaryExpression::MatchesWithConditionalCast(other, &expr) &&
-      &operation_ == &expr->operation_) {
+      *op_signature_ == *expr->op_signature_ &&
+      *static_arguments_ == *expr->static_arguments_) {
     ScalarPtr left = left_;
     ScalarPtr right = right_;
 
-    if (operation_.isCommutative()) {
+    if (operation_->isCommutative()) {
       const bool self_order = (left_->hash() < right_->hash());
       const bool other_order = (expr->left_->hash() < expr->right_->hash());
       if (self_order ^ other_order) {
@@ -148,8 +128,25 @@ void BinaryExpression::getFieldStringItems(
     std::vector<OptimizerTreeBaseNodePtr> *non_container_child_fields,
     std::vector<std::string> *container_child_field_names,
     std::vector<std::vector<OptimizerTreeBaseNodePtr>> *container_child_fields) const {
-  container_child_field_names->push_back("");
-  container_child_fields->push_back({left_, right_});
+  inline_field_names->emplace_back("op_signature");
+  inline_field_values->emplace_back(op_signature_->toString());
+
+  inline_field_names->emplace_back("result_type");
+  inline_field_values->emplace_back(result_type_.getName());
+
+  non_container_child_field_names->emplace_back("left_operand");
+  non_container_child_fields->emplace_back(left_);
+  non_container_child_field_names->emplace_back("right_operand");
+  non_container_child_fields->emplace_back(right_);
+
+  if (!static_arguments_->empty()) {
+    container_child_field_names->emplace_back("static_arguments");
+    container_child_fields->emplace_back();
+    for (std::size_t i = 0; i < static_arguments_->size(); ++i) {
+      container_child_fields->back().emplace_back(
+          ScalarLiteral::Create(static_arguments_->at(i)));
+    }
+  }
 }
 
 }  // namespace expressions

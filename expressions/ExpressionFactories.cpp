@@ -43,9 +43,9 @@
 #include "expressions/scalar/ScalarUnaryExpression.hpp"
 #include "types/TypeFactory.hpp"
 #include "types/TypedValue.hpp"
-#include "types/operations/binary_operations/BinaryOperationFactory.hpp"
+#include "types/operations/OperationFactory.hpp"
+#include "types/operations/OperationSignature.hpp"
 #include "types/operations/comparisons/ComparisonFactory.hpp"
-#include "types/operations/unary_operations/UnaryOperationFactory.hpp"
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
@@ -168,17 +168,43 @@ Scalar* ScalarFactory::ReconstructFromProto(const serialization::Scalar &proto,
           proto.GetExtension(serialization::ScalarAttribute::attribute_id)));
     }
     case serialization::Scalar::UNARY_EXPRESSION: {
+      std::vector<TypedValue> static_arguments;
+      const int num_static_args =
+          proto.ExtensionSize(serialization::ScalarUnaryExpression::static_arguments);
+      for (int i = 0; i < num_static_args; ++i) {
+        static_arguments.emplace_back(
+            TypedValue::ReconstructFromProto(
+                proto.GetExtension(serialization::ScalarUnaryExpression::static_arguments, i)));
+      }
+      const OperationSignaturePtr op_signature =
+          OperationSignature::ReconstructFromProto(
+              proto.GetExtension(serialization::ScalarUnaryExpression::op_signature));
       return new ScalarUnaryExpression(
-          UnaryOperationFactory::ReconstructFromProto(
-              proto.GetExtension(serialization::ScalarUnaryExpression::operation)),
-          ReconstructFromProto(proto.GetExtension(serialization::ScalarUnaryExpression::operand), database));
+          op_signature,
+          OperationFactory::GetUnaryOperation(op_signature),
+          ReconstructFromProto(proto.GetExtension(serialization::ScalarUnaryExpression::operand), database),
+          std::make_shared<std::vector<TypedValue>>(std::move(static_arguments)));
     }
     case serialization::Scalar::BINARY_EXPRESSION: {
+      std::vector<TypedValue> static_arguments;
+      const int num_static_args =
+          proto.ExtensionSize(serialization::ScalarBinaryExpression::static_arguments);
+      for (int i = 0; i < num_static_args; ++i) {
+        static_arguments.emplace_back(
+            TypedValue::ReconstructFromProto(
+                proto.GetExtension(serialization::ScalarBinaryExpression::static_arguments, i)));
+      }
+      const OperationSignaturePtr op_signature =
+          OperationSignature::ReconstructFromProto(
+              proto.GetExtension(serialization::ScalarBinaryExpression::op_signature));
       return new ScalarBinaryExpression(
-          BinaryOperationFactory::ReconstructFromProto(
-              proto.GetExtension(serialization::ScalarBinaryExpression::operation)),
-          ReconstructFromProto(proto.GetExtension(serialization::ScalarBinaryExpression::left_operand), database),
-          ReconstructFromProto(proto.GetExtension(serialization::ScalarBinaryExpression::right_operand), database));
+          op_signature,
+          OperationFactory::GetBinaryOperation(op_signature),
+          ReconstructFromProto(
+              proto.GetExtension(serialization::ScalarBinaryExpression::left_operand), database),
+          ReconstructFromProto(
+              proto.GetExtension(serialization::ScalarBinaryExpression::right_operand), database),
+          std::make_shared<std::vector<TypedValue>>(std::move(static_arguments)));
     }
     case serialization::Scalar::CASE_EXPRESSION: {
       const Type &result_type = TypeFactory::ReconstructFromProto(
@@ -248,22 +274,13 @@ bool ScalarFactory::ProtoIsValid(const serialization::Scalar &proto,
       break;
     }
     case serialization::Scalar::UNARY_EXPRESSION: {
-      if (proto.HasExtension(serialization::ScalarUnaryExpression::operation)
-          && proto.HasExtension(serialization::ScalarUnaryExpression::operand)) {
-        return UnaryOperationFactory::ProtoIsValid(proto.GetExtension(serialization::ScalarUnaryExpression::operation))
-               && ProtoIsValid(proto.GetExtension(serialization::ScalarUnaryExpression::operand), database);
-      }
+      // TODO
+      return true;
       break;
     }
     case serialization::Scalar::BINARY_EXPRESSION: {
-      if (proto.HasExtension(serialization::ScalarBinaryExpression::operation)
-          && proto.HasExtension(serialization::ScalarBinaryExpression::left_operand)
-          && proto.HasExtension(serialization::ScalarBinaryExpression::right_operand)) {
-        return BinaryOperationFactory::ProtoIsValid(
-                   proto.GetExtension(serialization::ScalarBinaryExpression::operation))
-               && ProtoIsValid(proto.GetExtension(serialization::ScalarBinaryExpression::left_operand), database)
-               && ProtoIsValid(proto.GetExtension(serialization::ScalarBinaryExpression::right_operand), database);
-      }
+      // TODO
+      return true;
       break;
     }
     case serialization::Scalar::CASE_EXPRESSION: {
