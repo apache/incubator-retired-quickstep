@@ -272,11 +272,13 @@ class HashJoinOperatorTest : public ::testing::TestWithParam<HashTableImplType> 
   void insertTuplesWithSingleAttributePartitions() {
     // Set PartitionScheme.
     dim_part_scheme_ = new PartitionScheme(
-        new HashPartitionSchemeHeader(kMultiplePartitions, { dim_table_->getAttributeByName("long")->getID() }));
+        new HashPartitionSchemeHeader(kMultiplePartitions, { dim_table_->getAttributeByName("long")->getID() },
+                                      { kLong }, { 0 }));
     dim_table_->setPartitionScheme(dim_part_scheme_);
 
     fact_part_scheme_ = new PartitionScheme(
-        new HashPartitionSchemeHeader(kMultiplePartitions, { fact_table_->getAttributeByName("long")->getID() }));
+        new HashPartitionSchemeHeader(kMultiplePartitions, { fact_table_->getAttributeByName("long")->getID() },
+                                      { kLong }, { 0 }));
     fact_table_->setPartitionScheme(fact_part_scheme_);
 
     // Create StorageLayout

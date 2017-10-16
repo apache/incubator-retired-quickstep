@@ -39,6 +39,7 @@
 
 #include "gtest/gtest.h"
 
+using std::make_unique;
 using std::move;
 using std::size_t;
 using std::vector;
@@ -48,7 +49,7 @@ namespace quickstep {
 TEST(PartitionSchemeHeaderTest, IntegerHashPartitionSchemeHeaderTest) {
   const std::size_t num_partitions = 4;
   std::unique_ptr<PartitionSchemeHeader> partition_scheme_header(
-      new HashPartitionSchemeHeader(num_partitions, { 0 }));
+      new HashPartitionSchemeHeader(num_partitions, { 0 }, { kInt }));
   EXPECT_EQ(num_partitions, partition_scheme_header->getNumPartitions());
   EXPECT_EQ(0, partition_scheme_header->getPartitionAttributeIds().front());
   const int kSampleInts[] = {
@@ -66,7 +67,7 @@ TEST(PartitionSchemeHeaderTest, IntegerHashPartitionSchemeHeaderTest) {
 TEST(PartitionSchemeHeaderTest, LongHashPartitionSchemeHeaderTest) {
   const std::size_t num_partitions = 8;
   std::unique_ptr<PartitionSchemeHeader> partition_scheme_header(
-      new HashPartitionSchemeHeader(num_partitions, { 0 }));
+      new HashPartitionSchemeHeader(num_partitions, { 0 }, { kLong }));
   EXPECT_EQ(num_partitions, partition_scheme_header->getNumPartitions());
   EXPECT_EQ(0, partition_scheme_header->getPartitionAttributeIds().front());
   const std::int64_t kSampleLongs[] = {INT64_C(10),
@@ -87,7 +88,7 @@ TEST(PartitionSchemeHeaderTest, LongHashPartitionSchemeHeaderTest) {
 TEST(PartitionSchemeHeaderTest, FloatHashPartitionSchemeHeaderTest) {
   const std::size_t num_partitions = 5;
   std::unique_ptr<PartitionSchemeHeader> partition_scheme_header(
-      new HashPartitionSchemeHeader(num_partitions, { 0 }));
+      new HashPartitionSchemeHeader(num_partitions, { 0 }, { kFloat }));
   EXPECT_EQ(num_partitions, partition_scheme_header->getNumPartitions());
   EXPECT_EQ(0, partition_scheme_header->getPartitionAttributeIds().front());
   const float kSampleFloats[] = {
@@ -105,7 +106,7 @@ TEST(PartitionSchemeHeaderTest, FloatHashPartitionSchemeHeaderTest) {
 TEST(PartitionSchemeHeaderTest, DoubleHashPartitionSchemeHeaderTest) {
   const std::size_t num_partitions = 6;
   std::unique_ptr<PartitionSchemeHeader> partition_scheme_header(
-      new HashPartitionSchemeHeader(num_partitions, { 0 }));
+      new HashPartitionSchemeHeader(num_partitions, { 0 }, { kDouble }));
   EXPECT_EQ(num_partitions, partition_scheme_header->getNumPartitions());
   EXPECT_EQ(0, partition_scheme_header->getPartitionAttributeIds().front());
   const double kSampleDoubles[] = {
@@ -124,7 +125,7 @@ TEST(PartitionSchemeHeaderTest, DoubleHashPartitionSchemeHeaderTest) {
 TEST(PartitionSchemeHeaderTest, CharacterHashPartitionSchemeHeaderTest) {
   const std::size_t num_partitions = 7;
   std::unique_ptr<PartitionSchemeHeader> partition_scheme_header(
-      new HashPartitionSchemeHeader(num_partitions, { 0 }));
+      new HashPartitionSchemeHeader(num_partitions, { 0 }, { kChar }, { 20 }));
   EXPECT_EQ(num_partitions, partition_scheme_header->getNumPartitions());
   EXPECT_EQ(0, partition_scheme_header->getPartitionAttributeIds().front());
   const char *kSampleStrings[] = {
@@ -147,7 +148,7 @@ TEST(PartitionSchemeHeaderTest, CharacterHashPartitionSchemeHeaderTest) {
 TEST(PartitionSchemeHeaderTest, VarCharHashPartitionSchemeHeaderTest) {
   const std::size_t num_partitions = 7;
   std::unique_ptr<PartitionSchemeHeader> partition_scheme_header(
-      new HashPartitionSchemeHeader(num_partitions, { 0 }));
+      new HashPartitionSchemeHeader(num_partitions, { 0 }, { kVarChar }));
   EXPECT_EQ(num_partitions, partition_scheme_header->getNumPartitions());
   EXPECT_EQ(0, partition_scheme_header->getPartitionAttributeIds().front());
   const char *kSampleStrings[] = {
@@ -172,7 +173,8 @@ TEST(PartitionSchemeHeaderTest, MultiAttributeHashPartitionSchemeHeaderTest) {
   constexpr attribute_id kPartitioningFirstAttribute = 0;
   constexpr attribute_id kPartitioningLastAttribute = 2;
   std::unique_ptr<PartitionSchemeHeader> partition_scheme_header(
-      new HashPartitionSchemeHeader(num_partitions, { kPartitioningFirstAttribute, kPartitioningLastAttribute }));
+      new HashPartitionSchemeHeader(num_partitions, { kPartitioningFirstAttribute, kPartitioningLastAttribute },
+                                    { kInt, kDouble }));
   EXPECT_EQ(num_partitions, partition_scheme_header->getNumPartitions());
   EXPECT_EQ(kPartitioningFirstAttribute, partition_scheme_header->getPartitionAttributeIds().front());
   EXPECT_EQ(kPartitioningLastAttribute, partition_scheme_header->getPartitionAttributeIds().back());
@@ -399,7 +401,7 @@ TEST(PartitionSchemeHeaderTest, MultiAttributeRangePartitionSchemeHeaderTest) {
 
 TEST(PartitionSchemeTest, AddBlocksToPartitionTest) {
   std::unique_ptr<PartitionScheme> partition_scheme(
-      new PartitionScheme(new HashPartitionSchemeHeader(4, { 0 })));
+      new PartitionScheme(new HashPartitionSchemeHeader(4, { 0 }, { kInt })));
   for (int i = 0; i < 10; ++i) {
     partition_scheme->addBlockToPartition(i, i % 4);
   }
@@ -468,7 +470,7 @@ TEST(PartitionSchemeTest, AddBlocksToPartitionTest) {
 
 TEST(PartitionSchemeTest, RemoveBlocksFromPartitionTest) {
   std::unique_ptr<PartitionScheme> partition_scheme(
-      new PartitionScheme(new HashPartitionSchemeHeader(4, { 0 })));
+      new PartitionScheme(new HashPartitionSchemeHeader(4, { 0 }, { kInt })));
   for (int i = 0; i < 10; ++i) {
     partition_scheme->addBlockToPartition(i, i % 4);
   }
@@ -552,7 +554,7 @@ TEST(PartitionSchemeTest, RemoveBlocksFromPartitionTest) {
 TEST(PartitionSchemeTest, CheckHashPartitionSchemeSerialization) {
   const std::size_t num_partitions = 4;
   std::unique_ptr<PartitionScheme> part_scheme(
-      new PartitionScheme(new HashPartitionSchemeHeader(num_partitions, { 0 })));
+      new PartitionScheme(new HashPartitionSchemeHeader(num_partitions, { 0 }, { kInt })));
   // Add some blocks to each partition.
   for (int i = 0; i < 10; ++i) {
     part_scheme->addBlockToPartition(i, i % num_partitions);
@@ -592,8 +594,7 @@ TEST(PartitionSchemeTest, CheckHashPartitionSchemeSerialization) {
 
 TEST(PartitionSchemeTest, CheckRandomPartitionSchemeSerialization) {
   const std::size_t num_partitions = 4;
-  std::unique_ptr<PartitionScheme> part_scheme(
-      new PartitionScheme(new RandomPartitionSchemeHeader(num_partitions)));
+  auto part_scheme = make_unique<PartitionScheme>(new RandomPartitionSchemeHeader(num_partitions));
   // Add some blocks to each partition.
   for (int i = 0; i < 10; ++i) {
     part_scheme->addBlockToPartition(i, i % num_partitions);
@@ -635,13 +636,12 @@ TEST(PartitionSchemeTest, CheckRandomPartitionSchemeSerialization) {
 // due to QUICKSTEP-86.
 
 TEST(PartitionSchemeTest, CheckBlocksInPartitionTest) {
-  std::unique_ptr<PartitionScheme> partition_scheme;
   constexpr std::size_t kNumBlocks = 10;
   constexpr std::size_t kNumPartitions = 4;
   constexpr attribute_id kPartitioningAttribute = 0;
   // Create a partition scheme object.
-  partition_scheme.reset(
-      new PartitionScheme(new HashPartitionSchemeHeader(kNumPartitions, { kPartitioningAttribute })));
+  auto partition_scheme = make_unique<PartitionScheme>(
+      new HashPartitionSchemeHeader(kNumPartitions, { kPartitioningAttribute }, { kInt }));
   // Add blocks to different partitions.
   for (std::size_t block_id = 0; block_id < kNumBlocks; ++block_id) {
     partition_scheme->addBlockToPartition(block_id,

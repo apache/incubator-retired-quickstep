@@ -651,7 +651,6 @@ void PartitionAwareInsertDestination::bulkInsertTuplesWithRemappedAttributes(
 
     // Iterate over ValueAccessor for each tuple,
     // set a bit in the appropriate TupleIdSequence.
-    accessor->beginIteration();
     this->setPartitionMembership(&partition_membership, accessor);
 
     // For each partition, create an adapter around Value Accessor and

@@ -646,14 +646,7 @@ class PartitionAwareInsertDestination : public InsertDestination {
         (*partition_membership)[input_partition_id_]->set(accessor->getCurrentPosition());
       }
     } else {
-      PartitionSchemeHeader::PartitionValues values(partition_attr_ids.size());
-      while (accessor->next()) {
-        for (std::size_t i = 0; i < partition_attr_ids.size(); ++i) {
-          values[i] = accessor->getTypedValue(partition_attr_ids[i]);
-        }
-        (*partition_membership)[partition_scheme_header_->getPartitionId(values)]->set(
-            accessor->getCurrentPosition());
-      }
+      partition_scheme_header_->setPartitionMembership(partition_membership, accessor);
     }
   }
 

@@ -166,15 +166,20 @@ target_link_libraries(quickstep_catalog_PartitionScheme
                       quickstep_threading_SpinSharedMutex
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_catalog_PartitionSchemeHeader
+                      farmhash
                       glog
                       quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogRelationSchema
                       quickstep_catalog_CatalogTypedefs
                       quickstep_catalog_Catalog_proto
                       quickstep_storage_StorageConstants
+                      quickstep_storage_TupleIdSequence
+                      quickstep_storage_ValueAccessor
+                      quickstep_storage_ValueAccessorUtil
                       quickstep_threading_SpinMutex
                       quickstep_types_Type
                       quickstep_types_TypeFactory
+                      quickstep_types_TypeID
                       quickstep_types_Type_proto
                       quickstep_types_TypedValue
                       quickstep_types_TypedValue_proto
@@ -182,6 +187,7 @@ target_link_libraries(quickstep_catalog_PartitionSchemeHeader
                       quickstep_types_operations_comparisons_EqualComparison
                       quickstep_types_operations_comparisons_LessComparison
                       quickstep_utility_CompositeHash
+                      quickstep_utility_HashPair
                       quickstep_utility_Macros)
 
 # Module all-in-one library:
