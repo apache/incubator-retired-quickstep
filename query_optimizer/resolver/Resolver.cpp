@@ -889,11 +889,7 @@ const S::PartitionSchemeHeader* Resolver::resolvePartitionClause(
   if (partition_type == kHashPartitionType) {
     for (int i = 0; i < proto->partition_attribute_ids_size(); ++i) {
       const Type &type = attributes[proto->partition_attribute_ids(i)]->getValueType();
-      const TypeID type_id = type.getTypeID();
-      proto->AddExtension(S::HashPartitionSchemeHeader::partition_attr_types, SerializeTypeID(type_id));
-      if (type_id == kChar) {
-        proto->AddExtension(S::HashPartitionSchemeHeader::char_type_lengths, type.getPrintWidth());
-      }
+      proto->AddExtension(S::HashPartitionSchemeHeader::partition_attr_types)->MergeFrom(type.getProto());
     }
   }
 

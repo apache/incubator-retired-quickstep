@@ -51,8 +51,7 @@ message PartitionSchemeHeader {
 message HashPartitionSchemeHeader {
   extend PartitionSchemeHeader {
     // Required.
-    repeated Type.TypeID partition_attr_types = 16;
-    repeated uint64 char_type_lengths = 17;
+    repeated Type partition_attr_types = 16;
   }
 }
 

@@ -501,9 +501,9 @@ void ExecutionGenerator::createTemporaryCatalogRelation(
       // Use the attribute id from the input relation.
       // NOTE(zuyu): The following line should be before changing
       // 'attribute_substitution_map_' with the output attributes.
-      output_partition_attr_ids.push_back(attribute_substitution_map_[partition_expr_id]->getID());
-      output_partition_attribute_types.push_back(
-          &catalog_relation->getAttributeById(output_partition_attr_ids.back())->getType());
+      const CatalogAttribute *attr = attribute_substitution_map_[partition_expr_id];
+      output_partition_attr_ids.push_back(attr->getID());
+      output_partition_attribute_types.push_back(&attr->getType());
     }
 
     const size_t num_partition = partition_scheme_header->num_partitions;
@@ -511,16 +511,18 @@ void ExecutionGenerator::createTemporaryCatalogRelation(
     switch (partition_scheme_header->partition_type) {
       case P::PartitionSchemeHeader::PartitionType::kHash: {
         vector<TypeID> type_ids;
+        vector<bool> type_nullables;
         vector<size_t> char_type_lengths;
         for (const Type *type : output_partition_attribute_types) {
           type_ids.push_back(type->getTypeID());
+          type_nullables.push_back(type->isNullable());
           if (type_ids.back() == kChar) {
             char_type_lengths.push_back(type->getPrintWidth());
           }
         }
         output_partition_scheme_header =
             make_unique<HashPartitionSchemeHeader>(num_partition, move(output_partition_attr_ids),
-                                                   move(type_ids), move(char_type_lengths));
+                                                   move(type_ids), move(type_nullables), move(char_type_lengths));
         break;
       }
       case P::PartitionSchemeHeader::PartitionType::kRandom:

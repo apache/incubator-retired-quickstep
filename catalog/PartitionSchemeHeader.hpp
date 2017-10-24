@@ -195,17 +195,26 @@ class HashPartitionSchemeHeader final : public PartitionSchemeHeader {
    *
    * @param num_partitions The number of partitions to be created.
    * @param attributes A vector of attributes on which the partitioning happens.
+   * @param attribute_types The types of partition attributes.
+   * @param attribute_type_nullables The nullable of partition attributes.
+   * @param char_type_lengths The length of char partition attribute types.
    **/
   HashPartitionSchemeHeader(const std::size_t num_partitions,
                             PartitionAttributeIds &&attributes,  // NOLINT(whitespace/operators)
                             std::vector<TypeID> &&attribute_types,
+                            std::vector<bool> &&attribute_type_nullables = {},
                             std::vector<std::size_t> &&char_type_lengths = {})
       : PartitionSchemeHeader(PartitionType::kHash, num_partitions, std::move(attributes)),
         attr_type_ids_(std::move(attribute_types)),
+        attr_type_nullables_(attribute_type_nullables.empty()
+                                 ? std::vector<bool>(attr_type_ids_.size(), false)
+                                 : std::move(attribute_type_nullables)),
         char_type_lengths_(std::move(char_type_lengths)),
         is_power_of_two_(!(num_partitions & (num_partitions - 1))) {
     DCHECK_EQ(partition_attribute_ids_.size(),
               attr_type_ids_.size());
+    DCHECK_EQ(attr_type_ids_.size(),
+              attr_type_nullables_.size());
   }
 
   /**
@@ -227,7 +236,7 @@ class HashPartitionSchemeHeader final : public PartitionSchemeHeader {
   template <bool is_power_of_two>
   partition_id getPartitionIdImpl(const std::size_t hash_code) const;
 
-  template <TypeID type_id, typename ValueAccessorT, typename ...Optional>
+  template <TypeID type_id, bool type_nullable, typename ValueAccessorT, typename ...Optional>
   void setPartitionMembershipImpl(ValueAccessorT *accessor,
                                   const attribute_id attr_id,
                                   std::vector<std::unique_ptr<TupleIdSequence>> *partition_membership,
@@ -241,6 +250,7 @@ class HashPartitionSchemeHeader final : public PartitionSchemeHeader {
 
   // The size is equal to 'partition_attribute_ids_.size()'.
   const std::vector<TypeID> attr_type_ids_;
+  const std::vector<bool> attr_type_nullables_;
   const std::vector<std::size_t> char_type_lengths_;
 
   const bool is_power_of_two_;
@@ -289,22 +299,48 @@ inline std::size_t HashPartitionSchemeHeader::getHashCode<kChar>(const void *dat
 // Implementation of setPartitionMembershipImpl() is written out-of-line
 // here because instantiations of getHashCode() and getPartitionIdImpl() must
 // come after the explicit specializations above.
-template <TypeID type_id, typename ValueAccessorT, typename ...Optional>
+template <TypeID type_id, bool type_nullable, typename ValueAccessorT, typename ...Optional>
 inline void HashPartitionSchemeHeader::setPartitionMembershipImpl(
     ValueAccessorT *accessor, const attribute_id attr_id,
     std::vector<std::unique_ptr<TupleIdSequence>> *partition_membership,
     const Optional &...length) const {
   if (is_power_of_two_) {
-    while (accessor->next()) {
-      const std::size_t hash_code = getHashCode<type_id>(accessor->getUntypedValue(attr_id), length...);
-      const partition_id part_id = getPartitionIdImpl<true>(hash_code);
-      (*partition_membership)[part_id]->set(accessor->getCurrentPosition());
+    if (type_nullable) {
+      while (accessor->next()) {
+        const void *data = accessor->getUntypedValue(attr_id);
+        if (data) {
+          const std::size_t hash_code = getHashCode<type_id>(data, length...);
+          const partition_id part_id = getPartitionIdImpl<true>(hash_code);
+          (*partition_membership)[part_id]->set(accessor->getCurrentPosition());
+        } else {
+          (*partition_membership)[0u]->set(accessor->getCurrentPosition());
+        }
+      }
+    } else {
+      while (accessor->next()) {
+        const std::size_t hash_code = getHashCode<type_id>(accessor->getUntypedValue(attr_id), length...);
+        const partition_id part_id = getPartitionIdImpl<true>(hash_code);
+        (*partition_membership)[part_id]->set(accessor->getCurrentPosition());
+      }
     }
   } else {
-    while (accessor->next()) {
-      const std::size_t hash_code = getHashCode<type_id>(accessor->getUntypedValue(attr_id), length...);
-      const partition_id part_id = getPartitionIdImpl<false>(hash_code);
-      (*partition_membership)[part_id]->set(accessor->getCurrentPosition());
+    if (type_nullable) {
+      while (accessor->next()) {
+        const void *data = accessor->getUntypedValue(attr_id);
+        if (data) {
+          const std::size_t hash_code = getHashCode<type_id>(data, length...);
+          const partition_id part_id = getPartitionIdImpl<false>(hash_code);
+          (*partition_membership)[part_id]->set(accessor->getCurrentPosition());
+        } else {
+          (*partition_membership)[0u]->set(accessor->getCurrentPosition());
+        }
+      }
+    } else {
+      while (accessor->next()) {
+        const std::size_t hash_code = getHashCode<type_id>(accessor->getUntypedValue(attr_id), length...);
+        const partition_id part_id = getPartitionIdImpl<false>(hash_code);
+        (*partition_membership)[part_id]->set(accessor->getCurrentPosition());
+      }
     }
   }
 }

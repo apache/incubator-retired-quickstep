@@ -83,15 +83,13 @@ bool PartitionSchemeHeader::ProtoIsValid(
   // Check that the proto has a valid partition type.
   switch (proto.partition_type()) {
     case S::PartitionSchemeHeader::HASH: {
-      int num_char_types = 0;
       for (int i = 0; i < proto.ExtensionSize(S::HashPartitionSchemeHeader::partition_attr_types); ++i) {
-        if (proto.GetExtension(S::HashPartitionSchemeHeader::partition_attr_types, i) == S::Type::CHAR) {
-          ++num_char_types;
+        if (!TypeFactory::ProtoIsValid(proto.GetExtension(S::HashPartitionSchemeHeader::partition_attr_types, i))) {
+          return false;
         }
       }
       return proto.ExtensionSize(S::HashPartitionSchemeHeader::partition_attr_types) ==
-                 proto.partition_attribute_ids_size() &&
-             proto.ExtensionSize(S::HashPartitionSchemeHeader::char_type_lengths) == num_char_types;
+                 proto.partition_attribute_ids_size();
     }
     case serialization::PartitionSchemeHeader::RANDOM:
       return true;
@@ -123,18 +121,19 @@ PartitionSchemeHeader* PartitionSchemeHeader::ReconstructFromProto(
   switch (proto.partition_type()) {
     case serialization::PartitionSchemeHeader::HASH: {
       vector<TypeID> attr_types;
+      vector<bool> attr_type_nullables;
+      vector<size_t> char_type_lengths;
       for (int i = 0; i < proto.ExtensionSize(S::HashPartitionSchemeHeader::partition_attr_types); ++i) {
-        attr_types.push_back(DeserializeTypeID(
-            proto.GetExtension(S::HashPartitionSchemeHeader::partition_attr_types, i)));
+        const S::Type &type_proto = proto.GetExtension(S::HashPartitionSchemeHeader::partition_attr_types, i);
+        attr_types.push_back(DeserializeTypeID(type_proto.type_id()));
+        attr_type_nullables.push_back(type_proto.nullable());
+        if (type_proto.type_id() == S::Type::CHAR) {
+          char_type_lengths.push_back(type_proto.GetExtension(S::CharType::length));
+        }
       }
 
-      vector<size_t> char_type_lengths;
-      for (int i = 0; i < proto.ExtensionSize(S::HashPartitionSchemeHeader::char_type_lengths); ++i) {
-        char_type_lengths.push_back(
-            proto.GetExtension(S::HashPartitionSchemeHeader::char_type_lengths, i));
-      }
       return new HashPartitionSchemeHeader(proto.num_partitions(), move(partition_attribute_ids),
-                                           move(attr_types), move(char_type_lengths));
+                                           move(attr_types), move(attr_type_nullables), move(char_type_lengths));
     }
     case serialization::PartitionSchemeHeader::RANDOM: {
       return new RandomPartitionSchemeHeader(proto.num_partitions());
@@ -256,19 +255,36 @@ void HashPartitionSchemeHeader::setPartitionMembership(
     switch (attr_type_ids_.front()) {
       case kInt:
       case kFloat:
-        return this->setPartitionMembershipImpl<kInt>(accessor, attr_id, partition_membership);
+        if (attr_type_nullables_.front()) {
+          return this->setPartitionMembershipImpl<kInt, true>(accessor, attr_id, partition_membership);
+        } else {
+          return this->setPartitionMembershipImpl<kInt, false>(accessor, attr_id, partition_membership);
+        }
       case kLong:
       case kDouble:
       case kDate:
       case kDatetime:
       case kDatetimeInterval:
       case kYearMonthInterval:
-        return this->setPartitionMembershipImpl<kLong>(accessor, attr_id, partition_membership);
-      case kChar:
-        return this->setPartitionMembershipImpl<kChar>(accessor, attr_id, partition_membership,
-                                                       char_type_lengths_.front());
+        if (attr_type_nullables_.front()) {
+          return this->setPartitionMembershipImpl<kLong, true>(accessor, attr_id, partition_membership);
+        } else {
+          return this->setPartitionMembershipImpl<kLong, false>(accessor, attr_id, partition_membership);
+        }
+      case kChar: {
+        const std::size_t length = char_type_lengths_.front();
+        if (attr_type_nullables_.front()) {
+          return this->setPartitionMembershipImpl<kChar, true>(accessor, attr_id, partition_membership, length);
+        } else {
+          return this->setPartitionMembershipImpl<kChar, false>(accessor, attr_id, partition_membership, length);
+        }
+      }
       case kVarChar:
-        return this->setPartitionMembershipImpl<kVarChar>(accessor, attr_id, partition_membership);
+        if (attr_type_nullables_.front()) {
+          return this->setPartitionMembershipImpl<kVarChar, true>(accessor, attr_id, partition_membership);
+        } else {
+          return this->setPartitionMembershipImpl<kVarChar, false>(accessor, attr_id, partition_membership);
+        }
       default:
         LOG(FATAL) << "Unsupported type.";
     }
@@ -278,14 +294,28 @@ void HashPartitionSchemeHeader::setPartitionMembership(
 S::PartitionSchemeHeader HashPartitionSchemeHeader::getProto() const {
   S::PartitionSchemeHeader proto = PartitionSchemeHeader::getProto();
 
-  for (const TypeID type_id : attr_type_ids_) {
-    proto.AddExtension(S::HashPartitionSchemeHeader::partition_attr_types,
-                       SerializeTypeID(type_id));
+  size_t char_type_lengths_index = 0;
+  for (size_t i = 0; i < attr_type_ids_.size(); ++i) {
+    const TypeID type_id = attr_type_ids_[i];
+
+    S::Type *type_proto =
+        proto.AddExtension(S::HashPartitionSchemeHeader::partition_attr_types);
+    type_proto->set_type_id(SerializeTypeID(type_id));
+    type_proto->set_nullable(attr_type_nullables_[i]);
+
+    switch (type_id) {
+      case kChar:
+        type_proto->SetExtension(S::CharType::length, char_type_lengths_[char_type_lengths_index++]);
+        break;
+      case kVarChar:
+        type_proto->SetExtension(S::VarCharType::length, 0u);
+        break;
+      default:
+        break;
+    }
   }
 
-  for (const size_t length : char_type_lengths_) {
-    proto.AddExtension(S::HashPartitionSchemeHeader::char_type_lengths, length);
-  }
+  DCHECK_EQ(char_type_lengths_.size(), char_type_lengths_index);
 
   return proto;
 }

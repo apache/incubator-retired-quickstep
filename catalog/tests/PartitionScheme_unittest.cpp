@@ -125,7 +125,7 @@ TEST(PartitionSchemeHeaderTest, DoubleHashPartitionSchemeHeaderTest) {
 TEST(PartitionSchemeHeaderTest, CharacterHashPartitionSchemeHeaderTest) {
   const std::size_t num_partitions = 7;
   std::unique_ptr<PartitionSchemeHeader> partition_scheme_header(
-      new HashPartitionSchemeHeader(num_partitions, { 0 }, { kChar }, { 20 }));
+      new HashPartitionSchemeHeader(num_partitions, { 0 }, { kChar }, { false }, { 20 }));
   EXPECT_EQ(num_partitions, partition_scheme_header->getNumPartitions());
   EXPECT_EQ(0, partition_scheme_header->getPartitionAttributeIds().front());
   const char *kSampleStrings[] = {
