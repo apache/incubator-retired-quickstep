@@ -1461,70 +1461,72 @@ void ExecutionGenerator::convertInsertTuple(
       *catalog_database_->getRelationById(
           input_relation_info->relation->getID());
 
-  // Construct the tuple proto to be inserted.
-  const QueryContext::tuple_id tuple_index = query_context_proto_->tuples_size();
+  for (const std::vector<expressions::ScalarLiteralPtr> &tuple : physical_plan->column_values()) {
+    // Construct the tuple proto to be inserted.
+    const QueryContext::tuple_id tuple_index = query_context_proto_->tuples_size();
 
-  S::Tuple *tuple_proto = query_context_proto_->add_tuples();
-  for (const E::ScalarLiteralPtr &literal : physical_plan->column_values()) {
-    tuple_proto->add_attribute_values()->CopyFrom(literal->value().getProto());
-  }
-
-  // FIXME(qzeng): A better way is using a traits struct to look up whether a storage
-  //               block supports ad-hoc insertion instead of hard-coding the block types.
-  const StorageBlockLayout &storage_block_layout =
-      input_relation.getDefaultStorageBlockLayout();
-  if (storage_block_layout.getDescription().tuple_store_description().sub_block_type() ==
-      TupleStorageSubBlockDescription::COMPRESSED_COLUMN_STORE ||
-      storage_block_layout.getDescription().tuple_store_description().sub_block_type() ==
-            TupleStorageSubBlockDescription::COMPRESSED_PACKED_ROW_STORE) {
-    THROW_SQL_ERROR() << "INSERT statement is not supported for the relation "
-                      << input_relation.getName()
-                      << ", because its storage blocks do not support ad-hoc insertion";
-  }
-
-  // Create InsertDestination proto.
-  const QueryContext::insert_destination_id insert_destination_index =
-      query_context_proto_->insert_destinations_size();
-  S::InsertDestination *insert_destination_proto = query_context_proto_->add_insert_destinations();
-
-  insert_destination_proto->set_relation_id(input_relation.getID());
-  insert_destination_proto->mutable_layout()->MergeFrom(
-      input_relation.getDefaultStorageBlockLayout().getDescription());
-
-  if (input_relation.hasPartitionScheme()) {
-    insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::PARTITION_AWARE);
-    insert_destination_proto->MutableExtension(S::PartitionAwareInsertDestination::partition_scheme)
-        ->MergeFrom(input_relation.getPartitionScheme()->getProto());
-  } else {
-    insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
-
-    const vector<block_id> blocks(input_relation.getBlocksSnapshot());
-    for (const block_id block : blocks) {
-      insert_destination_proto->AddExtension(S::BlockPoolInsertDestination::blocks, block);
+    S::Tuple *tuple_proto = query_context_proto_->add_tuples();
+    for (const E::ScalarLiteralPtr &literal : tuple) {
+      tuple_proto->add_attribute_values()->CopyFrom(literal->value().getProto());
     }
-  }
 
-  const QueryPlan::DAGNodeIndex insert_operator_index =
-      execution_plan_->addRelationalOperator(
-          new InsertOperator(query_handle_->query_id(),
-                             input_relation,
-                             insert_destination_index,
-                             tuple_index));
-  insert_destination_proto->set_relational_op_index(insert_operator_index);
+    // FIXME(qzeng): A better way is using a traits struct to look up whether a storage
+    //               block supports ad-hoc insertion instead of hard-coding the block types.
+    const StorageBlockLayout &storage_block_layout =
+        input_relation.getDefaultStorageBlockLayout();
+    if (storage_block_layout.getDescription().tuple_store_description().sub_block_type() ==
+        TupleStorageSubBlockDescription::COMPRESSED_COLUMN_STORE ||
+        storage_block_layout.getDescription().tuple_store_description().sub_block_type() ==
+              TupleStorageSubBlockDescription::COMPRESSED_PACKED_ROW_STORE) {
+      THROW_SQL_ERROR() << "INSERT statement is not supported for the relation "
+                        << input_relation.getName()
+                        << ", because its storage blocks do not support ad-hoc insertion";
+    }
 
-  CatalogRelation *mutable_relation =
-      catalog_database_->getRelationByIdMutable(input_relation.getID());
-  const QueryPlan::DAGNodeIndex save_blocks_index =
-      execution_plan_->addRelationalOperator(
-          new SaveBlocksOperator(query_handle_->query_id(), mutable_relation));
-  if (!input_relation_info->isStoredRelation()) {
-    execution_plan_->addDirectDependency(insert_operator_index,
-                                         input_relation_info->producer_operator_index,
-                                         true /* is_pipeline_breaker */);
+    // Create InsertDestination proto.
+    const QueryContext::insert_destination_id insert_destination_index =
+        query_context_proto_->insert_destinations_size();
+    S::InsertDestination *insert_destination_proto = query_context_proto_->add_insert_destinations();
+
+    insert_destination_proto->set_relation_id(input_relation.getID());
+    insert_destination_proto->mutable_layout()->MergeFrom(
+        input_relation.getDefaultStorageBlockLayout().getDescription());
+
+    if (input_relation.hasPartitionScheme()) {
+      insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::PARTITION_AWARE);
+      insert_destination_proto->MutableExtension(S::PartitionAwareInsertDestination::partition_scheme)
+          ->MergeFrom(input_relation.getPartitionScheme()->getProto());
+    } else {
+      insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
+
+      const vector<block_id> blocks(input_relation.getBlocksSnapshot());
+      for (const block_id block : blocks) {
+        insert_destination_proto->AddExtension(S::BlockPoolInsertDestination::blocks, block);
+      }
+    }
+
+    const QueryPlan::DAGNodeIndex insert_operator_index =
+        execution_plan_->addRelationalOperator(
+            new InsertOperator(query_handle_->query_id(),
+                               input_relation,
+                               insert_destination_index,
+                               tuple_index));
+    insert_destination_proto->set_relational_op_index(insert_operator_index);
+
+    CatalogRelation *mutable_relation =
+        catalog_database_->getRelationByIdMutable(input_relation.getID());
+    const QueryPlan::DAGNodeIndex save_blocks_index =
+        execution_plan_->addRelationalOperator(
+            new SaveBlocksOperator(query_handle_->query_id(), mutable_relation));
+    if (!input_relation_info->isStoredRelation()) {
+      execution_plan_->addDirectDependency(insert_operator_index,
+                                           input_relation_info->producer_operator_index,
+                                           true /* is_pipeline_breaker */);
+    }
+    execution_plan_->addDirectDependency(save_blocks_index,
+                                         insert_operator_index,
+                                         false /* is_pipeline_breaker */);
   }
-  execution_plan_->addDirectDependency(save_blocks_index,
-                                       insert_operator_index,
-                                       false /* is_pipeline_breaker */);
 }
 
 void ExecutionGenerator::convertInsertSelection(

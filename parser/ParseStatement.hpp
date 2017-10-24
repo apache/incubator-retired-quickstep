@@ -653,9 +653,9 @@ class ParseStatementInsertTuple : public ParseStatementInsert {
   ParseStatementInsertTuple(const int line_number,
                             const int column_number,
                             const ParseString *relation_name,
-                            PtrList<ParseScalarLiteral> *literal_values)
+                            PtrList<PtrList<ParseScalarLiteral>> *literal_values_list)
       : ParseStatementInsert(line_number, column_number, relation_name),
-        literal_values_(literal_values) {
+        literal_values_(literal_values_list) {
   }
 
   ~ParseStatementInsertTuple() override {
@@ -666,11 +666,11 @@ class ParseStatementInsertTuple : public ParseStatementInsert {
   }
 
   /**
-   * @brief Get the parsed literal attribute values to insert.
+   * @brief Get the list of list of parsed literal attribute values to insert.
    *
-   * @return The list of literal values to insert.
+   * @return The list of lists of literal values to insert.
    **/
-  const PtrList<ParseScalarLiteral>& getLiteralValues() const {
+  const PtrList<PtrList<ParseScalarLiteral>>& getLiteralValues() const {
     return *literal_values_;
   }
 
@@ -685,15 +685,17 @@ class ParseStatementInsertTuple : public ParseStatementInsert {
     inline_field_names->push_back("relation_name");
     inline_field_values->push_back(relation_name()->value());
 
-    container_child_field_names->push_back("tuple");
-    container_child_fields->emplace_back();
-    for (const ParseScalarLiteral& literal_value : *literal_values_) {
-      container_child_fields->back().push_back(&literal_value);
+    for (const PtrList<ParseScalarLiteral>& literal_values_single_tuple : *literal_values_) {
+      container_child_field_names->push_back("tuple");
+      container_child_fields->emplace_back();
+      for (const ParseScalarLiteral& literal_value : literal_values_single_tuple) {
+        container_child_fields->back().push_back(&literal_value);
+      }
     }
   }
 
  private:
-  std::unique_ptr<PtrList<ParseScalarLiteral> > literal_values_;
+  std::unique_ptr<PtrList<PtrList<ParseScalarLiteral>>> literal_values_;
 
   DISALLOW_COPY_AND_ASSIGN(ParseStatementInsertTuple);
 };
