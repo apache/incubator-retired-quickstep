@@ -69,7 +69,7 @@ class InsertTuple : public Physical {
   /**
    * @return Column values to be used to compose a new tuple.
    */
-  const std::vector<expressions::ScalarLiteralPtr>& column_values() const {
+  const std::vector<std::vector<expressions::ScalarLiteralPtr>>& column_values() const {
     return column_values_;
   }
 
@@ -103,7 +103,7 @@ class InsertTuple : public Physical {
    */
   static InsertTuplePtr Create(
       const PhysicalPtr &input,
-      const std::vector<expressions::ScalarLiteralPtr> &column_values) {
+      const std::vector<std::vector<expressions::ScalarLiteralPtr>> &column_values) {
     return InsertTuplePtr(new InsertTuple(input, column_values));
   }
 
@@ -118,13 +118,13 @@ class InsertTuple : public Physical {
 
  private:
   InsertTuple(const PhysicalPtr &input,
-              const std::vector<expressions::ScalarLiteralPtr> &column_values)
+              const std::vector<std::vector<expressions::ScalarLiteralPtr>> &column_values)
       : input_(input), column_values_(column_values) {
     addChild(input_);
   }
 
   PhysicalPtr input_;
-  std::vector<expressions::ScalarLiteralPtr> column_values_;
+  std::vector<std::vector<expressions::ScalarLiteralPtr>> column_values_;
 
   DISALLOW_COPY_AND_ASSIGN(InsertTuple);
 };
