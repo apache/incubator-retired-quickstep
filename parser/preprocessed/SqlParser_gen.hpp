@@ -187,7 +187,7 @@ extern int quickstep_yydebug;
 
 union YYSTYPE
 {
-#line 121 "../SqlParser.ypp" /* yacc.c:1915  */
+#line 122 "../SqlParser.ypp" /* yacc.c:1915  */
 
   quickstep::ParseString *string_value_;
 

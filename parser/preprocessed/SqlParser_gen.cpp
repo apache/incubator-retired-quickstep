@@ -68,7 +68,7 @@
 
 
 /* Copy the first part of user declarations.  */
-#line 35 "../SqlParser.ypp" /* yacc.c:339  */
+#line 36 "../SqlParser.ypp" /* yacc.c:339  */
 
 
 /* Override the default definition, as we only need <first_line> and <first_column>. */
@@ -96,7 +96,7 @@ typedef struct YYLTYPE {
     }                                                           \
   } while (0)
 
-#line 64 "../SqlParser.ypp" /* yacc.c:339  */
+#line 65 "../SqlParser.ypp" /* yacc.c:339  */
 
 #include <cstdlib>
 #include <string>
@@ -330,7 +330,7 @@ extern int quickstep_yydebug;
 
 union YYSTYPE
 {
-#line 121 "../SqlParser.ypp" /* yacc.c:355  */
+#line 122 "../SqlParser.ypp" /* yacc.c:355  */
 
   quickstep::ParseString *string_value_;
 
