@@ -486,26 +486,8 @@ void ExecutionGenerator::createTemporaryCatalogRelation(
     const P::PhysicalPtr &physical,
     const CatalogRelation **catalog_relation_output,
     S::InsertDestination *insert_destination_proto) {
-  std::unique_ptr<CatalogRelation> catalog_relation(
-      new CatalogRelation(catalog_database_,
-                          getNewRelationName(),
-                          -1 /* id */,
-                          true /* is_temporary*/));
-  attribute_id aid = 0;
-  for (const E::NamedExpressionPtr &project_expression :
-       physical->getOutputAttributes()) {
-    // The attribute name is simply set to the attribute id to make it distinct.
-    std::unique_ptr<CatalogAttribute> catalog_attribute(
-        new CatalogAttribute(catalog_relation.get(),
-                             std::to_string(aid),
-                             project_expression->getValueType(),
-                             aid,
-                             project_expression->attribute_alias()));
-    attribute_substitution_map_[project_expression->id()] =
-        catalog_attribute.get();
-    catalog_relation->addAttribute(catalog_attribute.release());
-    ++aid;
-  }
+  auto catalog_relation =
+      make_unique<CatalogRelation>(catalog_database_, getNewRelationName(), -1 /* id */, true /* is_temporary*/);
 
   const P::PartitionSchemeHeader *partition_scheme_header = physical->getOutputPartitionSchemeHeader();
   if (partition_scheme_header) {
@@ -514,6 +496,9 @@ void ExecutionGenerator::createTemporaryCatalogRelation(
       DCHECK(!partition_equivalent_expr_ids.empty());
       const E::ExprId partition_expr_id = *partition_equivalent_expr_ids.begin();
       DCHECK(attribute_substitution_map_.find(partition_expr_id) != attribute_substitution_map_.end());
+      // Use the attribute id from the input relation.
+      // NOTE(zuyu): The following line should be before changing
+      // 'attribute_substitution_map_' with the output attributes.
       output_partition_attr_ids.push_back(attribute_substitution_map_[partition_expr_id]->getID());
     }
 
@@ -542,6 +527,20 @@ void ExecutionGenerator::createTemporaryCatalogRelation(
     catalog_relation->setPartitionScheme(output_partition_scheme.release());
   } else {
     insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
+  }
+
+  attribute_id aid = 0;
+  for (const E::NamedExpressionPtr &project_expression :
+       physical->getOutputAttributes()) {
+    // The attribute name is simply set to the attribute id to make it distinct.
+    auto catalog_attribute =
+        make_unique<CatalogAttribute>(catalog_relation.get(), std::to_string(aid),
+                                      project_expression->getValueType(), aid,
+                                      project_expression->attribute_alias());
+    attribute_substitution_map_[project_expression->id()] =
+        catalog_attribute.get();
+    catalog_relation->addAttribute(catalog_attribute.release());
+    ++aid;
   }
 
   *catalog_relation_output = catalog_relation.get();

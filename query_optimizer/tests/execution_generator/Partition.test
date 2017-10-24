@@ -297,30 +297,7 @@ SELECT dim_2_hash_partitions.id as dim_id, fact.id as fact_id
 FROM dim_2_hash_partitions, fact
 WHERE dim_2_hash_partitions.id > 20 AND fact.id > 0;
 --
-+-----------+-----------+
-|dim_id     |fact_id    |
-+-----------+-----------+
-|         24|          4|
-|         24|          8|
-|         24|         12|
-|         24|         16|
-|         24|         24|
-|         22|          4|
-|         22|          8|
-|         22|         12|
-|         22|         16|
-|         22|         24|
-|         24|          2|
-|         24|          6|
-|         24|         14|
-|         24|         18|
-|         24|         22|
-|         22|          2|
-|         22|          6|
-|         22|         14|
-|         22|         18|
-|         22|         22|
-+-----------+-----------+
+[same as above]
 ==
 
 SELECT id, int_col
