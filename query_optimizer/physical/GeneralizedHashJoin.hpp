@@ -17,8 +17,8 @@
  * under the License.
  **/
 
-#ifndef QUICKSTEP_QUERY_OPTIMIZER_PHYSICAL_HASHJOIN_HPP_
-#define QUICKSTEP_QUERY_OPTIMIZER_PHYSICAL_HASHJOIN_HPP_
+#ifndef QUICKSTEP_QUERY_OPTIMIZER_PHYSICAL_GENERALIZED_HASHJOIN_HPP_
+#define QUICKSTEP_QUERY_OPTIMIZER_PHYSICAL_GENERALIZED_HASHJOIN_HPP_
 
 #include <cstddef>
 #include <memory>
@@ -32,6 +32,7 @@
 #include "query_optimizer/expressions/NamedExpression.hpp"
 #include "query_optimizer/expressions/Predicate.hpp"
 #include "query_optimizer/physical/BinaryJoin.hpp"
+#include "query_optimizer/physical/HashJoin.hpp"
 #include "query_optimizer/physical/Physical.hpp"
 #include "query_optimizer/physical/PhysicalType.hpp"
 #include "utility/Macros.hpp"
@@ -46,87 +47,56 @@ namespace physical {
  *  @{
  */
 
-class HashJoin;
-typedef std::shared_ptr<const HashJoin> HashJoinPtr;
+class GeneralizedHashJoin;
+typedef std::shared_ptr<const GeneralizedHashJoin> GeneralizedHashJoinPtr;
 
 struct PartitionSchemeHeader;
 
 /**
- * @brief Physical hash join node.
+ * @brief Physical generalized hash join node.
  */
-class HashJoin : public BinaryJoin {
+class GeneralizedHashJoin : public HashJoin {
  public:
-  enum class JoinType {
-    kInnerJoin = 0,
-    kLeftSemiJoin,
-    kLeftAntiJoin,
-    kLeftOuterJoin,
-    kGeneralizedInnerJoin
-  };
 
-  PhysicalType getPhysicalType() const override { return PhysicalType::kHashJoin; }
+  PhysicalType getPhysicalType() const override { return PhysicalType::kGeneralizedHashJoin; }
 
-  std::string getName() const override {
-    switch (join_type_) {
-      case JoinType::kInnerJoin:
-        return "HashJoin";
-      case JoinType::kLeftSemiJoin:
-        return "HashLeftSemiJoin";
-      case JoinType::kLeftAntiJoin:
-        return "HashLeftAntiJoin";
-      case JoinType::kLeftOuterJoin:
-        return "HashLeftOuterJoin";
-      case JoinType::kGeneralizedInnerJoin:
-        return "GeneralizedHashJoin";
-      default:
-        LOG(FATAL) << "Invalid JoinType: "
-                   << static_cast<typename std::underlying_type<JoinType>::type>(join_type_);
-    }
+  /**
+   * @return The middle operand.
+   */
+  const PhysicalPtr& middle() const { return middle_; }
+
+  /**
+   * @brief Join attributes in the left logical 'second_left_'.
+   */
+  const std::vector<expressions::AttributeReferencePtr>& second_left_join_attributes() const {
+    return second_left_join_attributes_;
   }
 
   /**
-   * @brief Join attributes in the left logical 'left_'.
+   * @brief Join attributes in the right logical 'second_right_'.
    */
-  const std::vector<expressions::AttributeReferencePtr>& left_join_attributes() const {
-    return left_join_attributes_;
+  const std::vector<expressions::AttributeReferencePtr>& second_right_join_attributes() const {
+    return second_right_join_attributes_;
   }
 
-  /**
-   * @brief Join attributes in the right logical 'right_'.
-   */
-  const std::vector<expressions::AttributeReferencePtr>& right_join_attributes() const {
-    return right_join_attributes_;
+  const expressions::PredicatePtr& second_residual_predicate() const {
+    return second_residual_predicate_;
   }
 
-  /**
-   * @brief The filtering predicate evaluated after join.
-   */
-  const expressions::PredicatePtr& residual_predicate() const {
-    return residual_predicate_;
-  }
-
-  /**
-   * @ brief The select predicate for a hash join fuse.
-   */
-  const expressions::PredicatePtr& build_predicate() const {
-    return build_predicate_;
-  }
-
-  /**
-   * @return Join type of this hash join.
-   */
-  JoinType join_type() const {
-    return join_type_;
-  }
+  std::vector<expressions::AttributeReferencePtr> getReferencedAttributes() const override;
 
   PhysicalPtr copyWithNewChildren(
       const std::vector<PhysicalPtr> &new_children) const override {
     DCHECK_EQ(children().size(), new_children.size());
     return Create(new_children[0],
                   new_children[1],
+                  new_children[2],
                   left_join_attributes_,
                   right_join_attributes_,
+                  second_left_join_attributes_,
+                  second_right_join_attributes_,
                   residual_predicate_,
+                  second_residual_predicate_,
                   build_predicate_,
                   project_expressions(),
                   join_type_,
@@ -134,14 +104,13 @@ class HashJoin : public BinaryJoin {
                   cloneOutputPartitionSchemeHeader());
   }
 
-  std::vector<expressions::AttributeReferencePtr> getReferencedAttributes() const override;
-
   PhysicalPtr copyWithNewOutputPartitionSchemeHeader(
       PartitionSchemeHeader *partition_scheme_header,
       const bool has_repartition = true) const override {
-    return Create(left(), right(), left_join_attributes_, right_join_attributes_,
-                  residual_predicate_, build_predicate_, project_expressions(), join_type_,
-                  has_repartition, partition_scheme_header);
+    return Create(left(), right(), middle(), left_join_attributes_, right_join_attributes_,
+                  second_left_join_attributes_, second_right_join_attributes_, residual_predicate_, 
+                  second_residual_predicate_, build_predicate_, project_expressions(), 
+                  join_type_, has_repartition, partition_scheme_header);
   }
 
   bool maybeCopyWithPrunedExpressions(
@@ -149,14 +118,18 @@ class HashJoin : public BinaryJoin {
       PhysicalPtr *output) const override;
 
   /**
-   * @brief Creates a physical HashJoin. The left/right operand does not correspond to
+   * @brief Creates a physical GeneralizedHashJoin. The left/right operand does not correspond to
    *        probe/build operand.
    *
    * @param left The left operand.
+   * @param middle The middle operand.
    * @param right The right operand.
    * @param left_join_attributes The join attributes in the 'left'.
    * @param right_join_attributes The join attributes in the 'right'.
+   * @param second_left_join_attributes The second set of attributes to apply to the left side.
+   * @param second_right_join_attributes The second set of attributes to apply to the right side.
    * @param residual_predicate Optional filtering predicate evaluated after join.
+   * @param second_residual_predicate Optional filtering predicate evaulated after second join.
    * @param build_predicate Optional select predicate for a hash join fuse.
    * @param project_expressions The project expressions.
    * @param Join type of this hash join.
@@ -165,23 +138,31 @@ class HashJoin : public BinaryJoin {
    *
    * @return An immutable physical HashJoin.
    */
-  static HashJoinPtr Create(
+  static GeneralizedHashJoinPtr Create(
       const PhysicalPtr &left,
       const PhysicalPtr &right,
+      const PhysicalPtr &middle,
       const std::vector<expressions::AttributeReferencePtr> &left_join_attributes,
       const std::vector<expressions::AttributeReferencePtr> &right_join_attributes,
+      const std::vector<expressions::AttributeReferencePtr> &second_left_join_attributes,
+      const std::vector<expressions::AttributeReferencePtr> &second_right_join_attributes,
       const expressions::PredicatePtr &residual_predicate,
+      const expressions::PredicatePtr &second_residual_predicate,
       const expressions::PredicatePtr &build_predicate,
       const std::vector<expressions::NamedExpressionPtr> &project_expressions,
       const JoinType join_type,
       const bool has_repartition = false,
       PartitionSchemeHeader *partition_scheme_header = nullptr) {
-    return HashJoinPtr(
-        new HashJoin(left,
+    return GeneralizedHashJoinPtr(
+        new GeneralizedHashJoin(left,
                      right,
+                     middle,
                      left_join_attributes,
                      right_join_attributes,
+                     second_left_join_attributes,
+                     second_right_join_attributes,
                      residual_predicate,
+                     second_residual_predicate,
                      build_predicate,
                      project_expressions,
                      join_type,
@@ -190,25 +171,6 @@ class HashJoin : public BinaryJoin {
   }
 
  protected:
-  HashJoin(
-      const PhysicalPtr &left,
-      const PhysicalPtr &right,
-      const std::vector<expressions::AttributeReferencePtr> &left_join_attributes,
-      const std::vector<expressions::AttributeReferencePtr> &right_join_attributes,
-      const expressions::PredicatePtr &residual_predicate,
-      const expressions::PredicatePtr &build_predicate,
-      const std::vector<expressions::NamedExpressionPtr> &project_expressions,
-      const JoinType join_type,
-      const bool has_repartition,
-      PartitionSchemeHeader *partition_scheme_header)
-      : BinaryJoin(left, right, project_expressions, has_repartition, partition_scheme_header),
-        left_join_attributes_(left_join_attributes),
-        right_join_attributes_(right_join_attributes),
-        residual_predicate_(residual_predicate),
-        build_predicate_(build_predicate),
-        join_type_(join_type) {
-  }
-
   void getFieldStringItems(
       std::vector<std::string> *inline_field_names,
       std::vector<std::string> *inline_field_values,
@@ -217,17 +179,37 @@ class HashJoin : public BinaryJoin {
       std::vector<std::string> *container_child_field_names,
       std::vector<std::vector<OptimizerTreeBaseNodePtr>> *container_child_fields) const override;
 
-  std::vector<expressions::AttributeReferencePtr> left_join_attributes_;
-  std::vector<expressions::AttributeReferencePtr> right_join_attributes_;
-  expressions::PredicatePtr residual_predicate_;
-  expressions::PredicatePtr build_predicate_;
-  JoinType join_type_;
-
-
  private:
+  GeneralizedHashJoin(
+      const PhysicalPtr &left,
+      const PhysicalPtr &right,
+      const PhysicalPtr &middle,
+      const std::vector<expressions::AttributeReferencePtr> &left_join_attributes,
+      const std::vector<expressions::AttributeReferencePtr> &right_join_attributes,
+      const std::vector<expressions::AttributeReferencePtr> &second_left_join_attributes,
+      const std::vector<expressions::AttributeReferencePtr> &second_right_join_attributes,
+      const expressions::PredicatePtr &residual_predicate,
+      const expressions::PredicatePtr &second_residual_predicate,
+      const expressions::PredicatePtr &build_predicate,
+      const std::vector<expressions::NamedExpressionPtr> &project_expressions,
+      const JoinType join_type,
+      const bool has_repartition,
+      PartitionSchemeHeader *partition_scheme_header)
+      : HashJoin(left, right, left_join_attributes,
+                 right_join_attributes, residual_predicate, build_predicate, project_expressions,
+                 join_type, has_repartition, partition_scheme_header),
+        middle_(middle),
+        second_left_join_attributes_(second_left_join_attributes),
+        second_right_join_attributes_(second_right_join_attributes),
+        second_residual_predicate_(second_residual_predicate) {
+  }
 
+  PhysicalPtr middle_;
+  std::vector<expressions::AttributeReferencePtr> second_left_join_attributes_;
+  std::vector<expressions::AttributeReferencePtr> second_right_join_attributes_;
+  expressions::PredicatePtr second_residual_predicate_;
 
-  DISALLOW_COPY_AND_ASSIGN(HashJoin);
+  DISALLOW_COPY_AND_ASSIGN(GeneralizedHashJoin);
 };
 
 /** @} */
@@ -236,4 +218,4 @@ class HashJoin : public BinaryJoin {
 }  // namespace optimizer
 }  // namespace quickstep
 
-#endif /* QUICKSTEP_QUERY_OPTIMIZER_PHYSICAL_HASHJOIN_HPP_ */
+#endif // QUICKSTEP_QUERY_OPTIMIZER_PHYSICAL_GENERALIZED_HASHJOIN_HPP_

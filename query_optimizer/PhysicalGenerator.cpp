@@ -31,6 +31,7 @@
 #include "query_optimizer/rules/ExtractCommonSubexpression.hpp"
 #include "query_optimizer/rules/FuseAggregateJoin.hpp"
 #include "query_optimizer/rules/FuseHashSelect.hpp"
+#include "query_optimizer/rules/FuseGeneralHash.hpp"
 #include "query_optimizer/rules/InjectJoinFilters.hpp"
 #include "query_optimizer/rules/Partition.hpp"
 #include "query_optimizer/rules/PruneColumns.hpp"
@@ -68,7 +69,7 @@ DEFINE_bool(use_partition_rule, true,
             "If true, apply an optimization to support partitioned inputs. The "
             "optimization may add additional Selection for repartitioning.");
 
-DEFINE_bool(use_fuse_hash_select, true,
+DEFINE_bool(use_fuse_hash_select, false,
             "If true, apply an optimization that moves build-side Selection nodes"
             "into the hash join operator instead.");
 
@@ -80,7 +81,11 @@ DEFINE_bool(use_filter_joins, true,
             "build a BitVector on the build-side attribute and use the BitVector "
             "to filter the probe side table.");
 
-DEFINE_bool(use_lip_filters, true,
+DEFINE_bool(use_generalized_hash, true,
+            "If true, apply an optimization that condenses two consecutive HashJoins "
+            "with the same build side table into one HashJoin with multiple join attributes.");
+
+DEFINE_bool(use_lip_filters, false,
             "If true, use LIP (Lookahead Information Passing) filters to accelerate "
             "query processing. LIP filters are effective for queries on star schema "
             "tables (e.g. the SSB benchmark) and snowflake schema tables (e.g. the "
@@ -183,6 +188,10 @@ P::PhysicalPtr PhysicalGenerator::optimizePlan() {
 
   if (FLAGS_use_fuse_hash_select) {
     rules.emplace_back(new FuseHashSelect());
+  }
+
+  if(FLAGS_use_generalized_hash) {
+    rules.emplace_back(new FuseGeneralHash());
   }
 
   // NOTE(jianqiao): Adding rules after InjectJoinFilters (or AttachLIPFilters)

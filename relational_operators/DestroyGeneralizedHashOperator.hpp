@@ -17,13 +17,14 @@
  * under the License.
  **/
 
-#ifndef QUICKSTEP_RELATIONAL_OPERATORS_DESTROY_HASH_OPERATOR_HPP_
-#define QUICKSTEP_RELATIONAL_OPERATORS_DESTROY_HASH_OPERATOR_HPP_
+#ifndef QUICKSTEP_RELATIONAL_OPERATORS_DESTROY_GENERALIZED_HASH_OPERATOR_HPP_
+#define QUICKSTEP_RELATIONAL_OPERATORS_DESTROY_GENERALIZED_HASH_OPERATOR_HPP_
 
 #include <string>
 
 #include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/QueryContext.hpp"
+#include "relational_operators/DestroyHashOperator.hpp"
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/WorkOrder.hpp"
 #include "utility/Macros.hpp"
@@ -47,7 +48,7 @@ class WorkOrdersContainer;
 /**
  * @brief An operator which destroys a shared hash table.
  **/
-class DestroyHashOperator : public RelationalOperator {
+class DestroyGeneralizedHashOperator : public DestroyHashOperator {
  public:
   /**
    * @brief Constructor.
@@ -56,21 +57,21 @@ class DestroyHashOperator : public RelationalOperator {
    * @param num_partitions The number of partitions.
    * @param hash_table_index The index of the JoinHashTable in QueryContext.
    **/
-  DestroyHashOperator(const std::size_t query_id,
-                      const std::size_t num_partitions,
-                      const QueryContext::join_hash_table_id hash_table_index)
-      : RelationalOperator(query_id, num_partitions),
-        hash_table_index_(hash_table_index),
-        work_generated_(false) {}
+  DestroyGeneralizedHashOperator(const std::size_t query_id,
+                                 const std::size_t num_partitions,
+                                 const QueryContext::join_hash_table_id hash_table_index,
+                                 const QueryContext::join_hash_table_id second_hash_table_index)
+      : DestroyHashOperator(query_id, num_partitions, hash_table_index),
+        second_hash_table_index_(second_hash_table_index) {}
 
-  ~DestroyHashOperator() override {}
+  ~DestroyGeneralizedHashOperator() override {}
 
   OperatorType getOperatorType() const override {
-    return kDestroyHash;
+    return kDestroyGeneralizedHash;
   }
 
   std::string getName() const override {
-    return "DestroyHashOperator";
+    return "DestroyGeneralizedHashOperator";
   }
 
   bool getAllWorkOrders(WorkOrdersContainer *container,
@@ -81,19 +82,16 @@ class DestroyHashOperator : public RelationalOperator {
 
   bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override;
 
- protected:
-  const QueryContext::join_hash_table_id hash_table_index_;
-  bool work_generated_;
-
  private:
+  const QueryContext::join_hash_table_id second_hash_table_index_;
 
-  DISALLOW_COPY_AND_ASSIGN(DestroyHashOperator);
+  DISALLOW_COPY_AND_ASSIGN(DestroyGeneralizedHashOperator);
 };
 
 /**
  * @brief A WorkOrder produced by DestroyHashOperator.
  **/
-class DestroyHashWorkOrder : public WorkOrder {
+class DestroyGeneralizedHashWorkOrder : public WorkOrder {
  public:
   /**
    * @brief Constructor.
@@ -103,29 +101,30 @@ class DestroyHashWorkOrder : public WorkOrder {
    * @param part_id The partition id.
    * @param query_context The QueryContext to use.
    **/
-  DestroyHashWorkOrder(const std::size_t query_id,
-                       const QueryContext::join_hash_table_id hash_table_index,
-                       const partition_id part_id,
-                       QueryContext *query_context)
+  DestroyGeneralizedHashWorkOrder(const std::size_t query_id,
+                                  const QueryContext::join_hash_table_id hash_table_index,
+                                  const QueryContext::join_hash_table_id second_hash_table_index,
+                                  const partition_id part_id,
+                                  QueryContext *query_context)
       : WorkOrder(query_id, part_id),
         hash_table_index_(hash_table_index),
+        second_hash_table_index_(second_hash_table_index),
         query_context_(DCHECK_NOTNULL(query_context)) {}
 
-  ~DestroyHashWorkOrder() override {}
+  ~DestroyGeneralizedHashWorkOrder() override {}
 
   void execute() override;
 
- protected:
+ private:
   const QueryContext::join_hash_table_id hash_table_index_;
+  const QueryContext::join_hash_table_id second_hash_table_index_;  
   QueryContext *query_context_;
 
- private:
-
-  DISALLOW_COPY_AND_ASSIGN(DestroyHashWorkOrder);
+  DISALLOW_COPY_AND_ASSIGN(DestroyGeneralizedHashWorkOrder);
 };
 
 /** @} */
 
 }  // namespace quickstep
 
-#endif  // QUICKSTEP_RELATIONAL_OPERATORS_DESTROY_HASH_OPERATOR_HPP_
+#endif  // QUICKSTEP_RELATIONAL_OPERATORS_DESTROY_GENERALIZED_HASH_OPERATOR_HPP_

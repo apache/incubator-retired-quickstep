@@ -26,6 +26,7 @@ add_library(quickstep_queryoptimizer_rules_ExtractCommonSubexpression
             ExtractCommonSubexpression.cpp
             ExtractCommonSubexpression.hpp)
 add_library(quickstep_queryoptimizer_rules_FuseAggregateJoin FuseAggregateJoin.cpp FuseAggregateJoin.hpp)
+add_library(quickstep_queryoptimizer_rules_FuseGeneralHash FuseGeneralHash.cpp FuseGeneralHash.hpp)
 add_library(quickstep_queryoptimizer_rules_FuseHashSelect FuseHashSelect.cpp FuseHashSelect.hpp)
 add_library(quickstep_queryoptimizer_rules_GenerateJoins GenerateJoins.cpp GenerateJoins.hpp)
 add_library(quickstep_queryoptimizer_rules_InjectJoinFilters InjectJoinFilters.cpp InjectJoinFilters.hpp)
@@ -139,6 +140,16 @@ target_link_libraries(quickstep_queryoptimizer_rules_FuseAggregateJoin
                       quickstep_queryoptimizer_physical_TopLevelPlan
                       quickstep_queryoptimizer_rules_BottomUpRule
                       quickstep_utility_Macros)
+target_link_libraries(quickstep_queryoptimizer_rules_FuseGeneralHash
+                      quickstep_queryoptimizer_expressions_Predicate
+                      quickstep_queryoptimizer_physical_GeneralizedHashJoin
+                      quickstep_queryoptimizer_physical_HashJoin
+                      quickstep_queryoptimizer_physical_PatternMatcher
+                      quickstep_queryoptimizer_physical_Physical
+                      quickstep_queryoptimizer_physical_PhysicalType
+                      quickstep_queryoptimizer_physical_Selection
+                      quickstep_queryoptimizer_physical_TableReference
+                      quickstep_queryoptimizer_rules_TopDownRule)
 target_link_libraries(quickstep_queryoptimizer_rules_FuseHashSelect
                       quickstep_queryoptimizer_expressions_Predicate
                       quickstep_queryoptimizer_physical_HashJoin
@@ -424,6 +435,7 @@ target_link_libraries(quickstep_queryoptimizer_rules
                       quickstep_queryoptimizer_rules_CollapseSelection
                       quickstep_queryoptimizer_rules_ExtractCommonSubexpression
                       quickstep_queryoptimizer_rules_FuseAggregateJoin
+                      quickstep_queryoptimizer_rules_FuseGeneralHash
                       quickstep_queryoptimizer_rules_FuseHashSelect
                       quickstep_queryoptimizer_rules_GenerateJoins
                       quickstep_queryoptimizer_rules_InjectJoinFilters

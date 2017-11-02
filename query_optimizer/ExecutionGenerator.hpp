@@ -51,6 +51,7 @@
 #include "query_optimizer/physical/DeleteTuples.hpp"
 #include "query_optimizer/physical/DropTable.hpp"
 #include "query_optimizer/physical/FilterJoin.hpp"
+#include "query_optimizer/physical/GeneralizedHashJoin.hpp"
 #include "query_optimizer/physical/HashJoin.hpp"
 #include "query_optimizer/physical/InsertSelection.hpp"
 #include "query_optimizer/physical/InsertTuple.hpp"
@@ -259,6 +260,15 @@ class ExecutionGenerator {
    * @param physical_plan The FilterJoin to be converted.
    */
   void convertFilterJoin(const physical::FilterJoinPtr &physical_plan);
+
+  /**
+   * @brief Converts a GeneralizedHashJoin to BuildHash, HashJoin, and 
+   *        DestroyHash operators.
+   *
+   * @param physical_plan The GeneralizedHashJoin to be converted.
+   */
+
+  void convertGeneralizedHashJoin(const physical::GeneralizedHashJoinPtr &physical_plan);
 
   /**
    * @brief Converts a HashJoin to BuildHash, HashJoin and
