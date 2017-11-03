@@ -20,6 +20,7 @@
 #include "relational_operators/InsertOperator.hpp"
 
 #include <memory>
+#include <vector>
 
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/WorkOrderProtosContainer.hpp"
@@ -43,12 +44,19 @@ bool InsertOperator::getAllWorkOrders(
     return true;
   }
 
+  std::vector<std::unique_ptr<Tuple>> tuples;
+
+  for (const QueryContext::tuple_id tuple_index : tuple_indexes_) {
+    std::unique_ptr<Tuple> newTuple(query_context->releaseTuple(tuple_index));
+    tuples.push_back(std::move(newTuple));
+  }
+
   DCHECK(query_context != nullptr);
   container->addNormalWorkOrder(
       new InsertWorkOrder(
           query_id_,
           query_context->getInsertDestination(output_destination_index_),
-          query_context->releaseTuple(tuple_index_)),
+          std::move(tuples)),
       op_index_);
 
   work_generated_ = true;
@@ -64,7 +72,9 @@ bool InsertOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) 
   proto->set_work_order_type(serialization::INSERT);
   proto->set_query_id(query_id_);
   proto->SetExtension(serialization::InsertWorkOrder::insert_destination_index, output_destination_index_);
-  proto->SetExtension(serialization::InsertWorkOrder::tuple_index, tuple_index_);
+  for (const QueryContext::tuple_id tuple_index : tuple_indexes_) {
+    proto->AddExtension(serialization::InsertWorkOrder::tuple_indexes, tuple_index);
+  }
 
   container->addWorkOrderProto(proto, op_index_);
 
@@ -74,7 +84,9 @@ bool InsertOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) 
 
 
 void InsertWorkOrder::execute() {
-  output_destination_->insertTuple(*tuple_);
+  for (const auto &tuple : tuples_) {
+    output_destination_->insertTuple(*tuple);
+  }
 }
 
 }  // namespace quickstep

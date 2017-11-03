@@ -23,6 +23,7 @@
 #include <cstddef>
 #include <string>
 #include <memory>
+#include <vector>
 
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
@@ -67,11 +68,11 @@ class InsertOperator : public RelationalOperator {
       const std::size_t query_id,
       const CatalogRelation &output_relation,
       const QueryContext::insert_destination_id output_destination_index,
-      const QueryContext::tuple_id tuple_index)
+      const std::vector<QueryContext::tuple_id> &tuple_indexes)
       : RelationalOperator(query_id, 1u, false, output_relation.getNumPartitions()),
         output_relation_(output_relation),
         output_destination_index_(output_destination_index),
-        tuple_index_(tuple_index),
+        tuple_indexes_(tuple_indexes),
         work_generated_(false) {}
 
   ~InsertOperator() override {}
@@ -103,7 +104,7 @@ class InsertOperator : public RelationalOperator {
  private:
   const CatalogRelation &output_relation_;
   const QueryContext::insert_destination_id output_destination_index_;
-  const QueryContext::tuple_id tuple_index_;
+  const std::vector<QueryContext::tuple_id> tuple_indexes_;
   bool work_generated_;
 
   DISALLOW_COPY_AND_ASSIGN(InsertOperator);
@@ -125,10 +126,10 @@ class InsertWorkOrder : public WorkOrder {
    **/
   InsertWorkOrder(const std::size_t query_id,
                   InsertDestination *output_destination,
-                  Tuple *tuple)
+                  std::vector<std::unique_ptr<Tuple>> &&tuples)
       : WorkOrder(query_id),
         output_destination_(DCHECK_NOTNULL(output_destination)),
-        tuple_(DCHECK_NOTNULL(tuple)) {}
+        tuples_(std::move(tuples)) {}
 
   ~InsertWorkOrder() override {}
 
@@ -140,7 +141,7 @@ class InsertWorkOrder : public WorkOrder {
 
  private:
   InsertDestination *output_destination_;
-  std::unique_ptr<Tuple> tuple_;
+  std::vector<std::unique_ptr<Tuple>> tuples_;
 
   DISALLOW_COPY_AND_ASSIGN(InsertWorkOrder);
 };

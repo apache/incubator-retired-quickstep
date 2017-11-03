@@ -153,3 +153,32 @@ insert into undefined_table values (1, 2)
 ERROR: Unrecognized relation undefined_table (1 : 13)
 insert into undefined_table values (1, 2)
             ^
+==
+
+insert into test values (null, 1, 2, 3, 'foo', 'foo'),(null, 4, 5, 6, 'foo', 'foo');
+--
+TopLevelPlan
++-plan=InsertTuple
+| +-input=TableReference[relation_name=Test,relation_alias=test]
+| | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
+| +-column_values=
+| | +-Literal[value=NULL,type=Int NULL]
+| | +-Literal[value=1,type=Long]
+| | +-Literal[value=2,type=Float]
+| | +-Literal[value=3,type=Double NULL]
+| | +-Literal[value=foo,type=Char(20)]
+| | +-Literal[value=foo,type=VarChar(20) NULL]
+| +-column_values=
+|   +-Literal[value=NULL,type=Int NULL]
+|   +-Literal[value=4,type=Long]
+|   +-Literal[value=5,type=Float]
+|   +-Literal[value=6,type=Double NULL]
+|   +-Literal[value=foo,type=Char(20)]
+|   +-Literal[value=foo,type=VarChar(20) NULL]
++-output_attributes=
+  +-[]
