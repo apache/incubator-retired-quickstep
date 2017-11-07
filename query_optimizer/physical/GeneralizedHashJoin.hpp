@@ -202,6 +202,7 @@ class GeneralizedHashJoin : public HashJoin {
         second_left_join_attributes_(second_left_join_attributes),
         second_right_join_attributes_(second_right_join_attributes),
         second_residual_predicate_(second_residual_predicate) {
+          addChild(middle_);
   }
 
   PhysicalPtr middle_;
