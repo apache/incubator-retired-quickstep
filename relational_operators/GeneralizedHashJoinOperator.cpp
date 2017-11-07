@@ -191,7 +191,9 @@ bool GeneralizedHashJoinOperator::getAllNonOuterJoinWorkOrders(
       for (const block_id probe_block_id : probe_relation_block_ids_[part_id]) {
         container->addNormalWorkOrder(
             new JoinWorkOrderClass(query_id_, build_relation_, second_build_relation_, probe_relation_, join_key_attributes_,
-                                   any_join_key_attributes_nullable_, part_id, probe_block_id, residual_predicate, second_residual_predicate,
+                                   second_join_key_attributes_, any_join_key_attributes_nullable_, 
+                                   any_second_join_key_attributes_nullable_,part_id, 
+                                   probe_block_id, residual_predicate, second_residual_predicate,
                                    selection, hash_table, second_hash_table, output_destination, storage_manager,
                                    CreateLIPFilterAdaptiveProberHelper(lip_deployment_index_, query_context)),
             op_index_);
@@ -209,7 +211,8 @@ bool GeneralizedHashJoinOperator::getAllNonOuterJoinWorkOrders(
       while (num_workorders_generated_[part_id] < probe_relation_block_ids_[part_id].size()) {
         container->addNormalWorkOrder(
             new JoinWorkOrderClass(query_id_, build_relation_, second_build_relation_, probe_relation_, join_key_attributes_,
-                                   any_join_key_attributes_nullable_, part_id,
+                                   second_join_key_attributes_, any_join_key_attributes_nullable_, 
+                                   any_second_join_key_attributes_nullable_, part_id,
                                    probe_relation_block_ids_[part_id][num_workorders_generated_[part_id]],
                                    residual_predicate, second_residual_predicate,
                                    selection, hash_table, second_hash_table, output_destination, storage_manager,
@@ -279,8 +282,13 @@ serialization::WorkOrder* GeneralizedHashJoinOperator::createNonOuterJoinWorkOrd
   for (const attribute_id attr_id : join_key_attributes_) {
     proto->AddExtension(serialization::GeneralizedHashJoinWorkOrder::join_key_attributes, attr_id);
   }
+  for (const attribute_id attr_id : second_join_key_attributes_) {
+    proto->AddExtension(serialization::GeneralizedHashJoinWorkOrder::second_join_key_attributes, attr_id);
+  }
   proto->SetExtension(serialization::GeneralizedHashJoinWorkOrder::any_join_key_attributes_nullable,
                       any_join_key_attributes_nullable_);
+  proto->SetExtension(serialization::GeneralizedHashJoinWorkOrder::any_second_join_key_attributes_nullable,
+                      any_second_join_key_attributes_nullable_);
   proto->SetExtension(serialization::GeneralizedHashJoinWorkOrder::insert_destination_index, output_destination_index_);
   proto->SetExtension(serialization::GeneralizedHashJoinWorkOrder::join_hash_table_index, hash_table_index_);
   proto->SetExtension(serialization::GeneralizedHashJoinWorkOrder::second_join_hash_table_index, second_hash_table_index_);
@@ -335,21 +343,25 @@ void GeneralizedHashInnerJoinWorkOrder::executeWithoutCopyElision(ValueAccessor 
         join_key_attributes_.front(),
         any_join_key_attributes_nullable_,
         &collector);
-    second_hash_table_.getAllFromValueAccessor(
-        probe_accessor,
-        join_key_attributes_.front(),
-        any_join_key_attributes_nullable_,
-        &second_collector);
   } else {
     hash_table_.getAllFromValueAccessorCompositeKey(
         probe_accessor,
         join_key_attributes_,
         any_join_key_attributes_nullable_,
         &collector);
+  }
+
+  if (second_join_key_attributes_.size() == 1) {
     second_hash_table_.getAllFromValueAccessor(
         probe_accessor,
-        join_key_attributes_.front(),
-        any_join_key_attributes_nullable_,
+        second_join_key_attributes_.front(),
+        any_second_join_key_attributes_nullable_,
+        &second_collector);
+  } else {
+    second_hash_table_.getAllFromValueAccessor(
+        probe_accessor,
+        second_join_key_attributes_.front(),
+        any_second_join_key_attributes_nullable_,
         &second_collector);
   }
 
@@ -431,11 +443,11 @@ void GeneralizedHashInnerJoinWorkOrder::executeWithoutCopyElision(ValueAccessor 
     for (const std::pair<tuple_id, tuple_id> &hash_match
          : build_block_entry.second) {
       if (second_residual_predicate_->matchesForJoinedTuples(*build_accessor,
-                                                      second_build_relation_id,
-                                                      hash_match.first,
-                                                      *probe_accessor,
-                                                      probe_relation_id,
-                                                      hash_match.second)) {
+                                                             second_build_relation_id,
+                                                             hash_match.first,
+                                                             *probe_accessor,
+                                                             probe_relation_id,
+                                                             hash_match.second)) {
         filtered_matches.emplace_back(hash_match);
       }
     }
@@ -461,6 +473,7 @@ output_destination_->bulkInsertTuples(&temp_result);
 
 void GeneralizedHashInnerJoinWorkOrder::executeWithCopyElision(ValueAccessor *probe_accessor) {
   PairsOfVectorsJoinedTuplesCollector collector;
+  PairsOfVectorsJoinedTuplesCollector second_collector;
   if (join_key_attributes_.size() == 1) {
     hash_table_.getAllFromValueAccessor(
         probe_accessor,
@@ -473,6 +486,20 @@ void GeneralizedHashInnerJoinWorkOrder::executeWithCopyElision(ValueAccessor *pr
         join_key_attributes_,
         any_join_key_attributes_nullable_,
         &collector);
+  }
+
+  if (second_join_key_attributes_.size() == 1) {
+    second_hash_table_.getAllFromValueAccessor(
+        probe_accessor,
+        second_join_key_attributes_.front(),
+        any_second_join_key_attributes_nullable_,
+        &second_collector);
+  } else {
+    hash_table_.getAllFromValueAccessorCompositeKey(
+        probe_accessor,
+        second_join_key_attributes_,
+        any_second_join_key_attributes_nullable_,
+        &second_collector);
   }
 
   const relation_id build_relation_id = build_relation_.getID();

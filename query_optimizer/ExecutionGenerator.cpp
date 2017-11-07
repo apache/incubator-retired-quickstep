@@ -1206,6 +1206,7 @@ void ExecutionGenerator::convertGeneralizedHashJoin(const P::GeneralizedHashJoin
     }
     key_types.push_back(&left_attribute_type);
   }
+  std::vector<const Type*> second_key_types;
   for (std::vector<E::AttributeReferencePtr>::size_type attr_idx = 0;
        attr_idx < second_left_join_attributes.size();
        ++attr_idx) {
@@ -1215,7 +1216,7 @@ void ExecutionGenerator::convertGeneralizedHashJoin(const P::GeneralizedHashJoin
       THROW_SQL_ERROR() << "Equality join predicate between two attributes of different types "
                            "is not allowed in HashJoin";
     }
-    key_types.push_back(&left_attribute_type);
+    second_key_types.push_back(&left_attribute_type);
   }
 
   // Convert the residual predicate proto.
@@ -1303,7 +1304,7 @@ void ExecutionGenerator::convertGeneralizedHashJoin(const P::GeneralizedHashJoin
   second_hash_table_proto->set_hash_table_impl_type(
         SimplifyHashTableImplTypeProto(
             HashTableImplTypeProtoFromString(FLAGS_join_hashtable_type),
-            key_types));
+            second_key_types));
 
   for (const attribute_id build_attribute : second_build_attribute_ids) {
     second_hash_table_proto->add_key_types()->CopyFrom(
@@ -1345,6 +1346,9 @@ void ExecutionGenerator::convertGeneralizedHashJoin(const P::GeneralizedHashJoin
     case P::HashJoin::JoinType::kInnerJoin:
       join_type = HashJoinOperator::JoinType::kInnerJoin;
       break;
+    case P::HashJoin::JoinType::kGeneralizedInnerJoin:
+      join_type = HashJoinOperator::JoinType::kGeneralizedInnerJoin;
+      break;
     case P::HashJoin::JoinType::kLeftSemiJoin:
       join_type = HashJoinOperator::JoinType::kLeftSemiJoin;
       break;
@@ -1370,7 +1374,9 @@ void ExecutionGenerator::convertGeneralizedHashJoin(const P::GeneralizedHashJoin
               *probe_relation,
               probe_relation_info->isStoredRelation(),
               probe_attribute_ids,
+              second_probe_attribute_ids,
               any_probe_attributes_nullable,
+              any_second_probe_attributes_nullable,
               probe_num_partitions,
               physical_plan->hasRepartition(),
               *output_relation,

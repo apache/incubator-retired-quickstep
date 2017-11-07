@@ -126,7 +126,9 @@ class GeneralizedHashJoinOperator : public HashJoinOperator {
       const CatalogRelation &probe_relation,
       const bool probe_relation_is_stored,
       const std::vector<attribute_id> &join_key_attributes,
+      const std::vector<attribute_id> &second_join_key_attributes,
       const bool any_join_key_attributes_nullable,
+      const bool any_second_join_key_attributes_nullable,
       const std::size_t num_partitions,
       const bool has_repartition,
       const CatalogRelation &output_relation,
@@ -145,6 +147,8 @@ class GeneralizedHashJoinOperator : public HashJoinOperator {
                          residual_predicate_index, selection_index,
                          is_selection_on_build, join_type),
         second_build_relation_(second_build_relation),
+        second_join_key_attributes_(second_join_key_attributes),
+        any_second_join_key_attributes_nullable_(any_second_join_key_attributes_nullable),
         second_hash_table_index_(second_hash_table_index),
         second_residual_predicate_index_(second_residual_predicate_index) {}
 
@@ -211,6 +215,8 @@ class GeneralizedHashJoinOperator : public HashJoinOperator {
   serialization::WorkOrder* createOuterJoinWorkOrderProto(const block_id block, const partition_id part_id);
 
   const CatalogRelation &second_build_relation_;
+  const std::vector<attribute_id> &second_join_key_attributes_;
+  const bool any_second_join_key_attributes_nullable_;
   const QueryContext::join_hash_table_id second_hash_table_index_;
   const QueryContext::predicate_id second_residual_predicate_index_;
 
@@ -253,7 +259,9 @@ class GeneralizedHashInnerJoinWorkOrder : public WorkOrder {
       const CatalogRelationSchema &second_build_relation,
       const CatalogRelationSchema &probe_relation,
       const std::vector<attribute_id> &join_key_attributes,
+      const std::vector<attribute_id> &second_join_key_attributes,
       const bool any_join_key_attributes_nullable,
+      const bool any_second_join_key_attributes_nullable,
       const partition_id part_id,
       const block_id lookup_block_id,
       const Predicate *residual_predicate,
@@ -269,7 +277,9 @@ class GeneralizedHashInnerJoinWorkOrder : public WorkOrder {
         second_build_relation_(second_build_relation),
         probe_relation_(probe_relation),
         join_key_attributes_(join_key_attributes),
+        second_join_key_attributes_(second_join_key_attributes),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
+        any_second_join_key_attributes_nullable_(any_second_join_key_attributes_nullable),
         block_id_(lookup_block_id),
         residual_predicate_(residual_predicate),
         second_residual_predicate_(second_residual_predicate),
@@ -311,7 +321,9 @@ class GeneralizedHashInnerJoinWorkOrder : public WorkOrder {
       const CatalogRelationSchema &second_build_relation,
       const CatalogRelationSchema &probe_relation,
       std::vector<attribute_id> &&join_key_attributes,
+      std::vector<attribute_id> &&second_join_key_attributes,
       const bool any_join_key_attributes_nullable,
+      const bool any_second_join_key_attributes_nullable,
       const partition_id part_id,
       const block_id lookup_block_id,
       const Predicate *residual_predicate,
@@ -327,7 +339,9 @@ class GeneralizedHashInnerJoinWorkOrder : public WorkOrder {
         second_build_relation_(second_build_relation),
         probe_relation_(probe_relation),
         join_key_attributes_(std::move(join_key_attributes)),
+        second_join_key_attributes_(std::move(second_join_key_attributes)),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
+        any_second_join_key_attributes_nullable_(any_second_join_key_attributes_nullable),
         block_id_(lookup_block_id),
         residual_predicate_(residual_predicate),
         second_residual_predicate_(second_residual_predicate),
@@ -359,7 +373,9 @@ class GeneralizedHashInnerJoinWorkOrder : public WorkOrder {
   const CatalogRelationSchema &second_build_relation_;
   const CatalogRelationSchema &probe_relation_;
   const std::vector<attribute_id> join_key_attributes_;
+  const std::vector<attribute_id> second_join_key_attributes_;
   const bool any_join_key_attributes_nullable_;
+  const bool any_second_join_key_attributes_nullable_;
   const block_id block_id_;
   const Predicate *residual_predicate_;
   const Predicate *second_residual_predicate_;

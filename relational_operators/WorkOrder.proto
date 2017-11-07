@@ -203,7 +203,9 @@ message GeneralizedHashJoinWorkOrder {
     optional int32 second_build_relation_id = 442;
     optional int32 probe_relation_id = 443;
     repeated int32 join_key_attributes = 444;
+    repeated int32 second_join_key_attributes = 457;
     optional bool any_join_key_attributes_nullable = 445;
+    optional bool any_second_join_key_attributes_nullable = 458;
     optional int32 insert_destination_index = 446;
     optional uint32 join_hash_table_index = 447;
     optional uint32 second_join_hash_table_index = 448;
