@@ -302,11 +302,11 @@ else()
     endif()
   endif()
 
-  # OSX 10.12 has deprecated certain system-level APIs which causes protobuf & glog
+  # OSX 10.12+ has deprecated certain system-level APIs which causes protobuf & glog
   # builds to fail. As a short-term workaround for now, we turn off deprecated
   # warnings so that they do not cause build failures anymore.
   # TODO: Remove this workaround by fixing the protobuf_cmake and glog_cmake.
-  if (${CMAKE_SYSTEM} MATCHES "Darwin-16.[0-9]*.[0-9]*")
+  if (${CMAKE_SYSTEM} MATCHES "Darwin-1[6-7]*.[0-9]*.[0-9]*")
     if (${CMAKE_CXX_COMPILER_ID} MATCHES "Clang")
       CHECK_CXX_COMPILER_FLAG("-Wno-error=deprecated-declarations" COMPILER_HAS_WNO_DEPRECATED)
       if (COMPILER_HAS_WNO_DEPRECATED)
