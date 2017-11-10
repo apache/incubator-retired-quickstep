@@ -53,6 +53,12 @@ add_library(quickstep_transaction_Transaction
 add_library(quickstep_transaction_TransactionTable
             TransactionTable.cpp
             TransactionTable.hpp)
+add_library(quickstep_transaction_EqualityPredicate
+            EqualityPredicate.cpp
+            EqualityPredicate.hpp)
+add_library(quickstep_transaction_RangePredicate
+            RangePredicate.cpp
+            RangePredicate.hpp)
 
 target_link_libraries(quickstep_transaction_CycleDetector
                       quickstep_transaction_DirectedGraph
