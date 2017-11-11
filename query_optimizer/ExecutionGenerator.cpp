@@ -1278,6 +1278,8 @@ void ExecutionGenerator::convertGeneralizedHashJoin(const P::GeneralizedHashJoin
       query_context_proto_->join_hash_tables_size();
   S::QueryContext::HashTableContext *hash_table_context_proto =
       query_context_proto_->add_join_hash_tables();
+  S::QueryContext::HashTableContext *second_hash_table_context_proto =
+      query_context_proto_->add_join_hash_tables();
 
   const std::size_t probe_num_partitions = probe_relation->getNumPartitions();
   hash_table_context_proto->set_num_partitions(probe_num_partitions);
@@ -1299,7 +1301,7 @@ void ExecutionGenerator::convertGeneralizedHashJoin(const P::GeneralizedHashJoin
 
   hash_table_proto->set_estimated_num_entries(build_cardinality);
 
-  S::HashTable *second_hash_table_proto = hash_table_context_proto->mutable_join_hash_table();
+  S::HashTable *second_hash_table_proto = second_hash_table_context_proto->mutable_join_hash_table();
 
   second_hash_table_proto->set_hash_table_impl_type(
         SimplifyHashTableImplTypeProto(

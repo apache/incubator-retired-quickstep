@@ -106,7 +106,23 @@ class BuildGeneralizedHashOperator : public BuildHashOperator {
         second_join_key_attributes_(second_join_key_attributes),
         any_second_join_key_attributes_nullable_(any_second_join_key_attributes_nullable),
         second_hash_table_index_(second_hash_table_index),
+        input_relation_block_ids_(num_partitions),
         second_input_relation_block_ids_(num_partitions) {
+          if (input_relation_is_stored) {
+            if (input_relation.hasPartitionScheme()) {
+              DCHECK_EQ(num_partitions_, input_relation.getNumPartitions());
+
+              const PartitionScheme &part_scheme = *input_relation.getPartitionScheme();
+              for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
+                input_relation_block_ids_[part_id] = part_scheme.getBlocksInPartition(part_id);
+              }
+            } else {
+              // Broadcast hash join if build has no partitions.
+              for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
+                input_relation_block_ids_[part_id] = input_relation.getBlocksSnapshot();
+              }
+            }
+          }
           if (second_input_relation_is_stored) {
             if (second_input_relation.hasPartitionScheme()) {
               DCHECK_EQ(num_partitions_, second_input_relation.getNumPartitions());

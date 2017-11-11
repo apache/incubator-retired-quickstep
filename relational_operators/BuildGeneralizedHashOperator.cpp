@@ -47,6 +47,7 @@ namespace {
 
 class TupleReferenceGenerator {
  public:
+
   explicit TupleReferenceGenerator(const block_id block)
       : block_(block) {
   }
@@ -223,18 +224,18 @@ void BuildGeneralizedHashWorkOrder::execute() {
                                            any_join_key_attributes_nullable_,
                                            &generator);
     second_result = second_hash_table_->putValueAccessor(second_accessor.get(),
-                                                  second_join_key_attributes_.front(),
-                                                  any_second_join_key_attributes_nullable_,
-                                                  &second_generator);
+                                                         second_join_key_attributes_.front(),
+                                                         any_second_join_key_attributes_nullable_,
+                                                         &second_generator);
   } else {
     result = hash_table_->putValueAccessorCompositeKey(accessor.get(),
                                                        join_key_attributes_,
                                                        any_join_key_attributes_nullable_,
                                                        &generator);
     second_result = second_hash_table_->putValueAccessorCompositeKey(second_accessor.get(),
-                                                  second_join_key_attributes_,
-                                                  any_second_join_key_attributes_nullable_,
-                                                  &second_generator);
+                                                                     second_join_key_attributes_,
+                                                                     any_second_join_key_attributes_nullable_,
+                                                                     &second_generator);
   }
 
   CHECK(result == HashTablePutResult::kOK && second_result == HashTablePutResult::kOK)

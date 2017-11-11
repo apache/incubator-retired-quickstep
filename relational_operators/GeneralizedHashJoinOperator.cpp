@@ -358,9 +358,9 @@ void GeneralizedHashInnerJoinWorkOrder::executeWithoutCopyElision(ValueAccessor 
         any_second_join_key_attributes_nullable_,
         &second_collector);
   } else {
-    second_hash_table_.getAllFromValueAccessor(
+    second_hash_table_.getAllFromValueAccessorCompositeKey(
         probe_accessor,
-        second_join_key_attributes_.front(),
+        second_join_key_attributes_,
         any_second_join_key_attributes_nullable_,
         &second_collector);
   }
@@ -372,9 +372,9 @@ void GeneralizedHashInnerJoinWorkOrder::executeWithoutCopyElision(ValueAccessor 
   ColumnVectorsValueAccessor temp_result;
 
   for (std::pair<const block_id, VectorOfTupleIdPair>
-           &build_block_entry : *collector.getJoinedTuples()) {
+           &build_block_entry : *second_collector.getJoinedTuples()) {
     BlockReference build_block =
-        storage_manager_->getBlock(build_block_entry.first, build_relation_);
+        storage_manager_->getBlock(build_block_entry.first, second_build_relation_);
     const TupleStorageSubBlock &build_store = build_block->getTupleStorageSubBlock();
     std::unique_ptr<ValueAccessor> build_accessor(build_store.createValueAccessor());
 
@@ -388,13 +388,13 @@ void GeneralizedHashInnerJoinWorkOrder::executeWithoutCopyElision(ValueAccessor 
     // vectorized materialization and evaluation if the set of matches from the
     // hash join is below a reasonable threshold so that we don't blow up
     // temporary memory requirements to an unreasonable degree.
-    if (residual_predicate_ != nullptr) {
+    if (second_residual_predicate_ != nullptr) {
       VectorOfTupleIdPair filtered_matches;
 
       for (const std::pair<tuple_id, tuple_id> &hash_match
            : build_block_entry.second) {
         if (residual_predicate_->matchesForJoinedTuples(*build_accessor,
-                                                        build_relation_id,
+                                                        second_build_relation_id,
                                                         hash_match.first,
                                                         *probe_accessor,
                                                         probe_relation_id,
@@ -410,7 +410,7 @@ void GeneralizedHashInnerJoinWorkOrder::executeWithoutCopyElision(ValueAccessor 
     for (auto selection_cit = selection_.begin();
          selection_cit != selection_.end();
          ++selection_cit) {
-      temp_result.addColumn((*selection_cit)->getAllValuesForJoin(build_relation_id,
+      temp_result.addColumn((*selection_cit)->getAllValuesForJoin(second_build_relation_id,
                                                                   build_accessor.get(),
                                                                   probe_relation_id,
                                                                   probe_accessor,
@@ -421,9 +421,9 @@ void GeneralizedHashInnerJoinWorkOrder::executeWithoutCopyElision(ValueAccessor 
 
 
   for (std::pair<const block_id, VectorOfTupleIdPair>
-         &build_block_entry : *second_collector.getJoinedTuples()) {
+         &build_block_entry : *collector.getJoinedTuples()) {
   BlockReference build_block =
-      storage_manager_->getBlock(build_block_entry.first, second_build_relation_);
+      storage_manager_->getBlock(build_block_entry.first, build_relation_);
   const TupleStorageSubBlock &build_store = build_block->getTupleStorageSubBlock();
   std::unique_ptr<ValueAccessor> build_accessor(build_store.createValueAccessor());
 
@@ -437,13 +437,13 @@ void GeneralizedHashInnerJoinWorkOrder::executeWithoutCopyElision(ValueAccessor 
   // vectorized materialization and evaluation if the set of matches from the
   // hash join is below a reasonable threshold so that we don't blow up
   // temporary memory requirements to an unreasonable degree.
-  if (second_residual_predicate_ != nullptr) {
+  if (residual_predicate_ != nullptr) {
     VectorOfTupleIdPair filtered_matches;
 
     for (const std::pair<tuple_id, tuple_id> &hash_match
          : build_block_entry.second) {
       if (second_residual_predicate_->matchesForJoinedTuples(*build_accessor,
-                                                             second_build_relation_id,
+                                                             build_relation_id,
                                                              hash_match.first,
                                                              *probe_accessor,
                                                              probe_relation_id,
@@ -459,7 +459,7 @@ void GeneralizedHashInnerJoinWorkOrder::executeWithoutCopyElision(ValueAccessor 
   for (auto selection_cit = selection_.begin();
        selection_cit != selection_.end();
        ++selection_cit) {
-    temp_result.addColumn((*selection_cit)->getAllValuesForJoin(second_build_relation_id,
+    temp_result.addColumn((*selection_cit)->getAllValuesForJoin(build_relation_id,
                                                                 build_accessor.get(),
                                                                 probe_relation_id,
                                                                 probe_accessor,
