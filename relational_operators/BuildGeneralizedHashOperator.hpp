@@ -169,7 +169,8 @@ class BuildGeneralizedHashOperator : public BuildHashOperator {
    * @param block The block id used in the Work Order.
    * @param part_id The partition id of 'input_relation_'.
    **/
-  serialization::WorkOrder* createWorkOrderProto(const block_id block, const block_id second_block, const partition_id part_id);
+  serialization::WorkOrder* createWorkOrderProto(const block_id block, const partition_id part_id);
+  serialization::WorkOrder* createSecondWorkOrderProto(const block_id block, const partition_id part_id);
 
   const CatalogRelation &second_input_relation_;
   const bool second_input_relation_is_stored_;
@@ -209,26 +210,17 @@ class BuildGeneralizedHashWorkOrder : public BuildHashWorkOrder {
    **/
   BuildGeneralizedHashWorkOrder(const std::size_t query_id,
                      const CatalogRelationSchema &input_relation,
-                     const CatalogRelationSchema &second_input_relation,
                      const std::vector<attribute_id> &join_key_attributes,
-                     const std::vector<attribute_id> &second_join_key_attributes,
                      const bool any_join_key_attributes_nullable,
-                     const bool any_second_join_key_attributes_nullable,
                      const partition_id part_id,
                      const block_id build_block_id,
-                     const block_id second_build_block_id,
                      const Predicate *predicate,
                      JoinHashTable *hash_table,
-                     JoinHashTable *second_hash_table,
                      StorageManager *storage_manager,
                      LIPFilterBuilder *lip_filter_builder)
       : BuildHashWorkOrder(query_id, input_relation, join_key_attributes, any_join_key_attributes_nullable,
-                           part_id, build_block_id, predicate, hash_table, storage_manager, lip_filter_builder),
-        second_input_relation_(second_input_relation),
-        second_join_key_attributes_(second_join_key_attributes),
-        any_second_join_key_attributes_nullable_(any_second_join_key_attributes_nullable),
-        second_build_block_id_(second_build_block_id),
-        second_hash_table_(second_hash_table) {}
+                           part_id, build_block_id, predicate, hash_table, storage_manager, lip_filter_builder)
+                            {}
 
   /**
    * @brief Constructor for the distributed version.
@@ -247,43 +239,23 @@ class BuildGeneralizedHashWorkOrder : public BuildHashWorkOrder {
    **/
   BuildGeneralizedHashWorkOrder(const std::size_t query_id,
                      const CatalogRelationSchema &input_relation,
-                     const CatalogRelationSchema &second_input_relation,
                      std::vector<attribute_id> &&join_key_attributes,
-                     std::vector<attribute_id> &&second_join_key_attributes,
                      const bool any_join_key_attributes_nullable,
-                     const bool any_second_join_key_attributes_nullable,
                      const partition_id part_id,
                      const block_id build_block_id,
-                     const block_id second_build_block_id,
                      const Predicate *predicate,
                      JoinHashTable *hash_table,
-                     JoinHashTable *second_hash_table,
                      StorageManager *storage_manager,
                      LIPFilterBuilder *lip_filter_builder)
       : BuildHashWorkOrder(query_id, input_relation, join_key_attributes,
                            any_join_key_attributes_nullable, part_id, build_block_id, predicate,
-                           hash_table, storage_manager, lip_filter_builder),
-        second_input_relation_(second_input_relation),
-        second_join_key_attributes_(std::move(second_join_key_attributes)),
-        any_second_join_key_attributes_nullable_(any_second_join_key_attributes_nullable),
-        second_build_block_id_(second_build_block_id),
-        second_hash_table_(second_hash_table) {}
+                           hash_table, storage_manager, lip_filter_builder) {}
 
   ~BuildGeneralizedHashWorkOrder() override {}
-
-  const CatalogRelationSchema& second_input_relation() const {
-    return second_input_relation_;
-  }
 
   void execute() override;
 
  private:
-  const CatalogRelationSchema &second_input_relation_;
-  const std::vector<attribute_id> second_join_key_attributes_;
-  const bool any_second_join_key_attributes_nullable_;
-  const block_id second_build_block_id_;
-
-  JoinHashTable *second_hash_table_;
 
   DISALLOW_COPY_AND_ASSIGN(BuildGeneralizedHashWorkOrder);
 };
