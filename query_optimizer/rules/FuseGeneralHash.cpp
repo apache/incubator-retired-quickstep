@@ -105,12 +105,12 @@ P::PhysicalPtr FuseGeneralHash::applyToNode(
 
 
   return P::GeneralizedHashJoin::Create(second_hash->left(),
-                             hash_join->right(),
                              second_hash->right(),
-                             hash_join->left_join_attributes(),
-                             hash_join->right_join_attributes(),
+                             hash_join->right(),
                              second_hash->left_join_attributes(),
                              second_hash->right_join_attributes(),
+                             hash_join->left_join_attributes(),
+                             hash_join->right_join_attributes(),
                              hash_join->residual_predicate(),
                              second_hash->residual_predicate(),
                              hash_join->build_predicate(),

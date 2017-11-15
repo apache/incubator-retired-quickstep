@@ -1200,6 +1200,7 @@ void ExecutionGenerator::convertGeneralizedHashJoin(const P::GeneralizedHashJoin
        ++attr_idx) {
     const Type &left_attribute_type = left_join_attributes[attr_idx]->getValueType();
     const Type &right_attribute_type = right_join_attributes[attr_idx]->getValueType();
+    LOG(INFO) << left_join_attributes[attr_idx]->attribute_name();
     if (left_attribute_type.getTypeID() != right_attribute_type.getTypeID()) {
       THROW_SQL_ERROR() << "Equality join predicate between two attributes of different types "
                            "is not allowed in HashJoin";
@@ -1210,13 +1211,13 @@ void ExecutionGenerator::convertGeneralizedHashJoin(const P::GeneralizedHashJoin
   for (std::vector<E::AttributeReferencePtr>::size_type attr_idx = 0;
        attr_idx < second_left_join_attributes.size();
        ++attr_idx) {
-    const Type &left_attribute_type = second_left_join_attributes[attr_idx]->getValueType();
-    const Type &right_attribute_type = second_right_join_attributes[attr_idx]->getValueType();
-    if (left_attribute_type.getTypeID() != right_attribute_type.getTypeID()) {
+    const Type &second_left_attribute_type = second_left_join_attributes[attr_idx]->getValueType();
+    const Type &second_right_attribute_type = second_right_join_attributes[attr_idx]->getValueType();
+    if (second_left_attribute_type.getTypeID() != second_right_attribute_type.getTypeID()) {
       THROW_SQL_ERROR() << "Equality join predicate between two attributes of different types "
                            "is not allowed in HashJoin";
     }
-    second_key_types.push_back(&left_attribute_type);
+    second_key_types.push_back(&second_left_attribute_type);
   }
 
   // Convert the residual predicate proto.
@@ -1289,6 +1290,7 @@ void ExecutionGenerator::convertGeneralizedHashJoin(const P::GeneralizedHashJoin
   // SimplifyHashTableImplTypeProto() switches the hash table implementation
   // from SeparateChaining to SimpleScalarSeparateChaining when there is a
   // single scalar key type with a reversible hash function.
+
   hash_table_proto->set_hash_table_impl_type(
       SimplifyHashTableImplTypeProto(
           HashTableImplTypeProtoFromString(FLAGS_join_hashtable_type),
