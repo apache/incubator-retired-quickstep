@@ -178,6 +178,14 @@ class QueryHandle {
     query_result_relation_ = relation;
   }
 
+  /**
+   * @brief Return all the base relations referenced in this query.
+   **/
+  std::vector<relation_id> getAllReferencedBaseRelations() {
+    std::vector<relation_id> ret;
+    return ret;
+  }
+
 #ifdef QUICKSTEP_DISTRIBUTED
   /**
    * @brief Whether the query will be executed in the single node.
