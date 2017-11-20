@@ -27,6 +27,9 @@
 #include "utility/Macros.hpp"
 
 namespace quickstep {
+
+class CatalogRelation;
+
 namespace transaction {
 
 /**
@@ -59,6 +62,36 @@ class CompatibilityChecker {
    */
   virtual bool isTranasctionCompatible(const transaction_id tid,
                                        const std::vector<std::pair<ResourceId, AccessMode>> &resource_requests) {
+    return false;
+  }
+
+  /**
+   * @brief Check if the given transaction can acquire a Catalog lock on the
+   *        given relation.
+   * @param tid The ID of the given transaction.
+   * @param relation The given relation.
+   * @param access_mode The access_mode requested to lock the catalog.
+   * @return True if the lock can be acquired, false otherwise.
+   */
+  virtual bool canAcquireCatalogLock(const transaction_id tid,
+                                     const CatalogRelation &relation,
+                                     const AccessMode access_mode) {
+    return false;
+  }
+
+  /**
+   * @brief Check if the given transaction can acquire locks on all the blocks
+   *        of the given relation.
+   * @param tid The ID of the given transaction.
+   * @param rid The ID of the given relation.
+   * @param blocks The list of the blocks of the given relation.
+   * @param access_mode The access_mode requested to lock the blocks.
+   * @return True if the lock can be acquired, false otherwise.
+   */
+  virtual bool canAcquireBlockLocks(const transaction_id tid,
+                                    const relation_id rid,
+                                    const std::vector<block_id> &blocks,
+                                    const AccessMode access_mode) {
     return false;
   }
 

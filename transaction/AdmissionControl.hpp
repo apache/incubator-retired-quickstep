@@ -51,8 +51,8 @@ class AdmissionControl {
    *        resource ID and its requested access mode.
    * @return True if the transaction can be admitted, false if it has to wait.
    */
-  bool admitTransaction(const transaction_id tid,
-                        const std::vector<std::pair<ResourceId, AccessMode>> &resource_requests) {
+  virtual bool admitTransaction(const transaction_id tid,
+                                const std::vector<std::pair<ResourceId, AccessMode>> &resource_requests) {
     return false;
   }
 
@@ -69,7 +69,7 @@ class AdmissionControl {
    * @return True if the transaction can be admitted, false if the
    *         transaction has to wait.
    */
-  bool admitWaitingTransaction(const transaction_id tid) {
+  virtual bool admitWaitingTransaction(const transaction_id tid) {
     return false;
   }
 
