@@ -17,7 +17,7 @@
  * under the License.
  **/
 
-#include "query_optimizer/physical/HashJoin.hpp"
+#include "query_optimizer/physical/GeneralizedHashJoin.hpp"
 
 #include <string>
 #include <vector>
@@ -34,7 +34,7 @@ namespace quickstep {
 namespace optimizer {
 namespace physical {
 
-std::vector<expressions::AttributeReferencePtr> HashJoin::getReferencedAttributes() const {
+std::vector<expressions::AttributeReferencePtr> GeneralizedHashJoin::getReferencedAttributes() const {
   std::vector<expressions::AttributeReferencePtr> referenced_attributes;
   for (const expressions::NamedExpressionPtr &project_expression :
        project_expressions()) {
@@ -50,12 +50,25 @@ std::vector<expressions::AttributeReferencePtr> HashJoin::getReferencedAttribute
   referenced_attributes.insert(referenced_attributes.end(),
                                right_join_attributes_.begin(),
                                right_join_attributes_.end());
+  referenced_attributes.insert(referenced_attributes.end(),
+                               second_left_join_attributes_.begin(),
+                               second_left_join_attributes_.end());
+  referenced_attributes.insert(referenced_attributes.end(),
+                               second_right_join_attributes_.begin(),
+                               second_right_join_attributes_.end());
   if (residual_predicate_ != nullptr) {
     const std::vector<expressions::AttributeReferencePtr> referenced_attributes_in_residual =
         residual_predicate_->getReferencedAttributes();
     referenced_attributes.insert(referenced_attributes.end(),
                                  referenced_attributes_in_residual.begin(),
                                  referenced_attributes_in_residual.end());
+  }
+  if (second_residual_predicate_ != nullptr) {
+    const std::vector<expressions::AttributeReferencePtr> referenced_attributes_in_second_residual =
+        second_residual_predicate_->getReferencedAttributes();
+    referenced_attributes.insert(referenced_attributes.end(),
+                                 referenced_attributes_in_second_residual.begin(),
+                                 referenced_attributes_in_second_residual.end());
   }
   if (build_predicate_ != nullptr) {
     const std::vector<expressions::AttributeReferencePtr> referenced_attributes_in_build =
@@ -67,7 +80,7 @@ std::vector<expressions::AttributeReferencePtr> HashJoin::getReferencedAttribute
   return referenced_attributes;
 }
 
-bool HashJoin::maybeCopyWithPrunedExpressions(
+bool GeneralizedHashJoin::maybeCopyWithPrunedExpressions(
     const expressions::UnorderedNamedExpressionSet &referenced_expressions,
     PhysicalPtr *output) const {
   std::vector<expressions::NamedExpressionPtr> new_project_expressions;
@@ -83,9 +96,13 @@ bool HashJoin::maybeCopyWithPrunedExpressions(
   if (new_project_expressions.size() != current_project_expressions.size()) {
     *output = Create(left(),
                      right(),
+                     middle(),
                      left_join_attributes_,
                      right_join_attributes_,
+                     second_left_join_attributes_,
+                     second_right_join_attributes_,
                      residual_predicate_,
+                     second_residual_predicate_,
                      build_predicate_,
                      new_project_expressions,
                      join_type_,
@@ -96,7 +113,7 @@ bool HashJoin::maybeCopyWithPrunedExpressions(
   return false;
 }
 
-void HashJoin::getFieldStringItems(
+void GeneralizedHashJoin::getFieldStringItems(
     std::vector<std::string> *inline_field_names,
     std::vector<std::string> *inline_field_values,
     std::vector<std::string> *non_container_child_field_names,
@@ -109,9 +126,15 @@ void HashJoin::getFieldStringItems(
                                   non_container_child_fields,
                                   container_child_field_names,
                                   container_child_fields);
+  non_container_child_field_names->push_back("middle");
+  non_container_child_fields->push_back(middle_);
   if (residual_predicate_ != nullptr) {
     non_container_child_field_names->push_back("residual_predicate");
     non_container_child_fields->push_back(residual_predicate_);
+  }
+  if (second_residual_predicate_ != nullptr) {
+    non_container_child_field_names->push_back("second_residual_predicate");
+    non_container_child_fields->push_back(second_residual_predicate_);
   }
   if (build_predicate_ != nullptr) {
     non_container_child_field_names->push_back("build_predicate");
@@ -121,6 +144,10 @@ void HashJoin::getFieldStringItems(
   container_child_fields->push_back(CastSharedPtrVector<OptimizerTreeBase>(left_join_attributes_));
   container_child_field_names->push_back("right_join_attributes");
   container_child_fields->push_back(CastSharedPtrVector<OptimizerTreeBase>(right_join_attributes_));
+  container_child_field_names->push_back("second_left_join_attributes");
+  container_child_fields->push_back(CastSharedPtrVector<OptimizerTreeBase>(second_left_join_attributes_));
+  container_child_field_names->push_back("second_right_join_attributes");
+  container_child_fields->push_back(CastSharedPtrVector<OptimizerTreeBase>(second_right_join_attributes_));
 }
 
 }  // namespace physical

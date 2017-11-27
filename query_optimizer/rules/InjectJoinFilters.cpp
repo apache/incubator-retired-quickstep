@@ -165,13 +165,17 @@ P::PhysicalPtr InjectJoinFilters::transformHashJoinToFilters(
     P::PhysicalPtr build_child = new_children[1];
     E::PredicatePtr build_side_filter_predicate = nullptr;
     P::SelectionPtr selection;
-    if (P::SomeSelection::MatchesWithConditionalCast(build_child, &selection) &&
-        E::SubsetOfExpressions(hash_join->right_join_attributes(),
-                               selection->input()->getOutputAttributes())) {
-      build_child = selection->input();
-      build_side_filter_predicate = selection->filter_predicate();
+    if (hash_join->build_predicate() == nullptr) {
+      if (P::SomeSelection::MatchesWithConditionalCast(build_child, &selection) &&
+          E::SubsetOfExpressions(hash_join->right_join_attributes(),
+                                 selection->input()->getOutputAttributes())) {
+        build_child = selection->input();
+        build_side_filter_predicate = selection->filter_predicate();
+      }
+    } else {
+      build_child = hash_join->right();
+      build_side_filter_predicate = hash_join->build_predicate();
     }
-
     return P::FilterJoin::Create(new_children[0],
                                  build_child,
                                  hash_join->left_join_attributes(),

@@ -163,6 +163,8 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
           proto.GetExtension(serialization::BuildHashWorkOrder::any_join_key_attributes_nullable),
           part_id,
           proto.GetExtension(serialization::BuildHashWorkOrder::block_id),
+          query_context->getPredicate(
+              proto.GetExtension(serialization::BuildHashWorkOrder::build_predicate_index)),
           query_context->getJoinHashTable(
               proto.GetExtension(serialization::BuildHashWorkOrder::join_hash_table_index), part_id),
           storage_manager,

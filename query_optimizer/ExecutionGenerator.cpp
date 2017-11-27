@@ -85,6 +85,7 @@
 #include "query_optimizer/physical/DeleteTuples.hpp"
 #include "query_optimizer/physical/DropTable.hpp"
 #include "query_optimizer/physical/FilterJoin.hpp"
+#include "query_optimizer/physical/GeneralizedHashJoin.hpp"
 #include "query_optimizer/physical/HashJoin.hpp"
 #include "query_optimizer/physical/InsertSelection.hpp"
 #include "query_optimizer/physical/InsertTuple.hpp"
@@ -106,15 +107,18 @@
 #include "query_optimizer/physical/WindowAggregate.hpp"
 #include "relational_operators/AggregationOperator.hpp"
 #include "relational_operators/BuildAggregationExistenceMapOperator.hpp"
+#include "relational_operators/BuildGeneralizedHashOperator.hpp"
 #include "relational_operators/BuildHashOperator.hpp"
 #include "relational_operators/BuildLIPFilterOperator.hpp"
 #include "relational_operators/CreateIndexOperator.hpp"
 #include "relational_operators/CreateTableOperator.hpp"
 #include "relational_operators/DeleteOperator.hpp"
 #include "relational_operators/DestroyAggregationStateOperator.hpp"
+#include "relational_operators/DestroyGeneralizedHashOperator.hpp"
 #include "relational_operators/DestroyHashOperator.hpp"
 #include "relational_operators/DropTableOperator.hpp"
 #include "relational_operators/FinalizeAggregationOperator.hpp"
+#include "relational_operators/GeneralizedHashJoinOperator.hpp"
 #include "relational_operators/HashJoinOperator.hpp"
 #include "relational_operators/InitializeAggregationOperator.hpp"
 #include "relational_operators/InsertOperator.hpp"
@@ -429,6 +433,9 @@ void ExecutionGenerator::generatePlanInternal(
     case P::PhysicalType::kFilterJoin:
       return convertFilterJoin(
           std::static_pointer_cast<const P::FilterJoin>(physical_plan));
+    case P::PhysicalType::kGeneralizedHashJoin:
+      return convertGeneralizedHashJoin(
+          std::static_pointer_cast<const P::GeneralizedHashJoin>(physical_plan));
     case P::PhysicalType::kHashJoin:
       return convertHashJoin(
           std::static_pointer_cast<const P::HashJoin>(physical_plan));
@@ -939,6 +946,15 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
     query_context_proto_->add_predicates()->CopyFrom(residual_predicate->getProto());
   }
 
+  // Convert the build predicate proto.
+  QueryContext::predicate_id build_predicate_index = QueryContext::kInvalidPredicateId;
+  if (physical_plan->build_predicate()) {
+    build_predicate_index = query_context_proto_->predicates_size();
+
+    unique_ptr<const Predicate> build_predicate(convertPredicate(physical_plan->build_predicate()));
+    query_context_proto_->add_predicates()->MergeFrom(build_predicate->getProto());
+  }
+
   // Convert the project expressions proto.
   const QueryContext::scalar_group_id project_expressions_group_index =
       query_context_proto_->scalar_groups_size();
@@ -966,7 +982,9 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
   const CatalogRelation *probe_relation = probe_relation_info->relation;
 
   // FIXME(quickstep-team): Add support for self-join.
-  if (build_relation == probe_relation) {
+  // We check to see if the build_predicate is null as certain queries that
+  // support hash-select fuse will result in the first check being true.
+  if (build_relation == probe_relation && physical_plan->build_predicate() == nullptr) {
     THROW_SQL_ERROR() << "Self-join is not supported";
   }
 
@@ -1006,7 +1024,8 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
               build_attribute_ids,
               any_build_attributes_nullable,
               probe_num_partitions,
-              join_hash_table_index));
+              join_hash_table_index,
+              build_predicate_index));
 
   // Create InsertDestination proto.
   const CatalogRelation *output_relation = nullptr;
@@ -1076,6 +1095,326 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
                                          build_relation_info->producer_operator_index,
                                          true /* is_pipeline_breaker */);
   }
+  if (!probe_relation_info->isStoredRelation()) {
+    execution_plan_->addDirectDependency(join_operator_index,
+                                         probe_relation_info->producer_operator_index,
+                                         false /* is_pipeline_breaker */);
+  }
+  execution_plan_->addDirectDependency(join_operator_index,
+                                       build_operator_index,
+                                       true /* is_pipeline_breaker */);
+  execution_plan_->addDirectDependency(destroy_operator_index,
+                                       join_operator_index,
+                                       true /* is_pipeline_breaker */);
+
+  physical_to_output_relation_map_.emplace(
+      std::piecewise_construct,
+      std::forward_as_tuple(physical_plan),
+      std::forward_as_tuple(join_operator_index,
+                            output_relation));
+  temporary_relation_info_vec_.emplace_back(join_operator_index, output_relation);
+
+  if (lip_filter_generator_ != nullptr) {
+    lip_filter_generator_->addHashJoinInfo(physical_plan,
+                                           build_operator_index,
+                                           join_operator_index);
+  }
+}
+
+void ExecutionGenerator::convertGeneralizedHashJoin(const P::GeneralizedHashJoinPtr &physical_plan) {
+  // HashJoin is converted to three operators:
+  //     BuildHash, HashJoin, DestroyHash. The second is the primary operator.
+
+  P::PhysicalPtr probe_physical = physical_plan->left();
+  P::PhysicalPtr build_physical = physical_plan->right();
+  P::PhysicalPtr second_build_physical = physical_plan->middle();
+
+  std::vector<attribute_id> probe_attribute_ids;
+  std::vector<attribute_id> build_attribute_ids;
+  std::vector<attribute_id> second_probe_attribute_ids;
+  std::vector<attribute_id> second_build_attribute_ids;
+
+  std::size_t build_cardinality =
+      cost_model_for_hash_join_->estimateCardinality(build_physical);
+
+  std::size_t second_build_cardinality =
+      cost_model_for_hash_join_->estimateCardinality(second_build_physical);
+
+  bool any_probe_attributes_nullable = false;
+  bool any_build_attributes_nullable = false;
+  bool any_second_probe_attributes_nullable = false;
+  bool any_second_build_attributes_nullable = false;
+
+  const std::vector<E::AttributeReferencePtr> &left_join_attributes =
+      physical_plan->left_join_attributes();
+  for (const E::AttributeReferencePtr &left_join_attribute : left_join_attributes) {
+    const CatalogAttribute *probe_catalog_attribute
+        = attribute_substitution_map_[left_join_attribute->id()];
+    probe_attribute_ids.emplace_back(probe_catalog_attribute->getID());
+
+    if (probe_catalog_attribute->getType().isNullable()) {
+      any_probe_attributes_nullable = true;
+    }
+  }
+
+  const std::vector<E::AttributeReferencePtr> &right_join_attributes =
+      physical_plan->right_join_attributes();
+  for (const E::AttributeReferencePtr &right_join_attribute : right_join_attributes) {
+    const CatalogAttribute *build_catalog_attribute
+        = attribute_substitution_map_[right_join_attribute->id()];
+    build_attribute_ids.emplace_back(build_catalog_attribute->getID());
+
+    if (build_catalog_attribute->getType().isNullable()) {
+      any_build_attributes_nullable = true;
+    }
+  }
+
+  const std::vector<E::AttributeReferencePtr> &second_left_join_attributes =
+      physical_plan->second_left_join_attributes();
+  for (const E::AttributeReferencePtr &second_left_join_attribute : second_left_join_attributes) {
+    const CatalogAttribute *probe_catalog_attribute
+        = attribute_substitution_map_[second_left_join_attribute->id()];
+    second_probe_attribute_ids.emplace_back(probe_catalog_attribute->getID());
+
+    if (probe_catalog_attribute->getType().isNullable()) {
+      any_second_probe_attributes_nullable = true;
+    }
+  }
+
+  const std::vector<E::AttributeReferencePtr> &second_right_join_attributes =
+      physical_plan->second_right_join_attributes();
+  for (const E::AttributeReferencePtr &second_right_join_attribute : second_right_join_attributes) {
+    const CatalogAttribute *build_catalog_attribute
+        = attribute_substitution_map_[second_right_join_attribute->id()];
+    second_build_attribute_ids.emplace_back(build_catalog_attribute->getID());
+
+    if (build_catalog_attribute->getType().isNullable()) {
+      any_second_build_attributes_nullable = true;
+    }
+  }
+
+  // Remember key types for call to SimplifyHashTableImplTypeProto() below.
+  std::vector<const Type*> key_types;
+  for (std::vector<E::AttributeReferencePtr>::size_type attr_idx = 0;
+       attr_idx < left_join_attributes.size();
+       ++attr_idx) {
+    const Type &left_attribute_type = left_join_attributes[attr_idx]->getValueType();
+    const Type &right_attribute_type = right_join_attributes[attr_idx]->getValueType();
+    if (left_attribute_type.getTypeID() != right_attribute_type.getTypeID()) {
+      THROW_SQL_ERROR() << "Equality join predicate between two attributes of different types "
+                           "is not allowed in HashJoin";
+    }
+    key_types.push_back(&left_attribute_type);
+  }
+  std::vector<const Type*> second_key_types;
+  for (std::vector<E::AttributeReferencePtr>::size_type attr_idx = 0;
+       attr_idx < second_left_join_attributes.size();
+       ++attr_idx) {
+    const Type &second_left_attribute_type = second_left_join_attributes[attr_idx]->getValueType();
+    const Type &second_right_attribute_type = second_right_join_attributes[attr_idx]->getValueType();
+    if (second_left_attribute_type.getTypeID() != second_right_attribute_type.getTypeID()) {
+      THROW_SQL_ERROR() << "Equality join predicate between two attributes of different types "
+                           "is not allowed in HashJoin";
+    }
+    second_key_types.push_back(&second_left_attribute_type);
+  }
+
+  // Convert the residual predicate proto.
+  QueryContext::predicate_id residual_predicate_index = QueryContext::kInvalidPredicateId;
+  if (physical_plan->residual_predicate()) {
+    residual_predicate_index = query_context_proto_->predicates_size();
+
+    unique_ptr<const Predicate> residual_predicate(convertPredicate(physical_plan->residual_predicate()));
+    query_context_proto_->add_predicates()->CopyFrom(residual_predicate->getProto());
+  }
+  QueryContext::predicate_id second_residual_predicate_index = QueryContext::kInvalidPredicateId;
+  if (physical_plan->second_residual_predicate()) {
+    second_residual_predicate_index = query_context_proto_->predicates_size();
+
+    unique_ptr<const Predicate> residual_predicate(convertPredicate(physical_plan->second_residual_predicate()));
+    query_context_proto_->add_predicates()->CopyFrom(residual_predicate->getProto());
+  }
+
+  // Convert the project expressions proto.
+  const QueryContext::scalar_group_id project_expressions_group_index =
+      query_context_proto_->scalar_groups_size();
+  convertNamedExpressions(physical_plan->project_expressions(),
+                          query_context_proto_->add_scalar_groups());
+
+  const CatalogRelationInfo *build_relation_info =
+      findRelationInfoOutputByPhysical(build_physical);
+  const CatalogRelationInfo *second_build_relation_info =
+      findRelationInfoOutputByPhysical(second_build_physical);
+  const CatalogRelationInfo *probe_relation_info =
+      findRelationInfoOutputByPhysical(probe_physical);
+
+  // Create a vector that indicates whether each project expression is using
+  // attributes from the build relation as input. This information is required
+  // by the current implementation of hash left outer join
+  std::unique_ptr<std::vector<bool>> is_selection_on_build;
+  if (physical_plan->join_type() == P::HashJoin::JoinType::kLeftOuterJoin) {
+    is_selection_on_build.reset(
+        new std::vector<bool>(
+            E::MarkExpressionsReferingAnyAttribute(
+                physical_plan->project_expressions(),
+                build_physical->getOutputAttributes())));
+  }
+
+  const CatalogRelation *build_relation = build_relation_info->relation;
+  const CatalogRelation *second_build_relation = second_build_relation_info->relation;
+  const CatalogRelation *probe_relation = probe_relation_info->relation;
+
+  // FIXME(quickstep-team): Add support for self-join.
+  // We check to see if the build_predicate is null as certain queries that
+  // support hash-select fuse will result in the first check being true.
+  if (build_relation == probe_relation && physical_plan->build_predicate() == nullptr) {
+    THROW_SQL_ERROR() << "Self-join is not supported";
+  }
+
+  // Create join hash table proto.
+  const QueryContext::join_hash_table_id join_hash_table_index =
+      query_context_proto_->join_hash_tables_size();
+  const QueryContext::join_hash_table_id second_join_hash_table_index =
+      query_context_proto_->join_hash_tables_size();
+  S::QueryContext::HashTableContext *hash_table_context_proto =
+      query_context_proto_->add_join_hash_tables();
+  S::QueryContext::HashTableContext *second_hash_table_context_proto =
+      query_context_proto_->add_join_hash_tables();
+
+  const std::size_t probe_num_partitions = probe_relation->getNumPartitions();
+  hash_table_context_proto->set_num_partitions(probe_num_partitions);
+  const std::size_t second_build_num_partitions = second_build_relation->getNumPartitions();
+  second_hash_table_context_proto->set_num_partitions(second_build_num_partitions);
+
+  S::HashTable *hash_table_proto = hash_table_context_proto->mutable_join_hash_table();
+
+  // SimplifyHashTableImplTypeProto() switches the hash table implementation
+  // from SeparateChaining to SimpleScalarSeparateChaining when there is a
+  // single scalar key type with a reversible hash function.
+
+  hash_table_proto->set_hash_table_impl_type(
+      SimplifyHashTableImplTypeProto(
+          HashTableImplTypeProtoFromString(FLAGS_join_hashtable_type),
+          key_types));
+
+  for (const attribute_id build_attribute : build_attribute_ids) {
+    hash_table_proto->add_key_types()->CopyFrom(
+        build_relation->getAttributeById(build_attribute)->getType().getProto());
+  }
+
+  hash_table_proto->set_estimated_num_entries(build_cardinality);
+
+  S::HashTable *second_hash_table_proto = second_hash_table_context_proto->mutable_join_hash_table();
+
+  second_hash_table_proto->set_hash_table_impl_type(
+        SimplifyHashTableImplTypeProto(
+            HashTableImplTypeProtoFromString(FLAGS_join_hashtable_type),
+            second_key_types));
+
+  for (const attribute_id build_attribute : second_build_attribute_ids) {
+    second_hash_table_proto->add_key_types()->CopyFrom(
+        second_build_relation->getAttributeById(build_attribute)->getType().getProto());
+  }
+
+  second_hash_table_proto->set_estimated_num_entries(second_build_cardinality);
+
+  // Create three operators.
+  const QueryPlan::DAGNodeIndex build_operator_index =
+      execution_plan_->addRelationalOperator(
+          new BuildGeneralizedHashOperator(
+              query_handle_->query_id(),
+              *build_relation,
+              build_relation_info->isStoredRelation(),
+              build_attribute_ids,
+              any_build_attributes_nullable,
+              *second_build_relation,
+              second_build_relation_info->isStoredRelation(),
+              second_build_attribute_ids,
+              any_second_build_attributes_nullable,
+              probe_num_partitions,
+              second_build_num_partitions,
+              join_hash_table_index,
+              second_join_hash_table_index,
+              QueryContext::kInvalidPredicateId));
+
+  // Create InsertDestination proto.
+  const CatalogRelation *output_relation = nullptr;
+  const QueryContext::insert_destination_id insert_destination_index =
+      query_context_proto_->insert_destinations_size();
+  S::InsertDestination *insert_destination_proto = query_context_proto_->add_insert_destinations();
+  createTemporaryCatalogRelation(physical_plan,
+                                 &output_relation,
+                                 insert_destination_proto);
+
+  // Get JoinType
+  HashJoinOperator::JoinType join_type;
+  switch (physical_plan->join_type()) {
+    case P::HashJoin::JoinType::kInnerJoin:
+      join_type = HashJoinOperator::JoinType::kInnerJoin;
+      break;
+    case P::HashJoin::JoinType::kGeneralizedInnerJoin:
+      join_type = HashJoinOperator::JoinType::kGeneralizedInnerJoin;
+      break;
+    case P::HashJoin::JoinType::kLeftSemiJoin:
+      join_type = HashJoinOperator::JoinType::kLeftSemiJoin;
+      break;
+    case P::HashJoin::JoinType::kLeftAntiJoin:
+      join_type = HashJoinOperator::JoinType::kLeftAntiJoin;
+      break;
+    case P::HashJoin::JoinType::kLeftOuterJoin:
+      join_type = HashJoinOperator::JoinType::kLeftOuterJoin;
+      break;
+    default:
+      LOG(FATAL) << "Invalid physical::HashJoin::JoinType: "
+                 << static_cast<typename std::underlying_type<P::HashJoin::JoinType>::type>(
+                        physical_plan->join_type());
+  }
+
+  // Create hash join operator
+  const QueryPlan::DAGNodeIndex join_operator_index =
+      execution_plan_->addRelationalOperator(
+          new GeneralizedHashJoinOperator(
+              query_handle_->query_id(),
+              *build_relation,
+              *second_build_relation,
+              *probe_relation,
+              probe_relation_info->isStoredRelation(),
+              probe_attribute_ids,
+              second_probe_attribute_ids,
+              any_probe_attributes_nullable,
+              any_second_probe_attributes_nullable,
+              probe_num_partitions,
+              physical_plan->hasRepartition(),
+              *output_relation,
+              insert_destination_index,
+              join_hash_table_index,
+              second_join_hash_table_index,
+              residual_predicate_index,
+              second_residual_predicate_index,
+              project_expressions_group_index,
+              is_selection_on_build.get(),
+              join_type));
+  insert_destination_proto->set_relational_op_index(join_operator_index);
+
+  const QueryPlan::DAGNodeIndex destroy_operator_index =
+      execution_plan_->addRelationalOperator(new DestroyGeneralizedHashOperator(
+          query_handle_->query_id(), probe_num_partitions, join_hash_table_index,
+          second_join_hash_table_index));
+
+  if (!build_relation_info->isStoredRelation()) {
+    execution_plan_->addDirectDependency(build_operator_index,
+                                         build_relation_info->producer_operator_index,
+                                         false /* is_pipeline_breaker */);
+    // Add the dependency for the producer operator of the build relation
+    // to prevent the build relation from being destroyed until after the join
+    // is complete (see QueryPlan::addDependenciesForDropOperator(), which
+    // makes the drop operator for the temporary relation dependent on all its
+    // consumers having finished).
+    execution_plan_->addDirectDependency(join_operator_index,
+                                         build_relation_info->producer_operator_index,
+                                         true /* is_pipeline_breaker */);
+  }
+
   if (!probe_relation_info->isStoredRelation()) {
     execution_plan_->addDirectDependency(join_operator_index,
                                          probe_relation_info->producer_operator_index,

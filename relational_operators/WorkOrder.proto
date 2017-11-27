@@ -21,10 +21,11 @@ package quickstep.serialization;
 
 import "relational_operators/SortMergeRunOperator.proto";
 
-// Next tag: 27.
+// Next tag: 29.
 enum WorkOrderType {
   AGGREGATION = 1;
   BUILD_AGGREGATION_EXISTENCE_MAP = 23;
+  BUILD_GENERALIZED_HASH = 27;
   BUILD_HASH = 2;
   BUILD_LIP_FILTER = 3;
   CREATE_INDEX = 4;  // Placeholder.
@@ -34,6 +35,7 @@ enum WorkOrderType {
   DESTROY_HASH = 7;
   DROP_TABLE = 8;
   FINALIZE_AGGREGATION = 9;
+  GENERALIZED_HASH_JOIN = 28;
   HASH_JOIN = 10;
   INITIALIZE_AGGREGATION = 25;
   INSERT = 11;
@@ -82,7 +84,27 @@ message BuildAggregationExistenceMapWorkOrder {
   }
 }
 
-// Next tag: 40.
+// Next tag: 423.
+message BuildGeneralizedHashWorkOrder {
+  extend WorkOrder {
+    // All required.
+    optional int32 relation_id = 410;
+    optional int32 second_relation_id = 411;
+    repeated int32 join_key_attributes = 412;
+    repeated int32 second_join_key_attributes = 413;
+    optional bool any_join_key_attributes_nullable = 414;
+    optional bool any_second_join_key_attributes_nullable = 415;
+    optional uint32 join_hash_table_index = 416;
+    optional uint64 partition_id = 417;
+    optional fixed64 block_id = 418;
+    optional fixed64 second_block_id = 422;
+    optional int32 lip_deployment_index = 419;
+    repeated uint32 lip_filter_indexes = 420;
+    optional uint32 build_predicate_index = 421;
+  }
+}
+
+// Next tag: 41.
 message BuildHashWorkOrder {
   extend WorkOrder {
     // All required.
@@ -94,6 +116,7 @@ message BuildHashWorkOrder {
     optional fixed64 block_id = 36;
     optional int32 lip_deployment_index = 37;
     repeated uint32 lip_filter_indexes = 39;
+    optional uint32 build_predicate_index = 40;
   }
 }
 
@@ -128,6 +151,14 @@ message DestroyAggregationStateWorkOrder {
   }
 }
 
+message DestroyGeneralizedHashWorkOrder {
+  extend WorkOrder {
+    optional uint32 join_hash_table_index = 430;
+    optional uint64 partition_id = 431;
+    optional uint32 second_join_hash_table_index = 432;
+  }
+}
+
 message DestroyHashWorkOrder {
   extend WorkOrder {
     // All required.
@@ -153,6 +184,43 @@ message FinalizeAggregationWorkOrder {
     optional uint64 partition_id = 146;
     optional uint64 state_partition_id = 147;
     optional int32 insert_destination_index = 145;
+  }
+}
+
+// Next tag: 176.
+message GeneralizedHashJoinWorkOrder {
+  enum HashJoinWorkOrderType {
+    HASH_ANTI_JOIN = 0;
+    HASH_INNER_JOIN = 1;
+    HASH_OUTER_JOIN = 2;
+    HASH_SEMI_JOIN = 3;
+  }
+
+  extend WorkOrder{
+    // All required.
+    optional HashJoinWorkOrderType hash_join_work_order_type = 440;
+    optional int32 build_relation_id = 441;
+    optional int32 second_build_relation_id = 442;
+    optional int32 probe_relation_id = 443;
+    repeated int32 join_key_attributes = 444;
+    repeated int32 second_join_key_attributes = 457;
+    optional bool any_join_key_attributes_nullable = 445;
+    optional bool any_second_join_key_attributes_nullable = 458;
+    optional int32 insert_destination_index = 446;
+    optional uint32 join_hash_table_index = 447;
+    optional uint32 second_join_hash_table_index = 448;
+    optional uint64 partition_id = 449;
+    optional int32 selection_index = 450;
+    optional fixed64 block_id = 451;
+
+    // Used by all but HashOuterJoinWorkOrder.
+    optional int32 residual_predicate_index = 452;
+    optional int32 second_residual_predicate_index = 456;
+    // Used by HashOuterJoinWorkOrder only.
+    repeated bool is_selection_on_build = 453;
+
+    optional int32 lip_deployment_index = 454;
+    repeated uint32 lip_filter_indexes = 455;
   }
 }
 

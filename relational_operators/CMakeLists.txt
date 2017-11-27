@@ -36,6 +36,9 @@ add_library(quickstep_relationaloperators_AggregationOperator AggregationOperato
 add_library(quickstep_relationaloperators_BuildAggregationExistenceMapOperator
             BuildAggregationExistenceMapOperator.cpp
             BuildAggregationExistenceMapOperator.hpp)
+add_library(quickstep_relationaloperators_BuildGeneralizedHashOperator
+            BuildGeneralizedHashOperator.cpp
+            BuildGeneralizedHashOperator.hpp)
 add_library(quickstep_relationaloperators_BuildHashOperator BuildHashOperator.cpp BuildHashOperator.hpp)
 add_library(quickstep_relationaloperators_BuildLIPFilterOperator BuildLIPFilterOperator.cpp BuildLIPFilterOperator.hpp)
 add_library(quickstep_relationaloperators_CreateIndexOperator ../empty_src.cpp CreateIndexOperator.hpp)
@@ -44,11 +47,16 @@ add_library(quickstep_relationaloperators_DestroyAggregationStateOperator
             DestroyAggregationStateOperator.cpp
             DestroyAggregationStateOperator.hpp)
 add_library(quickstep_relationaloperators_DeleteOperator DeleteOperator.cpp DeleteOperator.hpp)
+add_library(quickstep_relationaloperators_DestroyGeneralizedHashOperator DestroyGeneralizedHashOperator.cpp
+            DestroyGeneralizedHashOperator.hpp)
 add_library(quickstep_relationaloperators_DestroyHashOperator DestroyHashOperator.cpp DestroyHashOperator.hpp)
 add_library(quickstep_relationaloperators_DropTableOperator DropTableOperator.cpp DropTableOperator.hpp)
 add_library(quickstep_relationaloperators_FinalizeAggregationOperator
             FinalizeAggregationOperator.cpp
             FinalizeAggregationOperator.hpp)
+add_library(quickstep_relationaloperators_GeneralizedHashJoinOperator 
+            GeneralizedHashJoinOperator.cpp
+            GeneralizedHashJoinOperator.hpp)
 add_library(quickstep_relationaloperators_HashJoinOperator HashJoinOperator.cpp HashJoinOperator.hpp)
 add_library(quickstep_relationaloperators_InitializeAggregationOperator
             InitializeAggregationOperator.cpp
@@ -127,6 +135,29 @@ target_link_libraries(quickstep_relationaloperators_BuildAggregationExistenceMap
                       quickstep_utility_BarrieredReadWriteConcurrentBitVector
                       quickstep_utility_Macros
                       tmb)
+target_link_libraries(quickstep_relationaloperators_BuildGeneralizedHashOperator
+                      glog
+                      quickstep_catalog_CatalogRelation
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_catalog_PartitionScheme
+                      quickstep_queryexecution_QueryContext
+                      quickstep_queryexecution_WorkOrderProtosContainer
+                      quickstep_queryexecution_WorkOrdersContainer
+                      quickstep_relationaloperators_BuildHashOperator
+                      quickstep_relationaloperators_RelationalOperator
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_relationaloperators_WorkOrder_proto
+                      quickstep_storage_HashTable
+                      quickstep_storage_StorageBlock
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_storage_StorageManager
+                      quickstep_storage_TupleReference
+                      quickstep_storage_TupleStorageSubBlock
+                      quickstep_storage_ValueAccessor
+                      quickstep_utility_Macros
+                      quickstep_utility_lipfilter_LIPFilterBuilder
+                      quickstep_utility_lipfilter_LIPFilterUtil
+                      tmb)                      
 target_link_libraries(quickstep_relationaloperators_BuildHashOperator
                       glog
                       quickstep_catalog_CatalogRelation
@@ -217,6 +248,18 @@ target_link_libraries(quickstep_relationaloperators_DestroyAggregationStateOpera
                       quickstep_relationaloperators_WorkOrder_proto
                       quickstep_utility_Macros
                       tmb)
+target_link_libraries(quickstep_relationaloperators_DestroyGeneralizedHashOperator
+                      glog
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_queryexecution_QueryContext
+                      quickstep_queryexecution_WorkOrderProtosContainer
+                      quickstep_queryexecution_WorkOrdersContainer
+                      quickstep_relationaloperators_DestroyHashOperator
+                      quickstep_relationaloperators_RelationalOperator
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_relationaloperators_WorkOrder_proto
+                      quickstep_utility_Macros
+                      tmb)                      
 target_link_libraries(quickstep_relationaloperators_DestroyHashOperator
                       glog
                       quickstep_catalog_CatalogTypedefs
@@ -256,6 +299,44 @@ target_link_libraries(quickstep_relationaloperators_FinalizeAggregationOperator
                       quickstep_storage_AggregationOperationState
                       quickstep_utility_Macros
                       tmb)
+target_link_libraries(quickstep_relationaloperators_GeneralizedHashJoinOperator
+                      ${GFLAGS_LIB_NAME}
+                      glog
+                      quickstep_catalog_CatalogAttribute
+                      quickstep_catalog_CatalogRelation
+                      quickstep_catalog_CatalogRelationSchema
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_catalog_PartitionScheme
+                      quickstep_catalog_PartitionSchemeHeader
+                      quickstep_expressions_predicate_Predicate
+                      quickstep_expressions_scalar_Scalar
+                      quickstep_expressions_scalar_ScalarAttribute
+                      quickstep_queryexecution_QueryContext
+                      quickstep_queryexecution_WorkOrderProtosContainer
+                      quickstep_queryexecution_WorkOrdersContainer
+                      quickstep_relationaloperators_HashJoinOperator
+                      quickstep_relationaloperators_RelationalOperator
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_relationaloperators_WorkOrder_proto
+                      quickstep_storage_HashTable
+                      quickstep_storage_InsertDestination
+                      quickstep_storage_StorageBlock
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_storage_StorageManager
+                      quickstep_storage_SubBlocksReference
+                      quickstep_storage_TupleIdSequence
+                      quickstep_storage_TupleReference
+                      quickstep_storage_TupleStorageSubBlock
+                      quickstep_storage_ValueAccessor
+                      quickstep_types_Type
+                      quickstep_types_TypedValue
+                      quickstep_types_containers_ColumnVector
+                      quickstep_types_containers_ColumnVectorsValueAccessor
+                      quickstep_utility_ColumnVectorCache
+                      quickstep_utility_Macros
+                      quickstep_utility_lipfilter_LIPFilterAdaptiveProber
+                      quickstep_utility_lipfilter_LIPFilterUtil
+                      tmb)                      
 target_link_libraries(quickstep_relationaloperators_HashJoinOperator
                       ${GFLAGS_LIB_NAME}
                       glog
@@ -638,14 +719,17 @@ target_link_libraries(quickstep_relationaloperators
                       quickstep_relationaloperators_AggregationOperator
                       quickstep_relationaloperators_BuildAggregationExistenceMapOperator
                       quickstep_relationaloperators_BuildLIPFilterOperator
+                      quickstep_relationaloperators_BuildGeneralizedHashOperator
                       quickstep_relationaloperators_BuildHashOperator
                       quickstep_relationaloperators_CreateIndexOperator
                       quickstep_relationaloperators_CreateTableOperator
                       quickstep_relationaloperators_DeleteOperator
                       quickstep_relationaloperators_DestroyAggregationStateOperator
+                      quickstep_relationaloperators_DestroyGeneralizedHashOperator
                       quickstep_relationaloperators_DestroyHashOperator
                       quickstep_relationaloperators_DropTableOperator
                       quickstep_relationaloperators_FinalizeAggregationOperator
+                      quickstep_relationaloperators_GeneralizedHashJoinOperator
                       quickstep_relationaloperators_HashJoinOperator
                       quickstep_relationaloperators_InitializeAggregationOperator
                       quickstep_relationaloperators_InsertOperator

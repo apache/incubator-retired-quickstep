@@ -17,51 +17,48 @@
  * under the License.
  **/
 
-#ifndef QUICKSTEP_QUERY_OPTIMIZER_PHYSICAL_PHYSICAL_TYPE_HPP_
-#define QUICKSTEP_QUERY_OPTIMIZER_PHYSICAL_PHYSICAL_TYPE_HPP_
+#ifndef QUICKSTEP_QUERY_OPTIMIZER_RULES_FUSE_HASH_SELECT_HPP_
+#define QUICKSTEP_QUERY_OPTIMIZER_RULES_FUSE_HASH_SELECT_HPP_
+
+#include <cstdint>
+#include <memory>
+#include <string>
+
+#include "query_optimizer/physical/Physical.hpp"
+#include "query_optimizer/rules/TopDownRule.hpp"
 
 namespace quickstep {
 namespace optimizer {
-namespace physical {
 
-/** \addtogroup OptimizerPhysical
+/** \addtogroup OptimizerRules
  *  @{
  */
 
 /**
- * @brief Optimizer physical node types.
- **/
-enum class PhysicalType {
-  kAggregate = 0,
-  kCopyFrom,
-  kCopyTo,
-  kCreateIndex,
-  kCreateTable,
-  kCrossReferenceCoalesceAggregate,
-  kDeleteTuples,
-  kDropTable,
-  kFilterJoin,
-  kGeneralizedHashJoin,
-  kHashJoin,
-  kInsertSelection,
-  kInsertTuple,
-  kNestedLoopsJoin,
-  kSample,
-  kSelection,
-  kSharedSubplanReference,
-  kSort,
-  kTableGenerator,
-  kTableReference,
-  kTopLevelPlan,
-  kUnionAll,
-  kUpdateTable,
-  kWindowAggregate
+ * @brief Rule that applies to a physical plan to fuse a select node in the 
+ *        build predicate of a hash join to the join.
+ */
+class FuseHashSelect : public TopDownRule<physical::Physical> {
+ public:
+    /**
+     * @brief Constructor.
+     */
+    FuseHashSelect() {}
+
+    ~FuseHashSelect() override {}
+
+    std::string getName() const override {
+      return "FuseHashSelect";
+    }
+
+ protected:
+    physical::PhysicalPtr applyToNode(const physical::PhysicalPtr &node) override;
+
+ private:
+    DISALLOW_COPY_AND_ASSIGN(FuseHashSelect);
 };
 
-/** @} */
-
-}  // namespace physical
 }  // namespace optimizer
 }  // namespace quickstep
 
-#endif /* QUICKSTEP_QUERY_OPTIMIZER_PHYSICAL_PHYSICAL_TYPE_HPP_ */
+#endif  // QUICKSTEP_QUERY_OPTIMIZER_RULES_FUSE_HASH_SELECT_HPP_

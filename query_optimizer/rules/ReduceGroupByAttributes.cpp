@@ -206,6 +206,7 @@ P::PhysicalPtr ReduceGroupByAttributes::applyToNode(const P::PhysicalPtr &input)
                                  {probe_attribute},
                                  {build_attribute},
                                  nullptr,
+                                 nullptr,
                                  project_expressions,
                                  P::HashJoin::JoinType::kInnerJoin);
   }

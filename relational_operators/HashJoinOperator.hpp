@@ -69,7 +69,8 @@ class HashJoinOperator : public RelationalOperator {
     kInnerJoin = 0,
     kLeftSemiJoin,
     kLeftAntiJoin,
-    kLeftOuterJoin
+    kLeftOuterJoin,
+    kGeneralizedInnerJoin
   };
 
   /**
@@ -187,6 +188,8 @@ class HashJoinOperator : public RelationalOperator {
         return kLeftAntiJoin;
       case JoinType::kLeftOuterJoin:
         return kLeftOuterJoin;
+      case JoinType::kGeneralizedInnerJoin:
+        return kGeneralizedInnerJoin;
       default:
         LOG(FATAL) << "Unknown join type in HashJoinOperator::getOperatorType()";
     }
@@ -246,6 +249,26 @@ class HashJoinOperator : public RelationalOperator {
     }
   }
 
+ protected:
+  const CatalogRelation &build_relation_;
+  const CatalogRelation &probe_relation_;
+  const bool probe_relation_is_stored_;
+  const std::vector<attribute_id> join_key_attributes_;
+  const bool any_join_key_attributes_nullable_;
+  const CatalogRelation &output_relation_;
+  const QueryContext::insert_destination_id output_destination_index_;
+  const QueryContext::join_hash_table_id hash_table_index_;
+  const QueryContext::predicate_id residual_predicate_index_;
+  const QueryContext::scalar_group_id selection_index_;
+  const std::vector<bool> is_selection_on_build_;
+  const JoinType join_type_;
+
+  // The index is the partition id.
+  std::vector<BlocksInPartition> probe_relation_block_ids_;
+  std::vector<std::size_t> num_workorders_generated_;
+
+  bool started_;
+
  private:
   template <class JoinWorkOrderClass>
   bool getAllNonOuterJoinWorkOrders(WorkOrdersContainer *container,
@@ -272,25 +295,6 @@ class HashJoinOperator : public RelationalOperator {
    * @param block The block id used in the Work Order.
    **/
   serialization::WorkOrder* createOuterJoinWorkOrderProto(const block_id block, const partition_id part_id);
-
-  const CatalogRelation &build_relation_;
-  const CatalogRelation &probe_relation_;
-  const bool probe_relation_is_stored_;
-  const std::vector<attribute_id> join_key_attributes_;
-  const bool any_join_key_attributes_nullable_;
-  const CatalogRelation &output_relation_;
-  const QueryContext::insert_destination_id output_destination_index_;
-  const QueryContext::join_hash_table_id hash_table_index_;
-  const QueryContext::predicate_id residual_predicate_index_;
-  const QueryContext::scalar_group_id selection_index_;
-  const std::vector<bool> is_selection_on_build_;
-  const JoinType join_type_;
-
-  // The index is the partition id.
-  std::vector<BlocksInPartition> probe_relation_block_ids_;
-  std::vector<std::size_t> num_workorders_generated_;
-
-  bool started_;
 
   DISALLOW_COPY_AND_ASSIGN(HashJoinOperator);
 };

@@ -95,6 +95,7 @@ TEST_F(PruneColumnTest, PrimaryTest) {
                                                        {relation_attribute_reference_0_0_},
                                                        {relation_attribute_reference_1_0_},
                                                        E::PredicatePtr(),
+                                                       E::PredicatePtr(),
                                                        project_expressions_with_redundancy,
                                                        P::HashJoin::JoinType::kInnerJoin);
 
@@ -122,6 +123,7 @@ TEST_F(PruneColumnTest, PrimaryTest) {
       pruned_selection_1,
       {relation_attribute_reference_0_0_},
       {relation_attribute_reference_1_0_},
+      E::PredicatePtr(),
       E::PredicatePtr(),
       pruned_project_expressions_for_join,
       P::HashJoin::JoinType::kInnerJoin);

@@ -179,8 +179,9 @@ std::size_t StarSchemaSimpleCostModel::estimateCardinalityForHashJoin(
   std::size_t right_cardinality = estimateCardinality(physical_plan->right());
   double left_selectivity = estimateSelectivity(physical_plan->left());
   double right_selectivity = estimateSelectivity(physical_plan->right());
-  return std::max(static_cast<std::size_t>(left_cardinality * right_selectivity + 0.5),
-                  static_cast<std::size_t>(right_cardinality * left_selectivity + 0.5));
+  double build_selectivity = estimateSelectivityForPredicate(physical_plan->build_predicate(), physical_plan);
+  return std::max(static_cast<std::size_t>(left_cardinality * right_selectivity * build_selectivity + 0.5),
+                  static_cast<std::size_t>(right_cardinality * left_selectivity * build_selectivity + 0.5));
 }
 
 std::size_t StarSchemaSimpleCostModel::estimateCardinalityForNestedLoopsJoin(
@@ -295,16 +296,20 @@ std::size_t StarSchemaSimpleCostModel::estimateNumDistinctValues(
             estimateNumDistinctValues(attribute_id, hash_join->left());
         double right_child_selectivity =
             estimateSelectivity(hash_join->right());
+        double build_selectivity =
+            estimateSelectivityForPredicate(hash_join->build_predicate(), hash_join);
         return static_cast<std::size_t>(
-            left_child_num_distinct_values * right_child_selectivity * filter_selectivity + 0.5);
+            left_child_num_distinct_values * right_child_selectivity * filter_selectivity * build_selectivity + 0.5);
       }
       if (E::ContainsExprId(hash_join->right()->getOutputAttributes(), attribute_id)) {
         std::size_t right_child_num_distinct_values =
             estimateNumDistinctValues(attribute_id, hash_join->right());
         double left_child_selectivity =
             estimateSelectivity(hash_join->left());
+        double build_selectivity =
+            estimateSelectivityForPredicate(hash_join->build_predicate(), hash_join);
         return static_cast<std::size_t>(
-            right_child_num_distinct_values * left_child_selectivity * filter_selectivity + 0.5);
+            right_child_num_distinct_values * left_child_selectivity * filter_selectivity * build_selectivity + 0.5);
       }
     }
     default:
@@ -351,9 +356,11 @@ double StarSchemaSimpleCostModel::estimateSelectivity(
           std::static_pointer_cast<const P::HashJoin>(physical_plan);
       double filter_selectivity =
           estimateSelectivityForPredicate(hash_join->residual_predicate(), hash_join);
+      double build_selectivity =
+          estimateSelectivityForPredicate(hash_join->build_predicate(), hash_join);
       double child_selectivity =
           estimateSelectivity(hash_join->left()) * estimateSelectivity(hash_join->right());
-      return filter_selectivity * child_selectivity;
+      return filter_selectivity * child_selectivity * build_selectivity;
     }
     case P::PhysicalType::kNestedLoopsJoin: {
       const P::NestedLoopsJoinPtr &nested_loop_join =

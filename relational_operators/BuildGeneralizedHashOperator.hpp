@@ -17,13 +17,15 @@
  * under the License.
  **/
 
-#ifndef QUICKSTEP_RELATIONAL_OPERATORS_BUILD_HASH_OPERATOR_HPP_
-#define QUICKSTEP_RELATIONAL_OPERATORS_BUILD_HASH_OPERATOR_HPP_
+#ifndef QUICKSTEP_RELATIONAL_OPERATORS_BUILD_GENERALIZED_HASH_OPERATOR_HPP_
+#define QUICKSTEP_RELATIONAL_OPERATORS_BUILD_GENERALIZED_HASH_OPERATOR_HPP_
 
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "relational_operators/BuildHashOperator.hpp"
 
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
@@ -63,7 +65,7 @@ namespace serialization { class WorkOrder; }
  * @brief An operator which builds a shared hash table on one
  *        relation.
  **/
-class BuildHashOperator : public RelationalOperator {
+class BuildGeneralizedHashOperator : public BuildHashOperator {
  public:
   /**
    * @brief Constructor.
@@ -83,54 +85,75 @@ class BuildHashOperator : public RelationalOperator {
    *        join_key_attributes in input_relation.
    * @param build_predicate_index The index of the build_predicate in QueryContext.
    **/
-  BuildHashOperator(const std::size_t query_id,
-                    const CatalogRelation &input_relation,
-                    const bool input_relation_is_stored,
-                    const std::vector<attribute_id> &join_key_attributes,
-                    const bool any_join_key_attributes_nullable,
-                    const std::size_t num_partitions,
-                    const QueryContext::join_hash_table_id hash_table_index,
-                    const QueryContext::predicate_id build_predicate_index)
-      : RelationalOperator(query_id, num_partitions),
-        input_relation_(input_relation),
-        input_relation_is_stored_(input_relation_is_stored),
-        join_key_attributes_(join_key_attributes),
-        any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
-        is_broadcast_join_(num_partitions > 1u && !input_relation.hasPartitionScheme()),
-        hash_table_index_(hash_table_index),
-        build_predicate_index_(build_predicate_index),
+  BuildGeneralizedHashOperator(const std::size_t query_id,
+                               const CatalogRelation &input_relation,
+                               const bool input_relation_is_stored,
+                               const std::vector<attribute_id> &join_key_attributes,
+                               const bool any_join_key_attributes_nullable,
+                               const CatalogRelation &second_input_relation,
+                               const bool second_input_relation_is_stored,
+                               const std::vector<attribute_id> &second_join_key_attributes,
+                               const bool any_second_join_key_attributes_nullable,
+                               const std::size_t num_partitions,
+                               const std::size_t second_num_partitions,
+                               const QueryContext::join_hash_table_id hash_table_index,
+                               const QueryContext::join_hash_table_id second_hash_table_index,
+                               const QueryContext::predicate_id build_predicate_index)
+      : BuildHashOperator(query_id, input_relation, input_relation_is_stored, join_key_attributes,
+                          any_join_key_attributes_nullable, num_partitions, hash_table_index,
+                          build_predicate_index),
+        second_input_relation_(second_input_relation),
+        second_input_relation_is_stored_(second_input_relation_is_stored),
+        second_join_key_attributes_(second_join_key_attributes),
+        any_second_join_key_attributes_nullable_(any_second_join_key_attributes_nullable),
+        second_num_partitions_(second_num_partitions),
+        second_hash_table_index_(second_hash_table_index),
         input_relation_block_ids_(num_partitions),
-        num_workorders_generated_(num_partitions),
-        started_(false) {
-    if (input_relation_is_stored) {
-      if (input_relation.hasPartitionScheme()) {
-        DCHECK_EQ(num_partitions_, input_relation.getNumPartitions());
+        second_input_relation_block_ids_(second_num_partitions) {
+          if (input_relation_is_stored) {
+            if (input_relation.hasPartitionScheme()) {
+              DCHECK_EQ(num_partitions_, input_relation.getNumPartitions());
 
-        const PartitionScheme &part_scheme = *input_relation.getPartitionScheme();
-        for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
-          input_relation_block_ids_[part_id] = part_scheme.getBlocksInPartition(part_id);
+              const PartitionScheme &part_scheme = *input_relation.getPartitionScheme();
+              for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
+                input_relation_block_ids_[part_id] = part_scheme.getBlocksInPartition(part_id);
+              }
+            } else {
+              // Broadcast hash join if build has no partitions.
+              for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
+                input_relation_block_ids_[part_id] = input_relation.getBlocksSnapshot();
+              }
+            }
+          }
+          if (second_input_relation_is_stored) {
+            if (second_input_relation.hasPartitionScheme()) {
+              DCHECK_EQ(num_partitions_, second_input_relation.getNumPartitions());
+
+              const PartitionScheme &part_scheme = *second_input_relation.getPartitionScheme();
+              for (partition_id part_id = 0; part_id < second_num_partitions_; ++part_id) {
+                second_input_relation_block_ids_[part_id] = part_scheme.getBlocksInPartition(part_id);
+              }
+            } else {
+              // Broadcast hash join if build has no partitions.
+              for (partition_id part_id = 0; part_id < second_num_partitions_; ++part_id) {
+                second_input_relation_block_ids_[part_id] = second_input_relation.getBlocksSnapshot();
+              }
+            }
+          }
         }
-      } else {
-        // Broadcast hash join if build has no partitions.
-        for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
-          input_relation_block_ids_[part_id] = input_relation.getBlocksSnapshot();
-        }
-      }
-    }
-  }
 
-  ~BuildHashOperator() override {}
+  ~BuildGeneralizedHashOperator() override {}
 
-  const CatalogRelation& input_relation() const {
-    return input_relation_;
+  const CatalogRelation& second_input_relation() const {
+    return second_input_relation_;
   }
 
   OperatorType getOperatorType() const override {
-    return kBuildHash;
+    return kBuildGeneralizedHash;
   }
 
   std::string getName() const override {
-    return "BuildHashOperator";
+    return "BuildGeneralizedHashOperator";
   }
 
   bool getAllWorkOrders(WorkOrdersContainer *container,
@@ -141,49 +164,37 @@ class BuildHashOperator : public RelationalOperator {
 
   bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override;
 
-  void feedInputBlock(const block_id input_block_id, const relation_id input_relation_id,
-                      const partition_id part_id) override {
-    if (is_broadcast_join_) {
-      for (partition_id probe_part_id = 0; probe_part_id < num_partitions_; ++probe_part_id) {
-        input_relation_block_ids_[probe_part_id].push_back(input_block_id);
-      }
-    } else {
-      input_relation_block_ids_[part_id].push_back(input_block_id);
-    }
-  }
-
- protected:
-   /**
+ private:
+  /**
    * @brief Create Work Order proto.
    *
    * @param block The block id used in the Work Order.
    * @param part_id The partition id of 'input_relation_'.
    **/
   serialization::WorkOrder* createWorkOrderProto(const block_id block, const partition_id part_id);
+  serialization::WorkOrder* createSecondWorkOrderProto(const block_id block, const partition_id part_id);
 
-  const CatalogRelation &input_relation_;
-  const bool input_relation_is_stored_;
-  const std::vector<attribute_id> join_key_attributes_;
-  const bool any_join_key_attributes_nullable_;
-  const bool is_broadcast_join_;
-  const QueryContext::join_hash_table_id hash_table_index_;
-  const QueryContext::predicate_id build_predicate_index_;
+  const CatalogRelation &second_input_relation_;
+  const bool second_input_relation_is_stored_;
+  const std::vector<attribute_id> second_join_key_attributes_;
+  const bool any_second_join_key_attributes_nullable_;
+  const std::size_t second_num_partitions_;
+  const QueryContext::join_hash_table_id second_hash_table_index_;
 
   // The index is the partition id.
   std::vector<BlocksInPartition> input_relation_block_ids_;
+  std::vector<BlocksInPartition> second_input_relation_block_ids_;
   std::vector<std::size_t> num_workorders_generated_;
 
   bool started_;
 
- private:
-
-  DISALLOW_COPY_AND_ASSIGN(BuildHashOperator);
+  DISALLOW_COPY_AND_ASSIGN(BuildGeneralizedHashOperator);
 };
 
 /**
  * @brief A WorkOrder produced by BuildHashOperator
  **/
-class BuildHashWorkOrder : public WorkOrder {
+class BuildGeneralizedHashWorkOrder : public BuildHashWorkOrder {
  public:
   /**
    * @brief Constructor.
@@ -200,7 +211,7 @@ class BuildHashWorkOrder : public WorkOrder {
    * @param storage_manager The StorageManager to use.
    * @param lip_filter_builder The attached LIP filter builer.
    **/
-  BuildHashWorkOrder(const std::size_t query_id,
+  BuildGeneralizedHashWorkOrder(const std::size_t query_id,
                      const CatalogRelationSchema &input_relation,
                      const std::vector<attribute_id> &join_key_attributes,
                      const bool any_join_key_attributes_nullable,
@@ -210,15 +221,9 @@ class BuildHashWorkOrder : public WorkOrder {
                      JoinHashTable *hash_table,
                      StorageManager *storage_manager,
                      LIPFilterBuilder *lip_filter_builder)
-      : WorkOrder(query_id, part_id),
-        input_relation_(input_relation),
-        join_key_attributes_(join_key_attributes),
-        any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
-        build_block_id_(build_block_id),
-        predicate_(predicate),
-        hash_table_(DCHECK_NOTNULL(hash_table)),
-        storage_manager_(DCHECK_NOTNULL(storage_manager)),
-        lip_filter_builder_(lip_filter_builder) {}
+      : BuildHashWorkOrder(query_id, input_relation, join_key_attributes, any_join_key_attributes_nullable,
+                           part_id, build_block_id, predicate, hash_table, storage_manager, lip_filter_builder)
+                            {}
 
   /**
    * @brief Constructor for the distributed version.
@@ -235,7 +240,7 @@ class BuildHashWorkOrder : public WorkOrder {
    * @param storage_manager The StorageManager to use.
    * @param lip_filter_builder The attached LIP filter builer.
    **/
-  BuildHashWorkOrder(const std::size_t query_id,
+  BuildGeneralizedHashWorkOrder(const std::size_t query_id,
                      const CatalogRelationSchema &input_relation,
                      std::vector<attribute_id> &&join_key_attributes,
                      const bool any_join_key_attributes_nullable,
@@ -245,43 +250,21 @@ class BuildHashWorkOrder : public WorkOrder {
                      JoinHashTable *hash_table,
                      StorageManager *storage_manager,
                      LIPFilterBuilder *lip_filter_builder)
-      : WorkOrder(query_id, part_id),
-        input_relation_(input_relation),
-        join_key_attributes_(std::move(join_key_attributes)),
-        any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
-        build_block_id_(build_block_id),
-        predicate_(predicate),
-        hash_table_(DCHECK_NOTNULL(hash_table)),
-        storage_manager_(DCHECK_NOTNULL(storage_manager)),
-        lip_filter_builder_(lip_filter_builder) {}
+      : BuildHashWorkOrder(query_id, input_relation, join_key_attributes,
+                           any_join_key_attributes_nullable, part_id, build_block_id, predicate,
+                           hash_table, storage_manager, lip_filter_builder) {}
 
-  ~BuildHashWorkOrder() override {}
-
-  const CatalogRelationSchema& input_relation() const {
-    return input_relation_;
-  }
+  ~BuildGeneralizedHashWorkOrder() override {}
 
   void execute() override;
 
- protected:
-  const CatalogRelationSchema &input_relation_;
-  const std::vector<attribute_id> join_key_attributes_;
-  const bool any_join_key_attributes_nullable_;
-  const block_id build_block_id_;
-  const Predicate *predicate_;
-
-  JoinHashTable *hash_table_;
-  StorageManager *storage_manager_;
-
-  std::unique_ptr<LIPFilterBuilder> lip_filter_builder_;
-
  private:
 
-  DISALLOW_COPY_AND_ASSIGN(BuildHashWorkOrder);
+  DISALLOW_COPY_AND_ASSIGN(BuildGeneralizedHashWorkOrder);
 };
 
 /** @} */
 
 }  // namespace quickstep
 
-#endif  // QUICKSTEP_RELATIONAL_OPERATORS_BUILD_HASH_OPERATOR_HPP_
+#endif  // QUICKSTEP_RELATIONAL_OPERATORS_BUILD_GENRALIZED_HASH_OPERATOR_HPP_
