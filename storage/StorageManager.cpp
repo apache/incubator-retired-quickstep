@@ -271,9 +271,7 @@ StorageManager::~StorageManager() {
        it != blocks_.end();
        ++it) {
     if (it->second.block->isDirty()) {
-      LOG(WARNING) << (it->second.block->isBlob() ? "Blob " : "Block ")
-                   << "with ID " << BlockIdUtil::ToString(it->first)
-                   << " is dirty during StorageManager shutdown";
+      saveBlockOrBlob(it->first, true);
     }
     delete it->second.block;
     deallocateSlots(it->second.block_memory, it->second.block_memory_size);
@@ -393,15 +391,15 @@ bool StorageManager::saveBlockOrBlob(const block_id block, const bool force) {
   // particular entry in 'blocks_' for the specified 'block'. If and when we
   // switch blocks_ to something with more fine-grained locking, this should
   // be revisited.
+  if (!force) {
+    return true;
+  }
+
   SpinSharedMutexSharedLock<false> read_lock(blocks_shared_mutex_);
 
   std::unordered_map<block_id, BlockHandle>::iterator block_it = blocks_.find(block);
   if (block_it == blocks_.end()) {
     return false;
-  }
-
-  if (!(force || block_it->second.block->isDirty())) {
-    return true;
   }
 
   bool res = file_manager_->writeBlockOrBlob(block,
