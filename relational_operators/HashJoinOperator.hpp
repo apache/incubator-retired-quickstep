@@ -188,6 +188,8 @@ class HashJoinOperator : public RelationalOperator {
         return kLeftAntiJoin;
       case JoinType::kLeftOuterJoin:
         return kLeftOuterJoin;
+      case JoinType::kGeneralizedInnerJoin:
+        return kGeneralizedInnerJoin;
       default:
         LOG(FATAL) << "Unknown join type in HashJoinOperator::getOperatorType()";
     }

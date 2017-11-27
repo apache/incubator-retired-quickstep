@@ -53,7 +53,7 @@ class WorkOrdersContainer;
 struct TupleReference;
 
 template <typename, bool, bool, bool, bool> class HashTable;
-typedef HashTable<TupleReference, true, false, false, true> JoinHashTable;
+typedef HashTable<TupleReference, true, false, true, true> JoinHashTable;
 
 namespace serialization { class WorkOrder; }
 
@@ -95,6 +95,7 @@ class BuildGeneralizedHashOperator : public BuildHashOperator {
                                const std::vector<attribute_id> &second_join_key_attributes,
                                const bool any_second_join_key_attributes_nullable,
                                const std::size_t num_partitions,
+                               const std::size_t second_num_partitions,
                                const QueryContext::join_hash_table_id hash_table_index,
                                const QueryContext::join_hash_table_id second_hash_table_index,
                                const QueryContext::predicate_id build_predicate_index)
@@ -105,9 +106,10 @@ class BuildGeneralizedHashOperator : public BuildHashOperator {
         second_input_relation_is_stored_(second_input_relation_is_stored),
         second_join_key_attributes_(second_join_key_attributes),
         any_second_join_key_attributes_nullable_(any_second_join_key_attributes_nullable),
+        second_num_partitions_(second_num_partitions),
         second_hash_table_index_(second_hash_table_index),
         input_relation_block_ids_(num_partitions),
-        second_input_relation_block_ids_(num_partitions) {
+        second_input_relation_block_ids_(second_num_partitions) {
           if (input_relation_is_stored) {
             if (input_relation.hasPartitionScheme()) {
               DCHECK_EQ(num_partitions_, input_relation.getNumPartitions());
@@ -128,12 +130,12 @@ class BuildGeneralizedHashOperator : public BuildHashOperator {
               DCHECK_EQ(num_partitions_, second_input_relation.getNumPartitions());
 
               const PartitionScheme &part_scheme = *second_input_relation.getPartitionScheme();
-              for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
+              for (partition_id part_id = 0; part_id < second_num_partitions_; ++part_id) {
                 second_input_relation_block_ids_[part_id] = part_scheme.getBlocksInPartition(part_id);
               }
             } else {
               // Broadcast hash join if build has no partitions.
-              for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
+              for (partition_id part_id = 0; part_id < second_num_partitions_; ++part_id) {
                 second_input_relation_block_ids_[part_id] = second_input_relation.getBlocksSnapshot();
               }
             }
@@ -176,6 +178,7 @@ class BuildGeneralizedHashOperator : public BuildHashOperator {
   const bool second_input_relation_is_stored_;
   const std::vector<attribute_id> second_join_key_attributes_;
   const bool any_second_join_key_attributes_nullable_;
+  const std::size_t second_num_partitions_;
   const QueryContext::join_hash_table_id second_hash_table_index_;
 
   // The index is the partition id.

@@ -76,6 +76,7 @@ class RelationalOperator {
     kDestroyHash,
     kDropTable,
     kFinalizeAggregation,
+    kGeneralizedInnerJoin,
     kInitializeAggregation,
     kInnerJoin,
     kInsert,

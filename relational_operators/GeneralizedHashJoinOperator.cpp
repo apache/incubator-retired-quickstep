@@ -152,7 +152,7 @@ bool GeneralizedHashJoinOperator::getAllWorkOrders(
     const tmb::client_id scheduler_client_id,
     tmb::MessageBus *bus) {
   switch (join_type_) {
-    case JoinType::kInnerJoin:
+    case JoinType::kGeneralizedInnerJoin:
       return getAllNonOuterJoinWorkOrders<GeneralizedHashInnerJoinWorkOrder>(
           container, query_context, storage_manager);
     default:

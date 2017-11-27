@@ -51,7 +51,7 @@ class WorkOrdersContainer;
 struct TupleReference;
 
 template <typename, bool, bool, bool, bool> class HashTable;
-typedef HashTable<TupleReference, true, false, false, true> JoinHashTable;
+typedef HashTable<TupleReference, true, false, true, true> JoinHashTable;
 
 namespace serialization { class WorkOrder; }
 

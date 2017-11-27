@@ -117,7 +117,7 @@ bool BuildGeneralizedHashOperator::getAllWorkOrders(
       return true;
     }
 
-    for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
+    for (std::size_t part_id = 0; part_id < 1; ++part_id) {
       JoinHashTable *second_hash_table = query_context->getJoinHashTable(second_hash_table_index_, part_id);
       for (const block_id block : second_input_relation_block_ids_[part_id]) {
         
@@ -135,7 +135,7 @@ bool BuildGeneralizedHashOperator::getAllWorkOrders(
     started_ = true;
     return true;
   } else {
-    for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
+    for (std::size_t part_id = 0; part_id < 1; ++part_id) {
       JoinHashTable *second_hash_table = query_context->getJoinHashTable(second_hash_table_index_, part_id);
       while (num_workorders_generated_[part_id] <
              second_input_relation_block_ids_[part_id].size()) {
@@ -155,7 +155,7 @@ bool BuildGeneralizedHashOperator::getAllWorkOrders(
 }
 
 bool BuildGeneralizedHashOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) {
-  if (input_relation_is_stored_ && second_input_relation_is_stored_) {
+  if (input_relation_is_stored_) {
     if (started_) {
       return true;
     }
@@ -173,6 +173,7 @@ bool BuildGeneralizedHashOperator::getAllWorkOrderProtos(WorkOrderProtosContaine
             op_index_);
         ++num_workorders_generated_[part_id];
       }
+      num_workorders_generated_[part_id] = 0;
     }
   }
   if (second_input_relation_is_stored_) {
@@ -180,7 +181,7 @@ bool BuildGeneralizedHashOperator::getAllWorkOrderProtos(WorkOrderProtosContaine
       return true;
     }
 
-    for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
+    for (std::size_t part_id = 0; part_id < 1; ++part_id) {
       for (const block_id block : second_input_relation_block_ids_[part_id]) {
          container->addWorkOrderProto(createSecondWorkOrderProto(block, part_id), op_index_);
       }
@@ -188,7 +189,7 @@ bool BuildGeneralizedHashOperator::getAllWorkOrderProtos(WorkOrderProtosContaine
     started_ = true;
     return true;
   } else {
-    for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
+    for (std::size_t part_id = 0; part_id < 1; ++part_id) {
       while (num_workorders_generated_[part_id] < second_input_relation_block_ids_[part_id].size()) {
         container->addWorkOrderProto(
             createSecondWorkOrderProto(second_input_relation_block_ids_[part_id][num_workorders_generated_[part_id]], part_id),

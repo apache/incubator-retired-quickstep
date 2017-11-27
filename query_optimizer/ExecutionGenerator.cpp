@@ -1200,7 +1200,6 @@ void ExecutionGenerator::convertGeneralizedHashJoin(const P::GeneralizedHashJoin
        ++attr_idx) {
     const Type &left_attribute_type = left_join_attributes[attr_idx]->getValueType();
     const Type &right_attribute_type = right_join_attributes[attr_idx]->getValueType();
-    LOG(INFO) << left_join_attributes[attr_idx]->attribute_name();
     if (left_attribute_type.getTypeID() != right_attribute_type.getTypeID()) {
       THROW_SQL_ERROR() << "Equality join predicate between two attributes of different types "
                            "is not allowed in HashJoin";
@@ -1284,6 +1283,8 @@ void ExecutionGenerator::convertGeneralizedHashJoin(const P::GeneralizedHashJoin
 
   const std::size_t probe_num_partitions = probe_relation->getNumPartitions();
   hash_table_context_proto->set_num_partitions(probe_num_partitions);
+  const std::size_t second_build_num_partitions = second_build_relation->getNumPartitions();
+  second_hash_table_context_proto->set_num_partitions(second_build_num_partitions);
 
   S::HashTable *hash_table_proto = hash_table_context_proto->mutable_join_hash_table();
 
@@ -1331,6 +1332,7 @@ void ExecutionGenerator::convertGeneralizedHashJoin(const P::GeneralizedHashJoin
               second_build_attribute_ids,
               any_second_build_attributes_nullable,
               probe_num_partitions,
+              second_build_num_partitions,
               join_hash_table_index,
               second_join_hash_table_index,
               QueryContext::kInvalidPredicateId));

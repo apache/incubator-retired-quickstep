@@ -164,6 +164,8 @@ class GeneralizedHashJoinOperator : public HashJoinOperator {
         return "HashJoinOperator(LeftAnti)";
       case JoinType::kLeftOuterJoin:
         return "HashJoinOperator(LeftOuter)";
+      case JoinType::kGeneralizedInnerJoin:
+        return "GeneralizedHashJoinOperator";
       default: break;
     }
     LOG(FATAL) << "Unknown join type in GeneralizedHashJoinOperator::getName()";
