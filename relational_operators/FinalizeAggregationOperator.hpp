@@ -71,12 +71,10 @@ class FinalizeAggregationOperator : public RelationalOperator {
       const QueryContext::aggregation_state_id aggr_state_index,
       const std::size_t num_partitions,
       const bool has_repartition,
-      const std::size_t aggr_state_num_partitions,
       const CatalogRelation &output_relation,
       const QueryContext::insert_destination_id output_destination_index)
       : RelationalOperator(query_id, num_partitions, has_repartition, output_relation.getNumPartitions()),
         aggr_state_index_(aggr_state_index),
-        aggr_state_num_partitions_(aggr_state_num_partitions),
         output_relation_(output_relation),
         output_destination_index_(output_destination_index),
         started_(false) {
@@ -111,7 +109,6 @@ class FinalizeAggregationOperator : public RelationalOperator {
 
  private:
   const QueryContext::aggregation_state_id aggr_state_index_;
-  const std::size_t aggr_state_num_partitions_;
   const CatalogRelation &output_relation_;
   const QueryContext::insert_destination_id output_destination_index_;
   bool started_;

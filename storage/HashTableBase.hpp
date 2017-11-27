@@ -42,6 +42,7 @@ class ValueAccessor;
  **/
 enum class HashTableImplType {
   kCollisionFreeVector,
+  kCompactKeySeparateChaining,
   kLinearOpenAddressing,
   kSeparateChaining,
   kSimpleScalarSeparateChaining,

@@ -169,6 +169,9 @@ add_library(quickstep_storage_CollisionFreeVectorTable
             CollisionFreeVectorTable.cpp
             CollisionFreeVectorTable.hpp)
 add_library(quickstep_storage_ColumnStoreUtil ColumnStoreUtil.cpp ColumnStoreUtil.hpp)
+add_library(quickstep_storage_CompactKeySeparateChainingHashTable
+            CompactKeySeparateChainingHashTable.cpp
+            CompactKeySeparateChainingHashTable.hpp)
 add_library(quickstep_storage_CompressedBlockBuilder CompressedBlockBuilder.cpp CompressedBlockBuilder.hpp)
 add_library(quickstep_storage_CompressedColumnStoreTupleStorageSubBlock
             CompressedColumnStoreTupleStorageSubBlock.cpp
@@ -474,6 +477,25 @@ target_link_libraries(quickstep_storage_ColumnStoreUtil
                       quickstep_types_operations_comparisons_ComparisonID
                       quickstep_types_operations_comparisons_ComparisonUtil
                       quickstep_utility_Macros)
+target_link_libraries(quickstep_storage_CompactKeySeparateChainingHashTable
+                      glog
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_cli_Flags
+                      quickstep_storage_HashTableBase
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_storage_StorageConstants
+                      quickstep_storage_StorageManager
+                      quickstep_storage_ValueAccessor
+                      quickstep_storage_ValueAccessorUtil
+                      quickstep_types_CharType
+                      quickstep_types_Type
+                      quickstep_types_TypeID
+                      quickstep_types_containers_ColumnVector
+                      quickstep_types_containers_ColumnVectorsValueAccessor
+                      quickstep_utility_PrimeNumber
+                      quickstep_utility_Range
+                      quickstep_utility_ScopedArray
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_storage_CompressedBlockBuilder
                       quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogRelationSchema
@@ -721,6 +743,7 @@ target_link_libraries(quickstep_storage_HashTable_proto
 target_link_libraries(quickstep_storage_HashTableFactory
                       glog
                       quickstep_storage_CollisionFreeVectorTable
+                      quickstep_storage_CompactKeySeparateChainingHashTable
                       quickstep_storage_HashTable
                       quickstep_storage_HashTable_proto
                       quickstep_storage_HashTableBase
@@ -1146,6 +1169,7 @@ target_link_libraries(quickstep_storage
                       quickstep_storage_CSBTreeIndexSubBlock
                       quickstep_storage_CollisionFreeVectorTable
                       quickstep_storage_ColumnStoreUtil
+                      quickstep_storage_CompactKeySeparateChainingHashTable
                       quickstep_storage_CompressedBlockBuilder
                       quickstep_storage_CompressedColumnStoreTupleStorageSubBlock
                       quickstep_storage_CompressedColumnStoreValueAccessor

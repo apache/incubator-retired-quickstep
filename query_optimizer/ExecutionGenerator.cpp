@@ -132,6 +132,7 @@
 #include "relational_operators/UpdateOperator.hpp"
 #include "relational_operators/WindowAggregationOperator.hpp"
 #include "storage/AggregationOperationState.pb.h"
+#include "storage/Flags.hpp"
 #include "storage/HashTable.pb.h"
 #include "storage/HashTableFactory.hpp"
 #include "storage/InsertDestination.pb.h"
@@ -198,70 +199,6 @@ namespace P = ::quickstep::optimizer::physical;
 namespace S = ::quickstep::serialization;
 
 namespace {
-
-size_t CacheLineAlignedBytes(const size_t actual_bytes) {
-  return (actual_bytes + kCacheLineBytes - 1) / kCacheLineBytes * kCacheLineBytes;
-}
-
-size_t CalculateNumInitializationPartitionsForCollisionFreeVectorTable(const size_t memory_size) {
-  // At least 1 partition, at most (#workers * 2) partitions.
-  return std::max(1uL, std::min(memory_size / kCollisonFreeVectorInitBlobSize,
-                                static_cast<size_t>(2 * FLAGS_num_workers)));
-}
-
-void CalculateCollisionFreeAggregationInfo(
-    const size_t num_entries, const vector<pair<AggregationID, vector<const Type *>>> &group_by_aggrs_info,
-    S::CollisionFreeVectorInfo *collision_free_vector_info) {
-  size_t memory_size = CacheLineAlignedBytes(
-      BarrieredReadWriteConcurrentBitVector::BytesNeeded(num_entries));
-
-  for (std::size_t i = 0; i < group_by_aggrs_info.size(); ++i) {
-    const auto &group_by_aggr_info = group_by_aggrs_info[i];
-
-    size_t state_size = 0;
-    switch (group_by_aggr_info.first) {
-      case AggregationID::kCount: {
-        state_size = sizeof(atomic<size_t>);
-        break;
-      }
-      case AggregationID::kSum: {
-        const vector<const Type *> &argument_types = group_by_aggr_info.second;
-        DCHECK_EQ(1u, argument_types.size());
-        switch (argument_types.front()->getTypeID()) {
-          case TypeID::kInt:
-          case TypeID::kLong:
-            state_size = sizeof(atomic<std::int64_t>);
-            break;
-          case TypeID::kFloat:
-          case TypeID::kDouble:
-            state_size = sizeof(atomic<double>);
-            break;
-          default:
-            LOG(FATAL) << "No support by CollisionFreeVector";
-        }
-        break;
-      }
-      default:
-        LOG(FATAL) << "No support by CollisionFreeVector";
-    }
-
-    collision_free_vector_info->add_state_offsets(memory_size);
-    memory_size += CacheLineAlignedBytes(state_size * num_entries);
-  }
-
-  collision_free_vector_info->set_memory_size(memory_size);
-  collision_free_vector_info->set_num_init_partitions(
-      CalculateNumInitializationPartitionsForCollisionFreeVectorTable(memory_size));
-}
-
-size_t CalculateNumFinalizationPartitionsForCollisionFreeVectorTable(const size_t num_entries) {
-  // Set finalization segment size as 4096 entries.
-  constexpr size_t kFinalizeSegmentSize = 4uL * 1024L;
-
-  // At least 1 partition, at most (#workers * 2) partitions.
-  return std::max(1uL, std::min(num_entries / kFinalizeSegmentSize,
-                                static_cast<size_t>(2 * FLAGS_num_workers)));
-}
 
 bool CheckAggregatePartitioned(const std::size_t num_aggregate_functions,
                                const std::vector<bool> &is_distincts,
@@ -1800,8 +1737,6 @@ void ExecutionGenerator::convertAggregate(
       aggr_state_context_proto->mutable_aggregation_state();
   aggr_state_proto->set_relation_id(input_relation.getID());
 
-  bool use_parallel_initialization = false;
-
   std::vector<const Type*> group_by_types;
   std::vector<attribute_id> group_by_attrs;
   for (const E::NamedExpressionPtr &grouping_expression : physical_plan->grouping_expressions()) {
@@ -1865,28 +1800,30 @@ void ExecutionGenerator::convertAggregate(
     }
   }
 
+  bool use_parallel_initialization = false;
   bool aggr_state_is_partitioned = false;
   std::size_t aggr_state_num_partitions = 1u;
   if (!group_by_types.empty()) {
-    const std::size_t estimated_num_groups =
-        cost_model_for_aggregation_->estimateNumGroupsForAggregate(physical_plan);
-
     std::size_t max_num_groups;
     if (cost_model_for_aggregation_
             ->canUseCollisionFreeAggregation(physical_plan,
-                                             estimated_num_groups,
                                              &max_num_groups)) {
       // First option: use array-based aggregation if applicable.
       aggr_state_proto->set_hash_table_impl_type(
           serialization::HashTableImplType::COLLISION_FREE_VECTOR);
       aggr_state_proto->set_estimated_num_entries(max_num_groups);
       use_parallel_initialization = true;
-      aggr_state_num_partitions = CalculateNumFinalizationPartitionsForCollisionFreeVectorTable(max_num_groups);
-
-      DCHECK(!group_by_aggrs_info.empty());
-      CalculateCollisionFreeAggregationInfo(max_num_groups, group_by_aggrs_info,
-                                            aggr_state_proto->mutable_collision_free_vector_info());
+    } else if (cost_model_for_aggregation_
+                   ->canUseCompactKeySeparateChainingAggregation(physical_plan)) {
+      CHECK(aggregate_expressions.empty());
+      aggr_state_proto->set_hash_table_impl_type(
+          serialization::HashTableImplType::COMPACT_KEY_SEPARATE_CHAINING);
+      aggr_state_proto->set_estimated_num_entries(
+          cost_model_for_aggregation_->estimateCardinality(physical_plan->input()));
+      use_parallel_initialization = true;
     } else {
+      const std::size_t estimated_num_groups =
+          cost_model_for_aggregation_->estimateNumGroupsForAggregate(physical_plan);
       if (cost_model_for_aggregation_->canUseTwoPhaseCompactKeyAggregation(
               physical_plan, estimated_num_groups)) {
         // Second option: use thread-private compact-key aggregation if applicable.
@@ -1896,7 +1833,8 @@ void ExecutionGenerator::convertAggregate(
         // Otherwise, use SeparateChaining.
         aggr_state_proto->set_hash_table_impl_type(
             serialization::HashTableImplType::SEPARATE_CHAINING);
-        if (CheckAggregatePartitioned(aggregate_expressions.size(), is_distincts, group_by_attrs,
+        if (CheckAggregatePartitioned(aggregate_expressions.size(),
+                                      is_distincts, group_by_attrs,
                                       estimated_num_groups)) {
           aggr_state_is_partitioned = true;
           aggr_state_num_partitions = FLAGS_num_aggregation_partitions;
@@ -1931,15 +1869,12 @@ void ExecutionGenerator::convertAggregate(
   }
 
   if (use_parallel_initialization) {
-    DCHECK(aggr_state_proto->has_collision_free_vector_info());
-
     const QueryPlan::DAGNodeIndex initialize_aggregation_operator_index =
         execution_plan_->addRelationalOperator(
             new InitializeAggregationOperator(
                 query_handle_->query_id(),
                 aggr_state_index,
-                num_partitions,
-                aggr_state_proto->collision_free_vector_info().num_init_partitions()));
+                num_partitions));
 
     execution_plan_->addDirectDependency(aggregation_operator_index,
                                          initialize_aggregation_operator_index,
@@ -1961,7 +1896,6 @@ void ExecutionGenerator::convertAggregate(
                                           aggr_state_index,
                                           num_partitions,
                                           physical_plan->hasRepartition(),
-                                          aggr_state_num_partitions,
                                           *output_relation,
                                           insert_destination_index));
 
@@ -2032,10 +1966,7 @@ void ExecutionGenerator::convertCrossReferenceCoalesceAggregate(
 
   const size_t estimated_num_entries = physical_plan->group_by_key_value_range();
   aggr_state_proto->set_estimated_num_entries(estimated_num_entries);
-
-  const size_t aggr_state_num_partitions =
-      CalculateNumFinalizationPartitionsForCollisionFreeVectorTable(estimated_num_entries);
-  aggr_state_proto->set_num_partitions(aggr_state_num_partitions);
+  aggr_state_proto->set_num_partitions(1u);
 
   if (physical_plan->right_filter_predicate() != nullptr) {
     std::unique_ptr<const Predicate> predicate(
@@ -2071,16 +2002,12 @@ void ExecutionGenerator::convertCrossReferenceCoalesceAggregate(
     aggr_proto->set_is_distinct(false);
   }
 
-  CalculateCollisionFreeAggregationInfo(estimated_num_entries, group_by_aggrs_info,
-                                        aggr_state_proto->mutable_collision_free_vector_info());
-
   const QueryPlan::DAGNodeIndex initialize_aggregation_operator_index =
       execution_plan_->addRelationalOperator(
           new InitializeAggregationOperator(
               query_handle_->query_id(),
               aggr_state_index,
-              num_partitions,
-              aggr_state_proto->collision_free_vector_info().num_init_partitions()));
+              num_partitions));
 
   const QueryPlan::DAGNodeIndex build_aggregation_existence_map_operator_index =
       execution_plan_->addRelationalOperator(
@@ -2123,7 +2050,6 @@ void ExecutionGenerator::convertCrossReferenceCoalesceAggregate(
                                        build_aggregation_existence_map_operator_index,
                                        true /* is_pipeline_breaker */);
 
-
   // Create InsertDestination proto.
   const CatalogRelation *output_relation = nullptr;
   const QueryContext::insert_destination_id insert_destination_index =
@@ -2139,7 +2065,6 @@ void ExecutionGenerator::convertCrossReferenceCoalesceAggregate(
                                           aggr_state_index,
                                           num_partitions,
                                           physical_plan->hasRepartition(),
-                                          aggr_state_num_partitions,
                                           *output_relation,
                                           insert_destination_index));
 

@@ -45,7 +45,4 @@ message AggregationOperationState {
 
   optional bool is_partitioned = 8;
   optional uint64 num_partitions = 9 [default = 1];
-
-  // Required if 'hash_table_impl_type' is 'COLLISION_FREE_VECTOR'.
-  optional CollisionFreeVectorInfo collision_free_vector_info = 10;
 }

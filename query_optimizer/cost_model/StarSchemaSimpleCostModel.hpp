@@ -173,7 +173,6 @@ class StarSchemaSimpleCostModel : public CostModel {
    *        the collision-free aggregation fast path.
    *
    * @param aggregate The physical aggregate node to be checked.
-   * @param estimated_num_groups The estimated number of groups for the aggregate.
    * @param exact_num_groups If collision-free aggregation is applicable, the
    *        pointed content of this pointer will be set as the maximum possible
    *        number of groups that the collision-free hash table need to hold.
@@ -181,7 +180,6 @@ class StarSchemaSimpleCostModel : public CostModel {
    *         used to evaluate \p aggregate.
    */
   bool canUseCollisionFreeAggregation(const physical::AggregatePtr &aggregate,
-                                      const std::size_t estimated_num_groups,
                                       std::size_t *max_num_groups);
 
   /**
@@ -195,6 +193,8 @@ class StarSchemaSimpleCostModel : public CostModel {
    */
   bool canUseTwoPhaseCompactKeyAggregation(const physical::AggregatePtr &aggregate,
                                            const std::size_t estimated_num_groups);
+
+  bool canUseCompactKeySeparateChainingAggregation(const physical::AggregatePtr &aggregate);
 
  private:
   std::size_t estimateCardinalityForAggregate(
