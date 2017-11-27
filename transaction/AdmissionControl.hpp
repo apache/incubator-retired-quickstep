@@ -20,6 +20,9 @@
 #ifndef QUICKSTEP_TRANSACTION_ADMISSION_CONTROL_HPP_
 #define QUICKSTEP_TRANSACTION_ADMISSION_CONTROL_HPP_
 
+#include <utility>
+#include <vector>
+
 #include "utility/Macros.hpp"
 #include "transaction/TransactionTable.hpp"
 
@@ -30,10 +33,8 @@ class AdmissionControl {
  public:
   /**
    * @brief Constructor
-   * @param transaction_table A lookup table that stores information about
-   *        all the running and waiting transactions.
    */
-  AdmissionControl(TransactionTable *transaction_table) {}
+  AdmissionControl() {}
 
   virtual ~AdmissionControl() {}
 
@@ -80,4 +81,4 @@ class AdmissionControl {
 }  // namespace transaction
 }  // namespace quickstep
 
-#endif  //QUICKSTEP_TRANSACTION_ADMISSION_CONTROL_HPP_
+#endif  // QUICKSTEP_TRANSACTION_ADMISSION_CONTROL_HPP_

@@ -22,8 +22,8 @@
 #include <memory>
 #include <vector>
 
+#include "catalog/CatalogRelation.hpp"
 #include "parser/ParseStatement.hpp"
-
 #include "query_optimizer/OptimizerContext.hpp"
 #include "query_optimizer/Validator.hpp"
 #include "query_optimizer/logical/Logical.hpp"
@@ -53,6 +53,11 @@ L::LogicalPtr LogicalGenerator::generatePlan(
   resolver::Resolver resolver(catalog_database, optimizer_context_);
   DVLOG(4) << "Parse tree:\n" << parse_statement.toString();
   logical_plan_ = resolver.resolve(parse_statement);
+  std::vector<const CatalogRelation *> referenced_relations =
+      resolver.getReferencedBaseRelations();
+  for (auto r : referenced_relations) {
+    std::cout << "Table: " << r->getName() << std::endl;
+  }
   DVLOG(4) << "Initial logical plan:\n" << logical_plan_->toString();
 
   optimizePlan();

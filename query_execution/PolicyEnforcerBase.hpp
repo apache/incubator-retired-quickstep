@@ -79,7 +79,7 @@ class PolicyEnforcerBase {
    * @return True if all the queries were admitted, false if at least one query
    *         was not admitted.
    **/
-  bool admitQueries(const std::vector<QueryHandle*> &query_handles);
+  virtual bool admitQueries(const std::vector<QueryHandle*> &query_handles);
 
   /**
    * @brief Remove a given query that is under execution.
@@ -92,7 +92,7 @@ class PolicyEnforcerBase {
    *
    * @param query_id The ID of the query to be removed.
    **/
-  void removeQuery(const std::size_t query_id);
+  virtual void removeQuery(const std::size_t query_id);
 
   /**
    * @brief Process a message sent to the Foreman, which gets passed on to the
@@ -108,7 +108,7 @@ class PolicyEnforcerBase {
    * @return True if there is at least one active or waiting query, false if
    *         the policy enforcer doesn't have any query.
    **/
-  inline bool hasQueries() const {
+  virtual bool hasQueries() const {
     return !(admitted_queries_.empty() && waiting_queries_.empty());
   }
 

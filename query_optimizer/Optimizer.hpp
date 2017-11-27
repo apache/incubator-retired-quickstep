@@ -69,6 +69,9 @@ class Optimizer {
                            OptimizerContext *optimizer_context,
                            QueryHandle *query_handle);
 
+  void getReferencedBaseRelations(const ParseStatement &parse_statement,
+                                  QueryHandle *query_handle);
+
  private:
   DISALLOW_COPY_AND_ASSIGN(Optimizer);
 };

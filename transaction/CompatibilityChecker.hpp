@@ -43,7 +43,7 @@ class CompatibilityChecker {
    * @param transaction_table A lookup table that stores information about
    *        all the running and waiting transactions.
    */
-  CompatibilityChecker(TransactionTable *transaction_table) {}
+  explicit CompatibilityChecker(TransactionTable *transaction_table) {}
 
   virtual ~CompatibilityChecker() {}
 
@@ -97,10 +97,9 @@ class CompatibilityChecker {
 
  private:
   DISALLOW_COPY_AND_ASSIGN(CompatibilityChecker);
-
 };
 
 }  // namespace transaction
 }  // namespace quickstep
 
-#endif  //QUICKSTEP_TRANSACTION_TRANSACTION_COMPATIBILITY_CHECKER_HPP_
+#endif  // QUICKSTEP_TRANSACTION_TRANSACTION_COMPATIBILITY_CHECKER_HPP_
