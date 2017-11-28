@@ -20,12 +20,15 @@
 #ifndef QUICKSTEP_QUERY_OPTIMIZER_LOGICAL_GENERATOR_HPP_
 #define QUICKSTEP_QUERY_OPTIMIZER_LOGICAL_GENERATOR_HPP_
 
+#include <vector>
+
 #include "query_optimizer/logical/Logical.hpp"
 #include "utility/Macros.hpp"
 
 namespace quickstep {
 
 class CatalogDatabase;
+class CatalogRelation;
 class ParseStatement;
 
 namespace optimizer {
@@ -69,6 +72,13 @@ class LogicalGenerator {
   logical::LogicalPtr generatePlan(const CatalogDatabase &catalog_database,
                                    const ParseStatement &parse_statement);
 
+  /**
+   * @brief Return the referenced base relations in this query.
+   */
+  const std::vector<const CatalogRelation *> getReferencedBaseRelations() const {
+    return referenced_base_relations_;
+  }
+
  private:
   /**
    * @brief Applies rules to the logical plan.
@@ -77,6 +87,8 @@ class LogicalGenerator {
 
   OptimizerContext *optimizer_context_;
   logical::LogicalPtr logical_plan_;
+
+  std::vector<const CatalogRelation*> referenced_base_relations_;
 
   DISALLOW_COPY_AND_ASSIGN(LogicalGenerator);
 };

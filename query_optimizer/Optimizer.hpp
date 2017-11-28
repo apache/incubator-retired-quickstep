@@ -26,6 +26,7 @@
 namespace quickstep {
 
 class CatalogDatabase;
+class CatalogRelation;
 class ParseStatement;
 class QueryHandle;
 
@@ -68,9 +69,6 @@ class Optimizer {
                            CatalogDatabase *catalog_database,
                            OptimizerContext *optimizer_context,
                            QueryHandle *query_handle);
-
-  void getReferencedBaseRelations(const ParseStatement &parse_statement,
-                                  QueryHandle *query_handle);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(Optimizer);

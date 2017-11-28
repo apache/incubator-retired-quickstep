@@ -33,10 +33,11 @@ void Optimizer::generateQueryHandle(const ParseStatement &parse_statement,
   PhysicalGenerator physical_generator(optimizer_context);
   ExecutionGenerator execution_generator(catalog_database, query_handle);
 
-  query_handle->getAllReferencedBaseRelations();
   execution_generator.generatePlan(
       physical_generator.generatePlan(
           logical_generator.generatePlan(*catalog_database, parse_statement)));
+
+  query_handle->setReferencedBaseRelations(logical_generator.getReferencedBaseRelations());
 }
 
 }  // namespace optimizer

@@ -180,11 +180,18 @@ class QueryHandle {
   }
 
   /**
-   * @brief Return all the base relations referenced in this query.
+   * @brief Get the referenced base relations in this query.
    **/
-  std::vector<relation_id> getAllReferencedBaseRelations() {
-    std::vector<relation_id> ret;
-    return ret;
+  const std::vector<const CatalogRelation *>& getReferencedBaseRelations() const {
+    return referenced_base_relations_;
+  }
+
+  /**
+   * @brief Set the referenced base relations in this query.
+   * @param referenced_base_relations_ The list of referenced base relations in this query.
+   **/
+  void setReferencedBaseRelations(const std::vector<const CatalogRelation *> &referenced_base_relations) {
+    referenced_base_relations_ = referenced_base_relations;
   }
 
 #ifdef QUICKSTEP_DISTRIBUTED
@@ -222,6 +229,10 @@ class QueryHandle {
   // NOTE(zuyu): The relation gets created by the optimizer,
   //             and deleted by the Cli shell.
   const CatalogRelation *query_result_relation_;
+
+  std::vector<const CatalogRelation*> referenced_base_relations_;
+
+ private:
 
 #ifdef QUICKSTEP_DISTRIBUTED
   // Indicate whether the query should be executed on the default Shiftboss for
