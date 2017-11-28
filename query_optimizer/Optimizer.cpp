@@ -21,6 +21,8 @@
 
 #include "query_optimizer/ExecutionGenerator.hpp"
 #include "query_optimizer/LogicalGenerator.hpp"
+#include "query_optimizer/OptimizerContext.hpp"
+#include "query_optimizer/resolver/Resolver.hpp"
 
 namespace quickstep {
 namespace optimizer {
@@ -36,6 +38,15 @@ void Optimizer::generateQueryHandle(const ParseStatement &parse_statement,
   execution_generator.generatePlan(
       physical_generator.generatePlan(
           logical_generator.generatePlan(*catalog_database, parse_statement)));
+}
+
+void Optimizer::findReferencedBaseRelations(const ParseStatement &parse_statement,
+                                            CatalogDatabase *catalog_database,
+                                            QueryHandle *query_handle) {
+  OptimizerContext optimizer_context;
+  resolver::Resolver resolver(*catalog_database, &optimizer_context);
+  resolver.resolve(parse_statement);
+  query_handle->setReferencedBaseRelations(resolver.getReferencedBaseRelations());
 }
 
 }  // namespace optimizer

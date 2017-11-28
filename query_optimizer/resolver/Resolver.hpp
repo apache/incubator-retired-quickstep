@@ -114,6 +114,11 @@ class Resolver {
    */
   logical::LogicalPtr resolve(const ParseStatement &parse_query);
 
+  /**
+   * @brief Get the referenced base relations in the query.
+   */
+  std::vector<const CatalogRelation*> getReferencedBaseRelations();
+
  private:
   /**
    * @brief Expression-scoped info that contains both constant and non-constant

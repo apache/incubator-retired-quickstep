@@ -23,7 +23,6 @@
 #include <vector>
 
 #include "parser/ParseStatement.hpp"
-
 #include "query_optimizer/OptimizerContext.hpp"
 #include "query_optimizer/Validator.hpp"
 #include "query_optimizer/logical/Logical.hpp"

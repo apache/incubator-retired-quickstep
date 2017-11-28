@@ -39,6 +39,9 @@ add_library(quickstep_queryoptimizer_rules_PushDownSemiAntiJoin PushDownSemiAnti
 add_library(quickstep_queryoptimizer_rules_ReduceGroupByAttributes
             ReduceGroupByAttributes.cpp
             ReduceGroupByAttributes.hpp)
+add_library(quickstep_queryoptimizer_rules_ReferencedBaseRelations
+            ReferencedBaseRelations.cpp
+            ReferencedBaseRelations.hpp)
 add_library(quickstep_queryoptimizer_rules_ReorderColumns ReorderColumns.cpp ReorderColumns.hpp)
 add_library(quickstep_queryoptimizer_rules_ReuseAggregateExpressions
             ReuseAggregateExpressions.cpp
@@ -270,6 +273,15 @@ target_link_libraries(quickstep_queryoptimizer_rules_ReduceGroupByAttributes
                       quickstep_queryoptimizer_rules_PruneColumns
                       quickstep_queryoptimizer_rules_Rule
                       quickstep_utility_Macros)
+target_link_libraries(quickstep_queryoptimizer_rules_ReferencedBaseRelations
+                      quickstep_catalog_CatalogRelation
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_queryoptimizer_logical_Logical
+                      quickstep_queryoptimizer_logical_PatternMatcher
+                      quickstep_queryoptimizer_logical_TableReference
+                      quickstep_queryoptimizer_rules_Rule
+                      quickstep_queryoptimizer_rules_UnnestSubqueries
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_rules_ReorderColumns
                       quickstep_queryoptimizer_expressions_AttributeReference
                       quickstep_queryoptimizer_expressions_ExprId
@@ -433,6 +445,7 @@ target_link_libraries(quickstep_queryoptimizer_rules
                       quickstep_queryoptimizer_rules_PushDownLowCostDisjunctivePredicate
                       quickstep_queryoptimizer_rules_PushDownSemiAntiJoin
                       quickstep_queryoptimizer_rules_ReduceGroupByAttributes
+                      quickstep_queryoptimizer_rules_ReferencedBaseRelations
                       quickstep_queryoptimizer_rules_ReorderColumns
                       quickstep_queryoptimizer_rules_ReuseAggregateExpressions
                       quickstep_queryoptimizer_rules_Rule

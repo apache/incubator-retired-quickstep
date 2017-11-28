@@ -161,6 +161,17 @@ class QueryProcessor {
                            QueryHandle *query_handle);
 
   /**
+   * @brief Find the reference base relations in the query and set them in the
+   *        QueryHandle.
+   *
+   * @note This function does not fully optimize the query plan.
+   *
+   * @param statement The parsed SQL statement of the query.
+   * @param query_handle The QueryHandle of the given query.
+   */
+  void findReferencedBaseRelationsInQuery(const ParseStatement &statement, QueryHandle *query_handle);
+
+  /**
    * @brief Save the catalog back to disk.
    **/
   void saveCatalog();

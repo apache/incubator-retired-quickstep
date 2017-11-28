@@ -69,6 +69,21 @@ class Optimizer {
                            OptimizerContext *optimizer_context,
                            QueryHandle *query_handle);
 
+  /**
+   * @brief Find the reference base relations in the query and set them in the
+   *        QueryHandle.
+   *
+   * @note This function is useful if the objective is to only find the
+   *       referenced relations in the query and not to optimize the query.
+   *
+   * @param parse_statement The parse tree of the input query.
+   * @param catalog_database The database that the query is executed on.
+   * @param query_handle The QueryHandle for this query.
+   */
+  void findReferencedBaseRelations(const ParseStatement &parse_statement,
+                                   CatalogDatabase *catalog_database,
+                                   QueryHandle *query_handle);
+
  private:
   DISALLOW_COPY_AND_ASSIGN(Optimizer);
 };

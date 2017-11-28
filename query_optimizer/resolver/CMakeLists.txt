@@ -119,6 +119,7 @@ target_link_libraries(quickstep_queryoptimizer_resolver_Resolver
                       quickstep_queryoptimizer_logical_UpdateTable
                       quickstep_queryoptimizer_logical_WindowAggregate
                       quickstep_queryoptimizer_resolver_NameResolver
+                      quickstep_queryoptimizer_rules_ReferencedBaseRelations
                       quickstep_storage_StorageBlockLayout_proto
                       quickstep_storage_StorageConstants
                       quickstep_types_IntType

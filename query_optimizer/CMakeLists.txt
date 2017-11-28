@@ -206,7 +206,9 @@ target_link_libraries(quickstep_queryoptimizer_LogicalToPhysicalMapper
 target_link_libraries(quickstep_queryoptimizer_Optimizer
                       quickstep_queryoptimizer_ExecutionGenerator
                       quickstep_queryoptimizer_LogicalGenerator
+                      quickstep_queryoptimizer_OptimizerContext
                       quickstep_queryoptimizer_PhysicalGenerator
+                      quickstep_queryoptimizer_resolver_Resolver
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_OptimizerContext
                       quickstep_queryoptimizer_expressions_ExprId

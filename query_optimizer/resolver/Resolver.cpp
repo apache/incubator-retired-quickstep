@@ -114,6 +114,7 @@
 #include "query_optimizer/logical/UpdateTable.hpp"
 #include "query_optimizer/logical/WindowAggregate.hpp"
 #include "query_optimizer/resolver/NameResolver.hpp"
+#include "query_optimizer/rules/ReferencedBaseRelations.hpp"
 #include "storage/StorageBlockLayout.pb.h"
 #include "storage/StorageConstants.hpp"
 #include "types/IntType.hpp"
@@ -452,6 +453,12 @@ L::LogicalPtr Resolver::resolve(const ParseStatement &parse_query) {
 #endif
 
   return logical_plan_;
+}
+
+std::vector<const CatalogRelation*> Resolver::getReferencedBaseRelations() {
+  std::unique_ptr<ReferencedBaseRelations> base_relations(new ReferencedBaseRelations(context_));
+  base_relations->apply(logical_plan_);
+  return base_relations->getReferencedBaseRelations();
 }
 
 L::LogicalPtr Resolver::resolveCopyFrom(

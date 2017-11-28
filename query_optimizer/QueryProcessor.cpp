@@ -33,6 +33,8 @@ using std::ofstream;
 
 namespace quickstep {
 
+class QueryHandle;
+
 void QueryProcessor::generateQueryHandle(const ParseStatement &statement,
                                          QueryHandle *query_handle) {
   optimizer::OptimizerContext optimizer_context;
@@ -74,6 +76,11 @@ void QueryProcessor::loadCatalog() {
   catalog_ = std::make_unique<Catalog>(catalog_proto);
 
   catalog_altered_ = false;
+}
+
+void QueryProcessor::findReferencedBaseRelationsInQuery(
+    const ParseStatement &statement, QueryHandle *query_handle) {
+  optimizer_.findReferencedBaseRelations(statement, getDefaultDatabase(), query_handle);
 }
 
 }  // namespace quickstep

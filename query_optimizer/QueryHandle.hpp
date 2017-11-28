@@ -23,6 +23,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <vector>
 
 #include "catalog/Catalog.pb.h"
 #include "catalog/CatalogTypedefs.hpp"
@@ -178,6 +179,23 @@ class QueryHandle {
     query_result_relation_ = relation;
   }
 
+  /**
+   * @brief Get the referenced base relations in this query.
+   **/
+  const std::vector<const CatalogRelation*>& getReferencedBaseRelations() const {
+    return referenced_base_relations_;
+  }
+
+  /**
+   * @brief Set the referenced base relations in this query.
+   * @param referenced_base_relations_ The list of referenced base relations
+   *        in this query.
+   **/
+  void setReferencedBaseRelations(
+      const std::vector<const CatalogRelation*> &referenced_base_relations) {
+    referenced_base_relations_ = referenced_base_relations;
+  }
+
 #ifdef QUICKSTEP_DISTRIBUTED
   /**
    * @brief Whether the query will be executed in the single node.
@@ -214,6 +232,9 @@ class QueryHandle {
   //             and deleted by the Cli shell.
   const CatalogRelation *query_result_relation_;
 
+  std::vector<const CatalogRelation*> referenced_base_relations_;
+
+ private:
 #ifdef QUICKSTEP_DISTRIBUTED
   // Indicate whether the query should be executed on the default Shiftboss for
   // correctness purpose.
