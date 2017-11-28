@@ -293,7 +293,7 @@ void ExecutionDAGVisualizer::bindProfilingStats(
           "effective concurrency: " + FormatDigits(concurrency, 2));
 
       DCHECK(workorders_count.find(node_index) != workorders_count.end());
-      const std::size_t workorders_count_for_node = workorders_count.at(node_index);
+      const std::size_t workorders_count_for_node = workorders_count[node_index];
       if (workorders_count_for_node > 0) {
         mean_time_per_workorder[node_index] =
             mean_time_per_workorder[node_index] /
