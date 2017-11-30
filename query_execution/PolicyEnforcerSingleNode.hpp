@@ -27,6 +27,7 @@
 #include "query_execution/PolicyEnforcerBase.hpp"
 #include "query_execution/QueryExecutionMessages.pb.h"
 #include "query_execution/WorkerDirectory.hpp"
+#include "transaction/DatabaseLockAdmissionControl.hpp"
 #include "utility/Macros.hpp"
 
 #include "tmb/id_typedefs.h"
@@ -87,6 +88,9 @@ class PolicyEnforcerSingleNode final : public PolicyEnforcerBase {
    **/
   void getWorkerMessages(
       std::vector<std::unique_ptr<WorkerMessage>> *worker_messages);
+  bool admitQueries(const std::vector<QueryHandle *> &query_handles) override;
+  void removeQuery(const std::size_t query_id) override;
+  bool hasQueries() const override;
 
  private:
   void decrementNumQueuedWorkOrders(const serialization::WorkOrderCompletionMessage &proto) override {
@@ -100,6 +104,8 @@ class PolicyEnforcerSingleNode final : public PolicyEnforcerBase {
   WorkerDirectory *worker_directory_;
 
   tmb::MessageBus *bus_;
+
+  transaction::DatabaseLockAdmissionControl admission_control_;
 
   DISALLOW_COPY_AND_ASSIGN(PolicyEnforcerSingleNode);
 };

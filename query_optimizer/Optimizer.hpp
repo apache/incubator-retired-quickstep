@@ -26,6 +26,7 @@
 namespace quickstep {
 
 class CatalogDatabase;
+class CatalogRelation;
 class ParseStatement;
 class QueryHandle;
 

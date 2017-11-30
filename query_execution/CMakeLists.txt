@@ -190,6 +190,7 @@ if (ENABLE_DISTRIBUTED)
 endif(ENABLE_DISTRIBUTED)
 target_link_libraries(quickstep_queryexecution_PolicyEnforcerSingleNode
                       glog
+                      quickstep_catalog_CatalogDatabaseLite
                       quickstep_catalog_CatalogTypedefs
                       quickstep_queryexecution_PolicyEnforcerBase
                       quickstep_queryexecution_QueryExecutionMessages_proto
@@ -199,6 +200,7 @@ target_link_libraries(quickstep_queryexecution_PolicyEnforcerSingleNode
                       quickstep_queryexecution_WorkerDirectory
                       quickstep_queryexecution_WorkerMessage
                       quickstep_queryoptimizer_QueryHandle
+                      quickstep_transaction_DatabaseLockAdmissionControl
                       quickstep_utility_Macros
                       tmb
                       ${GFLAGS_LIB_NAME})

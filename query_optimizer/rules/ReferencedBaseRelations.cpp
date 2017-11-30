@@ -17,27 +17,27 @@
  * under the License.
  **/
 
-#include "query_optimizer/Optimizer.hpp"
+#include "query_optimizer/rules/ReferencedBaseRelations.hpp"
 
-#include "query_optimizer/ExecutionGenerator.hpp"
-#include "query_optimizer/LogicalGenerator.hpp"
+#include "query_optimizer/logical/PatternMatcher.hpp"
+#include "query_optimizer/logical/TableReference.hpp"
 
 namespace quickstep {
+
+class CatalogRelation;
+
 namespace optimizer {
 
-void Optimizer::generateQueryHandle(const ParseStatement &parse_statement,
-                                    CatalogDatabase *catalog_database,
-                                    OptimizerContext *optimizer_context,
-                                    QueryHandle *query_handle) {
-  LogicalGenerator logical_generator(optimizer_context);
-  PhysicalGenerator physical_generator(optimizer_context);
-  ExecutionGenerator execution_generator(catalog_database, query_handle);
+namespace L = ::quickstep::optimizer::logical;
 
-  execution_generator.generatePlan(
-      physical_generator.generatePlan(
-          logical_generator.generatePlan(*catalog_database, parse_statement)));
-
-  query_handle->setReferencedBaseRelations(logical_generator.getReferencedBaseRelations());
+logical::LogicalPtr ReferencedBaseRelations::applyToNode(const logical::LogicalPtr &input) {
+  L::TableReferencePtr table_reference;
+  const CatalogRelation* input_relation = nullptr;
+  if (L::SomeTableReference::MatchesWithConditionalCast(input, &table_reference)) {
+    input_relation = table_reference->catalog_relation();
+    referenced_base_relations_.push_back(input_relation);
+  }
+  return input;
 }
 
 }  // namespace optimizer

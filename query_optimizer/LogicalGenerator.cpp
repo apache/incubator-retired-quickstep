@@ -23,7 +23,6 @@
 #include <vector>
 
 #include "parser/ParseStatement.hpp"
-
 #include "query_optimizer/OptimizerContext.hpp"
 #include "query_optimizer/Validator.hpp"
 #include "query_optimizer/logical/Logical.hpp"
@@ -57,6 +56,8 @@ L::LogicalPtr LogicalGenerator::generatePlan(
 
   optimizePlan();
   DVLOG(4) << "Optimized logical plan:\n" << logical_plan_->toString();
+
+  referenced_base_relations_ = resolver.getReferencedBaseRelations();
 
   return logical_plan_;
 }

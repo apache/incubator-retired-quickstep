@@ -26,6 +26,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "catalog/CatalogDatabaseLite.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/QueryExecutionState.hpp"
 #include "query_execution/QueryManagerBase.hpp"
@@ -42,6 +43,11 @@ namespace quickstep {
 DEFINE_uint64(max_msgs_per_dispatch_round, 20, "Maximum number of messages that"
               " can be allocated in a single round of dispatch of messages to"
               " the workers.");
+
+void PolicyEnforcerSingleNode::removeQuery(const std::size_t query_id) {
+  admission_control_.signalTransactionCompletion(query_id);
+  admitted_queries_.erase(query_id);
+}
 
 void PolicyEnforcerSingleNode::getWorkerMessages(
     std::vector<std::unique_ptr<WorkerMessage>> *worker_messages) {
@@ -86,13 +92,21 @@ void PolicyEnforcerSingleNode::getWorkerMessages(
     removeQuery(finished_qid);
   }
 }
+bool PolicyEnforcerSingleNode::hasQueries() const {
+  return admission_control_.getTotalTransactionsCount() > 0u;
+}
 
 bool PolicyEnforcerSingleNode::admitQuery(QueryHandle *query_handle) {
-  if (admitted_queries_.size() < PolicyEnforcerBase::kMaxConcurrentQueries) {
+  std::vector<std::pair<transaction::ResourceId, transaction::AccessMode>> resource_requests;
+  resource_requests.push_back(std::make_pair(transaction::ResourceId(catalog_database_->getID()),
+                                             transaction::AccessMode::XLockMode()));
+  if (admission_control_.admitTransaction(query_handle->query_id(), resource_requests)) {
+  // if (admitted_queries_.size() < PolicyEnforcerBase::kMaxConcurrentQueries) {
     // Ok to admit the query.
     const std::size_t query_id = query_handle->query_id();
     if (admitted_queries_.find(query_id) == admitted_queries_.end()) {
       // Query with the same ID not present, ok to admit.
+      // TODO(harshad) - Remove the redundancy in storing the admitted queries.
       admitted_queries_[query_id].reset(
           new QueryManagerSingleNode(foreman_client_id_, num_numa_nodes_, query_handle,
                                      catalog_database_, storage_manager_, bus_));
@@ -103,9 +117,20 @@ bool PolicyEnforcerSingleNode::admitQuery(QueryHandle *query_handle) {
     }
   } else {
     // This query will have to wait.
-    waiting_queries_.push(query_handle);
     return false;
   }
+}
+
+bool PolicyEnforcerSingleNode::admitQueries(const std::vector<QueryHandle *> &query_handles) {
+  DCHECK(!query_handles.empty());
+
+  bool all_queries_admitted = true;
+  for (QueryHandle *curr_query : query_handles) {
+    if (all_queries_admitted) {
+      all_queries_admitted = admitQuery(curr_query);
+    }
+  }
+  return all_queries_admitted;
 }
 
 }  // namespace quickstep

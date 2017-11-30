@@ -187,6 +187,7 @@ target_link_libraries(quickstep_queryoptimizer_LIPFilterGenerator
                       quickstep_utility_lipfilter_LIPFilter_proto)
 target_link_libraries(quickstep_queryoptimizer_LogicalGenerator
                       glog
+                      quickstep_catalog_CatalogRelation
                       quickstep_parser_ParseStatement
                       quickstep_queryoptimizer_OptimizerContext
                       quickstep_queryoptimizer_logical_Logical

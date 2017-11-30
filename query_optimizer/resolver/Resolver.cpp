@@ -103,6 +103,7 @@
 #include "query_optimizer/logical/InsertSelection.hpp"
 #include "query_optimizer/logical/InsertTuple.hpp"
 #include "query_optimizer/logical/MultiwayCartesianJoin.hpp"
+#include "query_optimizer/logical/PatternMatcher.hpp"
 #include "query_optimizer/logical/Project.hpp"
 #include "query_optimizer/logical/Sample.hpp"
 #include "query_optimizer/logical/SetOperation.hpp"
@@ -114,6 +115,7 @@
 #include "query_optimizer/logical/UpdateTable.hpp"
 #include "query_optimizer/logical/WindowAggregate.hpp"
 #include "query_optimizer/resolver/NameResolver.hpp"
+#include "query_optimizer/rules/ReferencedBaseRelations.hpp"
 #include "storage/StorageBlockLayout.pb.h"
 #include "storage/StorageConstants.hpp"
 #include "types/IntType.hpp"
@@ -153,7 +155,8 @@ attribute_id GetAttributeIdFromName(
   const std::string lower_attribute_name = ToLower(attribute_name);
 
   attribute_id attr_id = 0;
-  for (const ParseAttributeDefinition &attribute_definition : attribute_definition_list) {
+  for (const ParseAttributeDefinition &attribute_definition :
+       attribute_definition_list) {
     if (lower_attribute_name == ToLower(attribute_definition.name()->value())) {
       return attr_id;
     }
@@ -164,22 +167,22 @@ attribute_id GetAttributeIdFromName(
   return kInvalidAttributeID;
 }
 
-const ParseString* GetKeyValueString(const ParseKeyValue &key_value) {
+const ParseString *GetKeyValueString(const ParseKeyValue &key_value) {
   if (key_value.getKeyValueType() != ParseKeyValue::kStringString) {
-      THROW_SQL_ERROR_AT(&key_value)
-          << "Invalid value type for " << key_value.key()->value()
-          << ", expected a string.";
+    THROW_SQL_ERROR_AT(&key_value) << "Invalid value type for "
+                                   << key_value.key()->value()
+                                   << ", expected a string.";
   }
-  return static_cast<const ParseKeyStringValue&>(key_value).value();
+  return static_cast<const ParseKeyStringValue &>(key_value).value();
 }
 
 bool GetKeyValueBool(const ParseKeyValue &key_value) {
   if (key_value.getKeyValueType() != ParseKeyValue::kStringBool) {
-      THROW_SQL_ERROR_AT(&key_value)
-          << "Invalid value for " << key_value.key()->value()
-          << ", expected true or false.";
+    THROW_SQL_ERROR_AT(&key_value) << "Invalid value for "
+                                   << key_value.key()->value()
+                                   << ", expected true or false.";
   }
-  return static_cast<const ParseKeyBoolValue&>(key_value).value();
+  return static_cast<const ParseKeyBoolValue &>(key_value).value();
 }
 
 }  // namespace
@@ -288,7 +291,8 @@ struct Resolver::WindowPlan {
 };
 
 struct Resolver::WindowAggregationInfo {
-  explicit WindowAggregationInfo(const std::unordered_map<std::string, WindowPlan> &window_map_in)
+  explicit WindowAggregationInfo(
+      const std::unordered_map<std::string, WindowPlan> &window_map_in)
       : window_map(window_map_in) {}
 
   // Whether the current query block has a GROUP BY.
@@ -355,11 +359,20 @@ struct Resolver::SelectListInfo {
   std::map<std::string, int> alias_to_expression_map;
 };
 
+std::vector<const CatalogRelation*> Resolver::getReferencedBaseRelations() {
+  std::unique_ptr<ReferencedBaseRelations> base_relations;
+  base_relations.reset(new ReferencedBaseRelations());
+  base_relations->apply(logical_plan_);
+  std::vector<const CatalogRelation *> ret_vector =
+      base_relations->getReferencedBaseRelations();
+  return ret_vector;
+}
+
 L::LogicalPtr Resolver::resolve(const ParseStatement &parse_query) {
   switch (parse_query.getStatementType()) {
     case ParseStatement::kCopy: {
       const ParseStatementCopy &copy_statemnt =
-          static_cast<const ParseStatementCopy&>(parse_query);
+          static_cast<const ParseStatementCopy &>(parse_query);
       if (copy_statemnt.getCopyDirection() == ParseStatementCopy::kFrom) {
         context_->set_is_catalog_changed();
         logical_plan_ = resolveCopyFrom(copy_statemnt);
@@ -379,34 +392,37 @@ L::LogicalPtr Resolver::resolve(const ParseStatement &parse_query) {
     case ParseStatement::kCreateTable:
       context_->set_is_catalog_changed();
       logical_plan_ = resolveCreateTable(
-          static_cast<const ParseStatementCreateTable&>(parse_query));
+          static_cast<const ParseStatementCreateTable &>(parse_query));
       break;
     case ParseStatement::kCreateIndex:
       context_->set_is_catalog_changed();
       logical_plan_ = resolveCreateIndex(
-          static_cast<const ParseStatementCreateIndex&>(parse_query));
+          static_cast<const ParseStatementCreateIndex &>(parse_query));
       break;
     case ParseStatement::kDelete:
       context_->set_is_catalog_changed();
       logical_plan_ =
-          resolveDelete(static_cast<const ParseStatementDelete&>(parse_query));
+          resolveDelete(static_cast<const ParseStatementDelete &>(parse_query));
       break;
     case ParseStatement::kDropTable:
       context_->set_is_catalog_changed();
       logical_plan_ = resolveDropTable(
-          static_cast<const ParseStatementDropTable&>(parse_query));
+          static_cast<const ParseStatementDropTable &>(parse_query));
       break;
     case ParseStatement::kInsert: {
       context_->set_is_catalog_changed();
       const ParseStatementInsert &insert_statement =
-          static_cast<const ParseStatementInsert&>(parse_query);
-      if (insert_statement.getInsertType() == ParseStatementInsert::InsertType::kTuple) {
-        logical_plan_ =
-            resolveInsertTuple(static_cast<const ParseStatementInsertTuple&>(insert_statement));
+          static_cast<const ParseStatementInsert &>(parse_query);
+      if (insert_statement.getInsertType() ==
+          ParseStatementInsert::InsertType::kTuple) {
+        logical_plan_ = resolveInsertTuple(
+            static_cast<const ParseStatementInsertTuple &>(insert_statement));
       } else {
-        DCHECK(insert_statement.getInsertType() == ParseStatementInsert::InsertType::kSelection);
+        DCHECK(insert_statement.getInsertType() ==
+               ParseStatementInsert::InsertType::kSelection);
         const ParseStatementInsertSelection &insert_selection_statement =
-            static_cast<const ParseStatementInsertSelection&>(insert_statement);
+            static_cast<const ParseStatementInsertSelection &>(
+                insert_statement);
 
         if (insert_selection_statement.with_clause() != nullptr) {
           resolveWithClause(*insert_selection_statement.with_clause());
@@ -421,7 +437,7 @@ L::LogicalPtr Resolver::resolve(const ParseStatement &parse_query) {
     }
     case ParseStatement::kSetOperation: {
       const ParseStatementSetOperation &set_operation_statement =
-          static_cast<const ParseStatementSetOperation&>(parse_query);
+          static_cast<const ParseStatementSetOperation &>(parse_query);
       if (set_operation_statement.with_clause() != nullptr) {
         resolveWithClause(*set_operation_statement.with_clause());
       }
@@ -438,7 +454,7 @@ L::LogicalPtr Resolver::resolve(const ParseStatement &parse_query) {
     case ParseStatement::kUpdate:
       context_->set_is_catalog_changed();
       logical_plan_ =
-          resolveUpdate(static_cast<const ParseStatementUpdate&>(parse_query));
+          resolveUpdate(static_cast<const ParseStatementUpdate &>(parse_query));
       break;
     default:
       LOG(FATAL) << "Unhandled query statement:" << parse_query.toString();
@@ -468,7 +484,8 @@ L::LogicalPtr Resolver::resolveCopyFrom(
         const std::string format = ToLower(parse_format->value());
         // TODO(jianqiao): Support other bulk load formats such as CSV.
         if (format != "text") {
-          THROW_SQL_ERROR_AT(parse_format) << "Unsupported file format: " << format;
+          THROW_SQL_ERROR_AT(parse_format) << "Unsupported file format: "
+                                           << format;
         }
         // Update file_format when other formats get supported.
         break;
@@ -497,9 +514,10 @@ L::LogicalPtr Resolver::resolveCopyFrom(
     }
   }
 
-  return L::CopyFrom::Create(resolveRelationName(copy_from_statement.relation_name()),
-                             copy_from_statement.file_name()->value(),
-                             BulkIoConfigurationPtr(options.release()));
+  return L::CopyFrom::Create(
+      resolveRelationName(copy_from_statement.relation_name()),
+      copy_from_statement.file_name()->value(),
+      BulkIoConfigurationPtr(options.release()));
 }
 
 L::LogicalPtr Resolver::resolveCopyTo(
@@ -521,7 +539,8 @@ L::LogicalPtr Resolver::resolveCopyTo(
         } else if (format == "text") {
           file_format = BulkIoFormat::kText;
         } else {
-          THROW_SQL_ERROR_AT(parse_format) << "Unsupported file format: " << format;
+          THROW_SQL_ERROR_AT(parse_format) << "Unsupported file format: "
+                                           << format;
         }
         format_specified = true;
         break;
@@ -558,7 +577,8 @@ L::LogicalPtr Resolver::resolveCopyTo(
               << "DELIMITER is not a single character";
         }
         options->setDelimiter(delimiter.front());
-      } else if (file_format == BulkIoFormat::kText && key == "escape_strings") {
+      } else if (file_format == BulkIoFormat::kText &&
+                 key == "escape_strings") {
         options->setEscapeStrings(GetKeyValueBool(param));
       } else if (file_format == BulkIoFormat::kCsv && key == "header") {
         options->setHeader(GetKeyValueBool(param));
@@ -566,17 +586,16 @@ L::LogicalPtr Resolver::resolveCopyTo(
         const ParseString *parse_quote = GetKeyValueString(param);
         const std::string &quote = parse_quote->value();
         if (quote.size() != 1u) {
-          THROW_SQL_ERROR_AT(parse_quote)
-              << "QUOTE is not a single character";
+          THROW_SQL_ERROR_AT(parse_quote) << "QUOTE is not a single character";
         }
         options->setQuoteCharacter(quote.front());
       } else if (key == "null_string") {
         const ParseString *parse_null_string = GetKeyValueString(param);
         options->setNullString(parse_null_string->value());
       } else if (key != "format") {
-        THROW_SQL_ERROR_AT(&param)
-            << "Unsupported copy option \"" << key
-            << "\" for file format " << options->getFormatName();
+        THROW_SQL_ERROR_AT(&param) << "Unsupported copy option \"" << key
+                                   << "\" for file format "
+                                   << options->getFormatName();
       }
     }
   }
@@ -617,9 +636,10 @@ L::LogicalPtr Resolver::resolveCreateTable(
         << "Relation " << create_table_statement.relation_name()->value()
         << " already exists";
   }
-  if (relation_name.compare(0,
-                            std::strlen(OptimizerContext::kInternalTemporaryRelationNamePrefix),
-                            OptimizerContext::kInternalTemporaryRelationNamePrefix) == 0) {
+  if (relation_name.compare(
+          0,
+          std::strlen(OptimizerContext::kInternalTemporaryRelationNamePrefix),
+          OptimizerContext::kInternalTemporaryRelationNamePrefix) == 0) {
     THROW_SQL_ERROR_AT(create_table_statement.relation_name())
         << "Relation name cannot start with "
         << OptimizerContext::kInternalTemporaryRelationNamePrefix;
@@ -638,50 +658,52 @@ L::LogicalPtr Resolver::resolveCreateTable(
           << "Column " << attribute_definition.name()->value()
           << " is specified more than once";
     }
-    attributes.emplace_back(
-        E::AttributeReference::Create(context_->nextExprId(),
-                                      attribute_definition.name()->value(),
-                                      attribute_definition.name()->value(),
-                                      relation_name,
-                                      attribute_definition.data_type().getType(),
-                                      E::AttributeReferenceScope::kLocal));
+    attributes.emplace_back(E::AttributeReference::Create(
+        context_->nextExprId(),
+        attribute_definition.name()->value(),
+        attribute_definition.name()->value(),
+        relation_name,
+        attribute_definition.data_type().getType(),
+        E::AttributeReferenceScope::kLocal));
     attribute_name_set.insert(lower_attribute_name);
   }
 
-  std::shared_ptr<const StorageBlockLayoutDescription>
-      block_properties(resolveBlockProperties(create_table_statement));
+  std::shared_ptr<const StorageBlockLayoutDescription> block_properties(
+      resolveBlockProperties(create_table_statement));
 
   std::shared_ptr<const S::PartitionSchemeHeader> partition_scheme_header_proto(
       resolvePartitionClause(create_table_statement));
 
-  return L::CreateTable::Create(relation_name, attributes, block_properties, partition_scheme_header_proto);
+  return L::CreateTable::Create(relation_name,
+                                attributes,
+                                block_properties,
+                                partition_scheme_header_proto);
 }
 
-StorageBlockLayoutDescription* Resolver::resolveBlockProperties(
+StorageBlockLayoutDescription *Resolver::resolveBlockProperties(
     const ParseStatementCreateTable &create_table_statement) {
-  const ParseBlockProperties *block_properties
-      = create_table_statement.opt_block_properties();
+  const ParseBlockProperties *block_properties =
+      create_table_statement.opt_block_properties();
   // If there are no block properties.
   if (block_properties == nullptr) {
     return nullptr;
   }
   // Check for error conditions.
-  const ParseKeyValue *repeated_key_value
-      = block_properties->getFirstRepeatedKeyValue();
+  const ParseKeyValue *repeated_key_value =
+      block_properties->getFirstRepeatedKeyValue();
   if (repeated_key_value != nullptr) {
     THROW_SQL_ERROR_AT(repeated_key_value)
         << "Properties must be specified at most once.";
   }
-  const ParseKeyValue *invalid_key_value
-      = block_properties->getFirstInvalidKeyValue();
+  const ParseKeyValue *invalid_key_value =
+      block_properties->getFirstInvalidKeyValue();
   if (invalid_key_value != nullptr) {
-    THROW_SQL_ERROR_AT(invalid_key_value)
-        << "Unrecognized property name.";
+    THROW_SQL_ERROR_AT(invalid_key_value) << "Unrecognized property name.";
   }
 
   // Begin resolution of properties.
-  std::unique_ptr<StorageBlockLayoutDescription>
-      storage_block_description(new StorageBlockLayoutDescription());
+  std::unique_ptr<StorageBlockLayoutDescription> storage_block_description(
+      new StorageBlockLayoutDescription());
   TupleStorageSubBlockDescription *description =
       storage_block_description->mutable_tuple_store_description();
 
@@ -705,8 +727,8 @@ StorageBlockLayoutDescription* Resolver::resolveBlockProperties(
     // NOTE(zuyu): sort is optional.
     block_allows_sort = true;
   } else if (type_string.compare("compressed_rowstore") == 0) {
-    description->set_sub_block_type(
-        quickstep::TupleStorageSubBlockDescription::COMPRESSED_PACKED_ROW_STORE);
+    description->set_sub_block_type(quickstep::TupleStorageSubBlockDescription::
+                                        COMPRESSED_PACKED_ROW_STORE);
     block_requires_compress = true;
   } else if (type_string.compare("compressed_columnstore") == 0) {
     description->set_sub_block_type(
@@ -721,26 +743,32 @@ StorageBlockLayoutDescription* Resolver::resolveBlockProperties(
   const ParseString *sort_parse_string = block_properties->getSort();
   if (block_allows_sort) {
     if (sort_parse_string == nullptr) {
-      if (description->sub_block_type() != TupleStorageSubBlockDescription::BASIC_COLUMN_STORE) {
+      if (description->sub_block_type() !=
+          TupleStorageSubBlockDescription::BASIC_COLUMN_STORE) {
         THROW_SQL_ERROR_AT(type_parse_string)
             << "The SORT property must be specified as an attribute name.";
       }
     } else {
       // Lookup the name and map to a column id.
-      const attribute_id sort_id = GetAttributeIdFromName(create_table_statement.attribute_definition_list(),
-                                                          sort_parse_string->value());
+      const attribute_id sort_id = GetAttributeIdFromName(
+          create_table_statement.attribute_definition_list(),
+          sort_parse_string->value());
       if (sort_id == kInvalidAttributeID) {
         THROW_SQL_ERROR_AT(sort_parse_string)
-          << "The SORT property did not match any attribute name.";
+            << "The SORT property did not match any attribute name.";
       } else {
         if (description->sub_block_type() ==
             TupleStorageSubBlockDescription::BASIC_COLUMN_STORE) {
           description->SetExtension(
-              BasicColumnStoreTupleStorageSubBlockDescription::sort_attribute_id, sort_id);
+              BasicColumnStoreTupleStorageSubBlockDescription::
+                  sort_attribute_id,
+              sort_id);
         } else if (description->sub_block_type() ==
-            TupleStorageSubBlockDescription::COMPRESSED_COLUMN_STORE) {
+                   TupleStorageSubBlockDescription::COMPRESSED_COLUMN_STORE) {
           description->SetExtension(
-              CompressedColumnStoreTupleStorageSubBlockDescription::sort_attribute_id, sort_id);
+              CompressedColumnStoreTupleStorageSubBlockDescription::
+                  sort_attribute_id,
+              sort_id);
         }
       }
     }
@@ -756,21 +784,26 @@ StorageBlockLayoutDescription* Resolver::resolveBlockProperties(
     // If we compress all the columns in the relation.
     if (block_properties->compressAll()) {
       for (std::size_t attribute_id = 0;
-           attribute_id < create_table_statement.attribute_definition_list().size();
+           attribute_id <
+           create_table_statement.attribute_definition_list().size();
            ++attribute_id) {
         compressed_column_ids.push_back(attribute_id);
       }
     } else {
-      // Otherwise search through the relation, mapping attribute names to their id.
-      const PtrList<ParseString> *compress_parse_strings
-          = block_properties->getCompressed();
+      // Otherwise search through the relation, mapping attribute names to their
+      // id.
+      const PtrList<ParseString> *compress_parse_strings =
+          block_properties->getCompressed();
       if (compress_parse_strings == nullptr) {
-        THROW_SQL_ERROR_AT(block_properties)
-          << "The COMPRESS property must be specified as ALL or a list of attributes.";
+        THROW_SQL_ERROR_AT(block_properties) << "The COMPRESS property must be "
+                                                "specified as ALL or a list of "
+                                                "attributes.";
       }
-      for (const ParseString &compressed_attribute_name : *compress_parse_strings) {
-        const attribute_id column_id = GetAttributeIdFromName(create_table_statement.attribute_definition_list(),
-                                                              compressed_attribute_name.value());
+      for (const ParseString &compressed_attribute_name :
+           *compress_parse_strings) {
+        const attribute_id column_id = GetAttributeIdFromName(
+            create_table_statement.attribute_definition_list(),
+            compressed_attribute_name.value());
         if (column_id == kInvalidAttributeID) {
           THROW_SQL_ERROR_AT(&compressed_attribute_name)
               << "The given attribute was not found.";
@@ -784,15 +817,20 @@ StorageBlockLayoutDescription* Resolver::resolveBlockProperties(
       if (description->sub_block_type() ==
           TupleStorageSubBlockDescription::COMPRESSED_PACKED_ROW_STORE) {
         description->AddExtension(
-            CompressedPackedRowStoreTupleStorageSubBlockDescription::compressed_attribute_id, column_id);
+            CompressedPackedRowStoreTupleStorageSubBlockDescription::
+                compressed_attribute_id,
+            column_id);
       } else if (description->sub_block_type() ==
-          TupleStorageSubBlockDescription::COMPRESSED_COLUMN_STORE) {
+                 TupleStorageSubBlockDescription::COMPRESSED_COLUMN_STORE) {
         description->AddExtension(
-            CompressedColumnStoreTupleStorageSubBlockDescription::compressed_attribute_id, column_id);
+            CompressedColumnStoreTupleStorageSubBlockDescription::
+                compressed_attribute_id,
+            column_id);
       }
     }
   } else {
-    // If the user specified COMPRESS but the block type did not require it, throw.
+    // If the user specified COMPRESS but the block type did not require it,
+    // throw.
     if (block_properties->compressAll() ||
         block_properties->getCompressed() != nullptr) {
       THROW_SQL_ERROR_AT(type_parse_string)
@@ -802,9 +840,11 @@ StorageBlockLayoutDescription* Resolver::resolveBlockProperties(
   // Resolve the Block size (size -> # of slots).
   std::int64_t slots = kDefaultBlockSizeInSlots;
   if (block_properties->hasBlockSizeMb()) {
-    const std::int64_t block_size_in_mega_bytes = block_properties->getBlockSizeMbValue();
+    const std::int64_t block_size_in_mega_bytes =
+        block_properties->getBlockSizeMbValue();
     if (block_size_in_mega_bytes == -1) {
-      // Indicates an error condition if the property is present but getter returns -1.
+      // Indicates an error condition if the property is present but getter
+      // returns -1.
       THROW_SQL_ERROR_AT(block_properties->getBlockSizeMb())
           << "The BLOCKSIZEMB property must be an integer.";
     } else if ((block_size_in_mega_bytes * kAMegaByte) % kSlotSizeBytes != 0) {
@@ -815,10 +855,13 @@ StorageBlockLayoutDescription* Resolver::resolveBlockProperties(
 
     slots = (block_size_in_mega_bytes * kAMegaByte) / kSlotSizeBytes;
     DLOG(INFO) << "Resolver using BLOCKSIZEMB of " << slots << " slots"
-        << " which is " << (slots * kSlotSizeBytes) << " bytes versus"
-        << " user requested " << (block_size_in_mega_bytes * kAMegaByte) << " bytes.";
-    const std::uint64_t max_size_slots = kBlockSizeUpperBoundBytes / kSlotSizeBytes;
-    const std::uint64_t min_size_slots = kBlockSizeLowerBoundBytes / kSlotSizeBytes;
+               << " which is " << (slots * kSlotSizeBytes) << " bytes versus"
+               << " user requested " << (block_size_in_mega_bytes * kAMegaByte)
+               << " bytes.";
+    const std::uint64_t max_size_slots =
+        kBlockSizeUpperBoundBytes / kSlotSizeBytes;
+    const std::uint64_t min_size_slots =
+        kBlockSizeLowerBoundBytes / kSlotSizeBytes;
     if (static_cast<std::uint64_t>(slots) < min_size_slots ||
         static_cast<std::uint64_t>(slots) > max_size_slots) {
       THROW_SQL_ERROR_AT(block_properties->getBlockSizeMb())
@@ -832,9 +875,10 @@ StorageBlockLayoutDescription* Resolver::resolveBlockProperties(
   return storage_block_description.release();
 }
 
-const S::PartitionSchemeHeader* Resolver::resolvePartitionClause(
+const S::PartitionSchemeHeader *Resolver::resolvePartitionClause(
     const ParseStatementCreateTable &create_table_statement) {
-  const ParsePartitionClause *partition_clause = create_table_statement.opt_partition_clause();
+  const ParsePartitionClause *partition_clause =
+      create_table_statement.opt_partition_clause();
   if (partition_clause == nullptr) {
     return nullptr;
   }
@@ -852,22 +896,25 @@ const S::PartitionSchemeHeader* Resolver::resolvePartitionClause(
     proto->set_partition_type(S::PartitionSchemeHeader::HASH);
   } else if (partition_type == kRangePartitionType) {
     proto->set_partition_type(S::PartitionSchemeHeader::RANGE);
-    THROW_SQL_ERROR_AT(partition_clause)
-        << "Range partition is not supported.";
+    THROW_SQL_ERROR_AT(partition_clause) << "Range partition is not supported.";
   } else {
-    THROW_SQL_ERROR_AT(partition_type_string) << "Unrecognized partition type: " << partition_type;
+    THROW_SQL_ERROR_AT(partition_type_string) << "Unrecognized partition type: "
+                                              << partition_type;
   }
 
   proto->set_num_partitions(partition_clause->num_partitions()->long_value());
 
   std::unordered_set<attribute_id> unique_partition_attrs;
-  for (const ParseString &partition_attribute_name : partition_clause->attribute_name_list()) {
-    const attribute_id attr_id = GetAttributeIdFromName(create_table_statement.attribute_definition_list(),
-                                                        partition_attribute_name.value());
+  for (const ParseString &partition_attribute_name :
+       partition_clause->attribute_name_list()) {
+    const attribute_id attr_id = GetAttributeIdFromName(
+        create_table_statement.attribute_definition_list(),
+        partition_attribute_name.value());
     if (attr_id == kInvalidAttributeID) {
       THROW_SQL_ERROR_AT(&partition_attribute_name)
           << "The given attribute was not found.";
-    } else if (unique_partition_attrs.find(attr_id) != unique_partition_attrs.end()) {
+    } else if (unique_partition_attrs.find(attr_id) !=
+               unique_partition_attrs.end()) {
       THROW_SQL_ERROR_AT(&partition_attribute_name)
           << "A duplicate partition attribute was found.";
     }
@@ -889,22 +936,28 @@ L::LogicalPtr Resolver::resolveCreateIndex(
   const std::string &index_name = create_index_statement.index_name()->value();
 
   // Resolve attribute references.
-  const PtrList<ParseAttribute> *index_attributes = create_index_statement.attribute_list();
+  const PtrList<ParseAttribute> *index_attributes =
+      create_index_statement.attribute_list();
   const std::vector<E::AttributeReferencePtr> &relation_attributes =
       input->getOutputAttributes();
   std::vector<E::AttributeReferencePtr> resolved_attributes;
   if (index_attributes == nullptr) {
-    // Specify to build index on all the attributes, if no attribute was specified.
-    for (const E::AttributeReferencePtr &relation_attribute : relation_attributes) {
+    // Specify to build index on all the attributes, if no attribute was
+    // specified.
+    for (const E::AttributeReferencePtr &relation_attribute :
+         relation_attributes) {
       resolved_attributes.emplace_back(relation_attribute);
     }
   } else {
     // Otherwise specify to build index on the attributes that were given.
     for (const ParseAttribute &index_attribute : *index_attributes) {
       bool is_resolved = false;
-      for (const E::AttributeReferencePtr &relation_attribute : relation_attributes) {
-        const std::string &relation_attr_name = relation_attribute->attribute_name();
-        const std::string &index_attr_name = index_attribute.attr_name()->value();
+      for (const E::AttributeReferencePtr &relation_attribute :
+           relation_attributes) {
+        const std::string &relation_attr_name =
+            relation_attribute->attribute_name();
+        const std::string &index_attr_name =
+            index_attribute.attr_name()->value();
         if (relation_attr_name.compare(index_attr_name) == 0) {
           is_resolved = true;
           resolved_attributes.emplace_back(relation_attribute);
@@ -912,34 +965,41 @@ L::LogicalPtr Resolver::resolveCreateIndex(
         }
       }
       if (!is_resolved) {
-        THROW_SQL_ERROR_AT(&index_attribute) << "Attribute "<< index_attribute.attr_name()->value()
-            << " is undefined for the relation "<< create_index_statement.relation_name()->value();
+        THROW_SQL_ERROR_AT(&index_attribute)
+            << "Attribute " << index_attribute.attr_name()->value()
+            << " is undefined for the relation "
+            << create_index_statement.relation_name()->value();
       }
     }
   }
 
   // Resolve index properties.
   std::shared_ptr<const IndexSubBlockDescription> index_description_shared;
-  const IndexProperties *index_properties = create_index_statement.getIndexProperties();
+  const IndexProperties *index_properties =
+      create_index_statement.getIndexProperties();
   if (index_properties->isIndexPropertyValid()) {
-    // Create a deep copy of the index description and pass its ownership to the shared ptr.
-    std::unique_ptr<IndexSubBlockDescription> index_description(new IndexSubBlockDescription());
+    // Create a deep copy of the index description and pass its ownership to the
+    // shared ptr.
+    std::unique_ptr<IndexSubBlockDescription> index_description(
+        new IndexSubBlockDescription());
     index_description->CopyFrom(*index_properties->getIndexDescription());
     index_description_shared.reset(index_description.release());
     DCHECK(index_description_shared != nullptr);
   } else {
     if (index_properties->getInvalidPropertyNode() != nullptr) {
-      // If exact location is known in the parser, the error is thrown at that specific node.
+      // If exact location is known in the parser, the error is thrown at that
+      // specific node.
       THROW_SQL_ERROR_AT(index_properties->getInvalidPropertyNode())
           << index_properties->getReasonForInvalidIndexDescription();
     } else {
       // Else the error is thrown at the index name node.
       THROW_SQL_ERROR_AT(create_index_statement.index_type())
-         << index_properties->getReasonForInvalidIndexDescription();
+          << index_properties->getReasonForInvalidIndexDescription();
     }
   }
 
-  return L::CreateIndex::Create(input, index_name, resolved_attributes, index_description_shared);
+  return L::CreateIndex::Create(
+      input, index_name, resolved_attributes, index_description_shared);
 }
 
 L::LogicalPtr Resolver::resolveDelete(
@@ -1008,14 +1068,15 @@ L::LogicalPtr Resolver::resolveInsertSelection(
         << " columns are generated by the SELECT query";
   }
 
-  // Add cast operation if the selection column type does not match the destination
+  // Add cast operation if the selection column type does not match the
+  // destination
   // column type
   std::vector<E::NamedExpressionPtr> cast_expressions;
   for (std::vector<E::AttributeReferencePtr>::size_type aid = 0;
        aid < destination_attributes.size();
        ++aid) {
-    const Type& destination_type = destination_attributes[aid]->getValueType();
-    const Type& selection_type = selection_attributes[aid]->getValueType();
+    const Type &destination_type = destination_attributes[aid]->getValueType();
+    const Type &selection_type = selection_attributes[aid]->getValueType();
     if (destination_type.equals(selection_type)) {
       cast_expressions.emplace_back(selection_attributes[aid]);
     } else {
@@ -1040,7 +1101,7 @@ L::LogicalPtr Resolver::resolveInsertSelection(
             << selection_attributes[aid]->getValueType().getName()
             << ", which cannot be safely coerced to the column's type "
             << destination_attributes[aid]->getValueType().getName();
-     }
+      }
     }
   }
   return L::InsertSelection::Create(
@@ -1054,8 +1115,7 @@ L::LogicalPtr Resolver::resolveInsertTuple(
 
   const L::LogicalPtr input_logical = resolveSimpleTableReference(
       *insert_statement.relation_name(), nullptr /* reference alias */);
-  name_resolver.addRelation(insert_statement.relation_name(),
-                            input_logical);
+  name_resolver.addRelation(insert_statement.relation_name(), input_logical);
 
   // Resolve column values.
   const std::vector<E::AttributeReferencePtr> relation_attributes =
@@ -1066,7 +1126,8 @@ L::LogicalPtr Resolver::resolveInsertTuple(
   std::vector<std::vector<E::ScalarLiteralPtr>> resolved_column_values_list;
   DCHECK_GT(parse_column_values_list.size(), 0u);
 
-  for (const PtrList<ParseScalarLiteral> &parse_column_values : parse_column_values_list) {
+  for (const PtrList<ParseScalarLiteral> &parse_column_values :
+       parse_column_values_list) {
     DCHECK_GT(parse_column_values.size(), 0u);
 
     if (parse_column_values.size() > relation_attributes.size()) {
@@ -1142,8 +1203,7 @@ L::LogicalPtr Resolver::resolveUpdate(
   NameResolver name_resolver;
   const L::LogicalPtr input = resolveSimpleTableReference(
       *update_statement.relation_name(), nullptr /* reference_alias */);
-  name_resolver.addRelation(update_statement.relation_name(),
-                            input);
+  name_resolver.addRelation(update_statement.relation_name(), input);
 
   // Resolve the assigned attributes and expressions.
   std::vector<E::AttributeReferencePtr> assignees;
@@ -1167,16 +1227,16 @@ L::LogicalPtr Resolver::resolveUpdate(
     if (!attribute->getValueType().isSafelyCoercibleFrom(
             assignment_expression->getValueType())) {
       THROW_SQL_ERROR_AT(&assignment)
-          << "The assigned value for the column "
-          << attribute->attribute_name() << " has the type "
-          << assignment_expression->getValueType().getName()
+          << "The assigned value for the column " << attribute->attribute_name()
+          << " has the type " << assignment_expression->getValueType().getName()
           << ", which cannot be safely coerced to the column's type "
           << attribute->getValueType().getName();
     }
 
     // Coerce the assignment expression if its Type is not equal to that of the
     // assigned attribute.
-    if (!assignment_expression->getValueType().equals(attribute->getValueType())) {
+    if (!assignment_expression->getValueType().equals(
+            attribute->getValueType())) {
       assignment_expression =
           E::Cast::Create(assignment_expression, attribute->getValueType());
     }
@@ -1193,24 +1253,24 @@ L::LogicalPtr Resolver::resolveUpdate(
   expressions::PredicatePtr resolved_where_predicate;
   if (update_statement.hasWherePredicate()) {
     ExpressionResolutionInfo expr_resolution_info(
-        name_resolver, "WHERE clause" /* clause_name */,
+        name_resolver,
+        "WHERE clause" /* clause_name */,
         nullptr /* select_list_info */);
     resolved_where_predicate = resolvePredicate(
         update_statement.where_predicate(), &expr_resolution_info);
   }
 
-  return L::UpdateTable::Create(input,
-                                assignees,
-                                assignment_expressions,
-                                resolved_where_predicate);
+  return L::UpdateTable::Create(
+      input, assignees, assignment_expressions, resolved_where_predicate);
 }
 
 L::LogicalPtr Resolver::resolveSelect(
     const ParseSelect &select_query,
     const std::string &select_name,
-    const std::vector<const Type*> *type_hints,
+    const std::vector<const Type *> *type_hints,
     const NameResolver *parent_resolver) {
-  std::unique_ptr<NameResolver> name_resolver(new NameResolver(parent_resolver));
+  std::unique_ptr<NameResolver> name_resolver(
+      new NameResolver(parent_resolver));
 
   // Resolve FROM clause.
   L::LogicalPtr logical_plan;
@@ -1220,7 +1280,8 @@ L::LogicalPtr Resolver::resolveSelect(
   // Resolve WHERE clause.
   if (select_query.hasWherePredicate()) {
     ExpressionResolutionInfo expr_resolution_info(
-        *name_resolver, "WHERE clause" /* clause_name */,
+        *name_resolver,
+        "WHERE clause" /* clause_name */,
         nullptr /* select_list_info */);
     const ParsePredicate &parse_predicate = select_query.where_predicate();
     logical_plan = L::Filter::Create(
@@ -1239,14 +1300,15 @@ L::LogicalPtr Resolver::resolveSelect(
     for (const ParseWindow &window : *select_query.window_list()) {
       // Check for duplicate definition.
       // Currently this is useless since we only support one window.
-      if (sorted_window_map.find(window.name()->value()) != sorted_window_map.end()) {
-        THROW_SQL_ERROR_AT(window.name())
-            << "Duplicate definition of window " << window.name()->value();
+      if (sorted_window_map.find(window.name()->value()) !=
+          sorted_window_map.end()) {
+        THROW_SQL_ERROR_AT(window.name()) << "Duplicate definition of window "
+                                          << window.name()->value();
       }
 
       E::WindowInfo resolved_window = resolveWindow(window, *name_resolver);
-      L::LogicalPtr sorted_logical_plan = resolveSortInWindow(logical_plan,
-                                                              resolved_window);
+      L::LogicalPtr sorted_logical_plan =
+          resolveSortInWindow(logical_plan, resolved_window);
 
       WindowPlan window_plan(sorted_logical_plan, std::move(resolved_window));
 
@@ -1276,10 +1338,11 @@ L::LogicalPtr Resolver::resolveSelect(
                                   has_aggregate_per_expression);
 
   // Create window aggregate node if needed
-  for (const E::AliasPtr &alias : window_aggregation_info.window_aggregate_expressions) {
+  for (const E::AliasPtr &alias :
+       window_aggregation_info.window_aggregate_expressions) {
     E::WindowAggregateFunctionPtr window_aggregate_function;
-    if (!E::SomeWindowAggregateFunction::MatchesWithConditionalCast(alias->expression(),
-                                                                    &window_aggregate_function)) {
+    if (!E::SomeWindowAggregateFunction::MatchesWithConditionalCast(
+            alias->expression(), &window_aggregate_function)) {
       THROW_SQL_ERROR()
           << "Unexpected expression in window aggregation function";
     }
@@ -1290,12 +1353,11 @@ L::LogicalPtr Resolver::resolveSelect(
     if (!window_name.empty()) {
       sorted_logical_plan = sorted_window_map.at(window_name).logical_plan;
     } else {
-      sorted_logical_plan = resolveSortInWindow(logical_plan,
-                                                window_aggregate_function->window_info());
+      sorted_logical_plan = resolveSortInWindow(
+          logical_plan, window_aggregate_function->window_info());
     }
 
-    logical_plan = L::WindowAggregate::Create(sorted_logical_plan,
-                                              alias);
+    logical_plan = L::WindowAggregate::Create(sorted_logical_plan, alias);
   }
 
   // Resolve GROUP BY.
@@ -1304,12 +1366,13 @@ L::LogicalPtr Resolver::resolveSelect(
     for (const ParseExpression &unresolved_group_by_expression :
          *select_query.group_by()->grouping_expressions()) {
       ExpressionResolutionInfo expr_resolution_info(
-          *name_resolver, "GROUP BY clause" /* clause_name */,
+          *name_resolver,
+          "GROUP BY clause" /* clause_name */,
           &select_list_info);
-      E::ScalarPtr group_by_scalar = resolveExpression(
-          unresolved_group_by_expression,
-          nullptr,  // No Type hint.
-          &expr_resolution_info);
+      E::ScalarPtr group_by_scalar =
+          resolveExpression(unresolved_group_by_expression,
+                            nullptr,  // No Type hint.
+                            &expr_resolution_info);
 
       // Rewrite it to a reference to a SELECT-list expression
       // if it is an ordinal reference.
@@ -1326,16 +1389,15 @@ L::LogicalPtr Resolver::resolveSelect(
       // If the group by expression is not a named expression,
       // wrap it with an Alias.
       E::NamedExpressionPtr group_by_expression;
-      if (!E::SomeNamedExpression::MatchesWithConditionalCast(group_by_scalar,
-                                                              &group_by_expression)) {
+      if (!E::SomeNamedExpression::MatchesWithConditionalCast(
+              group_by_scalar, &group_by_expression)) {
         const std::string internal_alias =
             GenerateGroupingAttributeAlias(group_by_expressions.size());
-        group_by_expression = E::Alias::Create(
-            context_->nextExprId(),
-            group_by_scalar,
-            "" /* attribute_name */,
-            internal_alias,
-            "$groupby" /* relation_name */);
+        group_by_expression = E::Alias::Create(context_->nextExprId(),
+                                               group_by_scalar,
+                                               "" /* attribute_name */,
+                                               internal_alias,
+                                               "$groupby" /* relation_name */);
       }
       group_by_expressions.push_back(group_by_expression);
     }
@@ -1344,8 +1406,10 @@ L::LogicalPtr Resolver::resolveSelect(
   // Resolve HAVING.
   E::PredicatePtr having_predicate;
   if (select_query.having() != nullptr) {
-    ExpressionResolutionInfo expr_resolution_info(
-        *name_resolver, &query_aggregation_info, &window_aggregation_info, &select_list_info);
+    ExpressionResolutionInfo expr_resolution_info(*name_resolver,
+                                                  &query_aggregation_info,
+                                                  &window_aggregation_info,
+                                                  &select_list_info);
     having_predicate = resolvePredicate(
         *select_query.having()->having_predicate(), &expr_resolution_info);
   }
@@ -1358,17 +1422,21 @@ L::LogicalPtr Resolver::resolveSelect(
   if (select_query.order_by() != nullptr) {
     for (const ParseOrderByItem &order_by_item :
          *select_query.order_by()->order_by_items()) {
-      ExpressionResolutionInfo expr_resolution_info(
-          *name_resolver, &query_aggregation_info, &window_aggregation_info, &select_list_info);
-      E::ScalarPtr order_by_scalar = resolveExpression(
-          *order_by_item.ordering_expression(),
-          nullptr,  // No Type hint.
-          &expr_resolution_info);
+      ExpressionResolutionInfo expr_resolution_info(*name_resolver,
+                                                    &query_aggregation_info,
+                                                    &window_aggregation_info,
+                                                    &select_list_info);
+      E::ScalarPtr order_by_scalar =
+          resolveExpression(*order_by_item.ordering_expression(),
+                            nullptr,  // No Type hint.
+                            &expr_resolution_info);
 
       // Rewrite it to a reference to a SELECT-list expression
       // if it is an ordinal reference.
-      rewriteIfOrdinalReference(&order_by_item, expr_resolution_info,
-                                &select_list_info, &order_by_scalar);
+      rewriteIfOrdinalReference(&order_by_item,
+                                expr_resolution_info,
+                                &select_list_info,
+                                &order_by_scalar);
 
       if (order_by_scalar->isConstant()) {
         THROW_SQL_ERROR_AT(&order_by_item)
@@ -1404,9 +1472,8 @@ L::LogicalPtr Resolver::resolveSelect(
     }
 
     // First check all SELECT-list expressions.
-    validateSelectExpressionsForAggregation(select_query.selection(),
-                                            select_list_expressions,
-                                            visible_expr_id_set);
+    validateSelectExpressionsForAggregation(
+        select_query.selection(), select_list_expressions, visible_expr_id_set);
 
     // Now we have validated all SELECT-list expressions,
     // add them to the visible expression set.
@@ -1418,13 +1485,13 @@ L::LogicalPtr Resolver::resolveSelect(
     // Next check the HAVING predicate and ordering expressions.
     if (select_query.having() != nullptr) {
       validateExpressionForAggregation(
-          select_query.having()->having_predicate(), having_predicate,
+          select_query.having()->having_predicate(),
+          having_predicate,
           visible_expr_id_set);
     }
     if (select_query.order_by() != nullptr) {
-      validateOrderingExpressionsForAggregation(*select_query.order_by(),
-                                                order_by_expressions,
-                                                visible_expr_id_set);
+      validateOrderingExpressionsForAggregation(
+          *select_query.order_by(), order_by_expressions, visible_expr_id_set);
     }
   }
 
@@ -1436,7 +1503,8 @@ L::LogicalPtr Resolver::resolveSelect(
   if (need_aggregate) {
     // Add an aggregate node.
     logical_plan =
-        L::Aggregate::Create(logical_plan, group_by_expressions,
+        L::Aggregate::Create(logical_plan,
+                             group_by_expressions,
                              query_aggregation_info.aggregate_expressions);
 
     // Add a Project if we need to precompute some SELECT-list columns
@@ -1458,8 +1526,8 @@ L::LogicalPtr Resolver::resolveSelect(
     std::vector<E::AttributeReferencePtr> order_by_attributes;
     for (const E::ScalarPtr &order_by_expression : order_by_expressions) {
       E::AttributeReferencePtr order_by_attribute;
-      if (!E::SomeAttributeReference::MatchesWithConditionalCast(order_by_expression,
-                                                                 &order_by_attribute)) {
+      if (!E::SomeAttributeReference::MatchesWithConditionalCast(
+              order_by_expression, &order_by_attribute)) {
         const std::string internal_alias =
             GenerateOrderingAttributeAlias(wrap_project_expressions.size());
         const E::AliasPtr computed_order_by_expression =
@@ -1475,8 +1543,8 @@ L::LogicalPtr Resolver::resolveSelect(
     }
 
     if (!wrap_project_expressions.empty()) {
-      const std::vector<expressions::AttributeReferencePtr> child_project_attributes =
-          logical_plan->getOutputAttributes();
+      const std::vector<expressions::AttributeReferencePtr>
+          child_project_attributes = logical_plan->getOutputAttributes();
       wrap_project_expressions.insert(wrap_project_expressions.end(),
                                       child_project_attributes.begin(),
                                       child_project_attributes.end());
@@ -1484,19 +1552,18 @@ L::LogicalPtr Resolver::resolveSelect(
     }
 
     if (select_query.limit() != nullptr) {
-      logical_plan =
-          L::Sort::Create(logical_plan,
-                          std::move(order_by_attributes),
-                          std::move(order_by_directions),
-                          std::move(nulls_first),
-                          select_query.limit()->limit_expression()->long_value());
+      logical_plan = L::Sort::Create(
+          logical_plan,
+          std::move(order_by_attributes),
+          std::move(order_by_directions),
+          std::move(nulls_first),
+          select_query.limit()->limit_expression()->long_value());
     } else {
-      logical_plan =
-          L::Sort::Create(logical_plan,
-                          std::move(order_by_attributes),
-                          std::move(order_by_directions),
-                          std::move(nulls_first),
-                          -1 /* limit */);
+      logical_plan = L::Sort::Create(logical_plan,
+                                     std::move(order_by_attributes),
+                                     std::move(order_by_directions),
+                                     std::move(nulls_first),
+                                     -1 /* limit */);
     }
   } else if (select_query.limit() != nullptr) {
     THROW_SQL_ERROR_AT(select_query.limit())
@@ -1511,9 +1578,9 @@ L::LogicalPtr Resolver::resolveSelect(
 L::LogicalPtr Resolver::resolveSetOperations(
     const ParseSetOperation &parse_set_operations,
     const std::string &set_operation_name,
-    const std::vector<const Type*> *type_hints,
+    const std::vector<const Type *> *type_hints,
     const NameResolver *parent_resolver) {
-  std::vector<const ParseSetOperation*> operands;
+  std::vector<const ParseSetOperation *> operands;
   CollapseSetOperation(parse_set_operations, parse_set_operations, &operands);
 
   DCHECK_LT(1u, operands.size());
@@ -1522,9 +1589,10 @@ L::LogicalPtr Resolver::resolveSetOperations(
 
   // Resolve the first operation, and get the output attributes.
   auto iter = operands.begin();
-  const ParseSetOperation &operation = static_cast<const ParseSetOperation&>(**iter);
-  L::LogicalPtr operation_logical =
-      resolveSetOperation(operation, set_operation_name, type_hints, parent_resolver);
+  const ParseSetOperation &operation =
+      static_cast<const ParseSetOperation &>(**iter);
+  L::LogicalPtr operation_logical = resolveSetOperation(
+      operation, set_operation_name, type_hints, parent_resolver);
   const std::vector<E::AttributeReferencePtr> operation_attributes =
       operation_logical->getOutputAttributes();
   attribute_matrix.push_back(operation_attributes);
@@ -1533,9 +1601,9 @@ L::LogicalPtr Resolver::resolveSetOperations(
   // Resolve the rest operations, and check the size of output attributes.
   for (++iter; iter != operands.end(); ++iter) {
     const ParseSetOperation &current_operation =
-        static_cast<const ParseSetOperation&>(**iter);
-    L::LogicalPtr current_logical =
-        resolveSetOperation(current_operation, set_operation_name, type_hints, parent_resolver);
+        static_cast<const ParseSetOperation &>(**iter);
+    L::LogicalPtr current_logical = resolveSetOperation(
+        current_operation, set_operation_name, type_hints, parent_resolver);
     attribute_matrix.emplace_back(current_logical->getOutputAttributes());
 
     // Check output attributes size.
@@ -1543,15 +1611,16 @@ L::LogicalPtr Resolver::resolveSetOperations(
     if (attribute_matrix.back().size() != operation_attributes.size()) {
       THROW_SQL_ERROR_AT(&current_operation)
           << "Can not perform " << parse_set_operations.getName()
-          << "opeartion between " << std::to_string(attribute_matrix.back().size())
-          << "and " << std::to_string(operation_attributes.size())
-          << "columns";
+          << "opeartion between "
+          << std::to_string(attribute_matrix.back().size()) << "and "
+          << std::to_string(operation_attributes.size()) << "columns";
     }
 
     resolved_operations.push_back(current_logical);
   }
 
-  // Get the possible output attributes that the attributes of all operands can cast to.
+  // Get the possible output attributes that the attributes of all operands can
+  // cast to.
   std::vector<E::AttributeReferencePtr> possible_attributes;
   for (std::size_t aid = 0; aid < operation_attributes.size(); ++aid) {
     E::AttributeReferencePtr possible_attribute = attribute_matrix[0][aid];
@@ -1572,14 +1641,12 @@ L::LogicalPtr Resolver::resolveSetOperations(
             // Throw an SQL error.
             THROW_SQL_ERROR_AT(&parse_set_operations)
                 << "There is not a safely coerce between "
-                << current_type.getName()
-                << " and " << possible_type.getName();
+                << current_type.getName() << " and " << possible_type.getName();
           }
         } else {
           THROW_SQL_ERROR_AT(&parse_set_operations)
               << "Does not support cast operation with non-numeric types "
-              << current_type.getName()
-              << " and " << possible_type.getName();
+              << current_type.getName() << " and " << possible_type.getName();
         }
       }
     }
@@ -1603,7 +1670,8 @@ L::LogicalPtr Resolver::resolveSetOperations(
                              current_attr->attribute_alias()));
       }
     }
-    resolved_operations[opid] = L::Project::Create(resolved_operations[opid], cast_expressions);
+    resolved_operations[opid] =
+        L::Project::Create(resolved_operations[opid], cast_expressions);
   }
 
   std::vector<E::AttributeReferencePtr> output_attributes;
@@ -1637,25 +1705,21 @@ L::LogicalPtr Resolver::resolveSetOperations(
 L::LogicalPtr Resolver::resolveSetOperation(
     const ParseSetOperation &set_operation_query,
     const std::string &set_operation_name,
-    const std::vector<const Type*> *type_hints,
+    const std::vector<const Type *> *type_hints,
     const NameResolver *parent_resolver) {
   switch (set_operation_query.getOperationType()) {
     case ParseSetOperation::kIntersect:
     case ParseSetOperation::kUnion:
     case ParseSetOperation::kUnionAll: {
-      return resolveSetOperations(set_operation_query,
-                                  set_operation_name,
-                                  type_hints,
-                                  parent_resolver);
+      return resolveSetOperations(
+          set_operation_query, set_operation_name, type_hints, parent_resolver);
     }
     case ParseSetOperation::kSelect: {
       DCHECK_EQ(1u, set_operation_query.operands().size());
-      const ParseSelect &select_query =
-          static_cast<const ParseSelect&>(set_operation_query.operands().front());
-      return resolveSelect(select_query,
-                           set_operation_name,
-                           type_hints,
-                           parent_resolver);
+      const ParseSelect &select_query = static_cast<const ParseSelect &>(
+          set_operation_query.operands().front());
+      return resolveSelect(
+          select_query, set_operation_name, type_hints, parent_resolver);
     }
     default:
       LOG(FATAL) << "Unknown set operation: " << set_operation_query.toString();
@@ -1665,10 +1729,9 @@ L::LogicalPtr Resolver::resolveSetOperation(
 
 E::SubqueryExpressionPtr Resolver::resolveSubqueryExpression(
     const ParseSubqueryExpression &parse_subquery_expression,
-    const std::vector<const Type*> *type_hints,
+    const std::vector<const Type *> *type_hints,
     ExpressionResolutionInfo *expression_resolution_info,
     const bool has_single_column) {
-
   // Subquery is now a set operation, not only a select operation
   L::LogicalPtr logical_subquery =
       resolveSetOperation(*parse_subquery_expression.set_operation(),
@@ -1678,7 +1741,8 @@ E::SubqueryExpressionPtr Resolver::resolveSubqueryExpression(
 
   // Raise SQL error if the subquery is expected to return only one column but
   // it returns multiple columns.
-  if (has_single_column && logical_subquery->getOutputAttributes().size() > 1u) {
+  if (has_single_column &&
+      logical_subquery->getOutputAttributes().size() > 1u) {
     THROW_SQL_ERROR_AT(&parse_subquery_expression)
         << "Subquery must return exactly one column";
   }
@@ -1710,8 +1774,8 @@ void Resolver::appendProjectIfNeedPrecomputationBeforeAggregation(
     }
   }
   if (!precomputed_expressions.empty()) {
-    const std::vector<expressions::AttributeReferencePtr> child_project_attributes =
-        (*logical_plan)->getOutputAttributes();
+    const std::vector<expressions::AttributeReferencePtr>
+        child_project_attributes = (*logical_plan)->getOutputAttributes();
     precomputed_expressions.insert(precomputed_expressions.end(),
                                    child_project_attributes.begin(),
                                    child_project_attributes.end());
@@ -1727,14 +1791,16 @@ void Resolver::appendProjectIfNeedPrecomputationAfterAggregation(
             select_list_expressions->size());
 
   std::vector<E::NamedExpressionPtr> precomputed_expressions;
-  for (std::vector<E::NamedExpressionPtr>::size_type idx = 0; idx < select_list_expressions->size(); ++idx) {
+  for (std::vector<E::NamedExpressionPtr>::size_type idx = 0;
+       idx < select_list_expressions->size();
+       ++idx) {
     // Precompute expressions that contain aggregations and
     // is not a simple wrapper of an attribute reference..
     if (select_list_info.is_referenced[idx] &&
         select_list_info.has_aggregate_per_expression[idx]) {
       E::AliasPtr select_alias;
-      CHECK(E::SomeAlias::MatchesWithConditionalCast((*select_list_expressions)[idx],
-                                                     &select_alias));
+      CHECK(E::SomeAlias::MatchesWithConditionalCast(
+          (*select_list_expressions)[idx], &select_alias));
       if (!E::SomeAttributeReference::Matches(select_alias->expression())) {
         precomputed_expressions.push_back((*select_list_expressions)[idx]);
         (*select_list_expressions)[idx] =
@@ -1743,8 +1809,8 @@ void Resolver::appendProjectIfNeedPrecomputationAfterAggregation(
     }
   }
   if (!precomputed_expressions.empty()) {
-    const std::vector<expressions::AttributeReferencePtr> child_project_attributes =
-        (*logical_plan)->getOutputAttributes();
+    const std::vector<expressions::AttributeReferencePtr>
+        child_project_attributes = (*logical_plan)->getOutputAttributes();
     precomputed_expressions.insert(precomputed_expressions.end(),
                                    child_project_attributes.begin(),
                                    child_project_attributes.end());
@@ -1761,7 +1827,9 @@ void Resolver::reportIfWithClauseUnused(
         with_list[unreferenced_with_query_index];
     THROW_SQL_ERROR_AT(&unreferenced_with_query)
         << "WITH query "
-        << unreferenced_with_query.table_reference_signature()->table_alias()->value()
+        << unreferenced_with_query.table_reference_signature()
+               ->table_alias()
+               ->value()
         << " is defined but not used";
   }
 }
@@ -1773,17 +1841,16 @@ void Resolver::validateSelectExpressionsForAggregation(
   if (parse_selection.getSelectionType() == ParseSelectionClause::kStar) {
     for (const E::NamedExpressionPtr &select_list_expression :
          select_list_expressions) {
-      validateExpressionForAggregation(&parse_selection,
-                                       select_list_expression,
-                                       visible_expr_id_set);
+      validateExpressionForAggregation(
+          &parse_selection, select_list_expression, visible_expr_id_set);
     }
   } else {
     DCHECK_EQ(select_list_expressions.size(),
-              static_cast<const ParseSelectionList&>(parse_selection)
+              static_cast<const ParseSelectionList &>(parse_selection)
                   .select_item_list()
                   .size());
     PtrList<ParseSelectionItem>::const_iterator parse_item_it =
-        static_cast<const ParseSelectionList&>(parse_selection)
+        static_cast<const ParseSelectionList &>(parse_selection)
             .select_item_list()
             .begin();
     std::vector<E::NamedExpressionPtr>::const_iterator select_expression_it =
@@ -1813,16 +1880,16 @@ void Resolver::validateOrderingExpressionsForAggregation(
   std::vector<E::ScalarPtr>::const_iterator order_by_expression_it =
       order_by_expressions.begin();
   while (order_by_expression_it != order_by_expressions.end()) {
-    validateExpressionForAggregation(&(*parse_item_it),
-                                     *order_by_expression_it,
-                                     visible_expr_id_set);
+    validateExpressionForAggregation(
+        &(*parse_item_it), *order_by_expression_it, visible_expr_id_set);
     ++parse_item_it;
     ++order_by_expression_it;
   }
 }
 
 void Resolver::validateExpressionForAggregation(
-    const ParseTreeNode *location, const E::ExpressionPtr &expression,
+    const ParseTreeNode *location,
+    const E::ExpressionPtr &expression,
     const std::unordered_set<E::ExprId> &visible_expr_id_set) const {
   if (expression->getNumChildren() > 0) {
     for (const E::ExpressionPtr &child : expression->children()) {
@@ -1830,7 +1897,8 @@ void Resolver::validateExpressionForAggregation(
     }
   } else {
     E::AttributeReferencePtr attribute_reference;
-    if (E::SomeAttributeReference::MatchesWithConditionalCast(expression, &attribute_reference) &&
+    if (E::SomeAttributeReference::MatchesWithConditionalCast(
+            expression, &attribute_reference) &&
         visible_expr_id_set.find(attribute_reference->id()) ==
             visible_expr_id_set.end()) {
       THROW_SQL_ERROR_AT(location)
@@ -1850,16 +1918,19 @@ void Resolver::resolveWithClause(
     with_queries_info_.with_query_plans.emplace_back(
         resolveTableReference(with_table_reference, &name_resolver));
 
-    const ParseString *reference_alias = with_table_reference.table_reference_signature()->table_alias();
+    const ParseString *reference_alias =
+        with_table_reference.table_reference_signature()->table_alias();
     const std::string lower_alias_name = ToLower(reference_alias->value());
-    if (with_queries_info_.with_query_name_to_vector_position.find(lower_alias_name)
-            != with_queries_info_.with_query_name_to_vector_position.end()) {
-      THROW_SQL_ERROR_AT(reference_alias)
-          << "WITH query name " << reference_alias->value()
-          << " is specified more than once";
+    if (with_queries_info_.with_query_name_to_vector_position.find(
+            lower_alias_name) !=
+        with_queries_info_.with_query_name_to_vector_position.end()) {
+      THROW_SQL_ERROR_AT(reference_alias) << "WITH query name "
+                                          << reference_alias->value()
+                                          << " is specified more than once";
     }
 
-    with_queries_info_.with_query_name_to_vector_position.emplace(lower_alias_name, index);
+    with_queries_info_.with_query_name_to_vector_position.emplace(
+        lower_alias_name, index);
     with_queries_info_.unreferenced_query_indexes.insert(index);
     ++index;
   }
@@ -1882,16 +1953,17 @@ L::LogicalPtr Resolver::resolveFromClause(
   }
 }
 
-L::LogicalPtr Resolver::resolveTableReference(const ParseTableReference &table_reference,
-                                              NameResolver *name_resolver) {
+L::LogicalPtr Resolver::resolveTableReference(
+    const ParseTableReference &table_reference, NameResolver *name_resolver) {
   L::LogicalPtr logical_plan;
   const ParseString *reference_alias = nullptr;
-  const ParseTableReferenceSignature *reference_signature = table_reference.table_reference_signature();
+  const ParseTableReferenceSignature *reference_signature =
+      table_reference.table_reference_signature();
 
   switch (table_reference.getTableReferenceType()) {
     case ParseTableReference::kSimpleTableReference: {
       const ParseSimpleTableReference &simple_table_reference =
-          static_cast<const ParseSimpleTableReference&>(table_reference);
+          static_cast<const ParseSimpleTableReference &>(table_reference);
 
       if (reference_signature == nullptr) {
         reference_alias = simple_table_reference.table_name();
@@ -1900,27 +1972,32 @@ L::LogicalPtr Resolver::resolveTableReference(const ParseTableReference &table_r
         reference_alias = reference_signature->table_alias();
       }
 
-      logical_plan = resolveSimpleTableReference(*simple_table_reference.table_name(), reference_alias);
+      logical_plan = resolveSimpleTableReference(
+          *simple_table_reference.table_name(), reference_alias);
 
-      if (reference_signature != nullptr && reference_signature->column_aliases() != nullptr) {
+      if (reference_signature != nullptr &&
+          reference_signature->column_aliases() != nullptr) {
         logical_plan = RenameOutputColumns(logical_plan, *reference_signature);
       }
-      // Create a logical sample operator. Applicable only if \p the table is materialized.
+      // Create a logical sample operator. Applicable only if \p the table is
+      // materialized.
       // Sampling from subquery table references is not supported.
       if (simple_table_reference.sample() != nullptr) {
-        logical_plan = L::Sample::Create(logical_plan,
-        simple_table_reference.sample()->is_block_sample(),
-        simple_table_reference.sample()->percentage()->long_value());
+        logical_plan = L::Sample::Create(
+            logical_plan,
+            simple_table_reference.sample()->is_block_sample(),
+            simple_table_reference.sample()->percentage()->long_value());
       }
       name_resolver->addRelation(reference_alias, logical_plan);
       break;
     }
     case ParseTableReference::kGeneratorTableReference: {
       const ParseGeneratorTableReference &generator_table_reference =
-          static_cast<const ParseGeneratorTableReference&>(table_reference);
+          static_cast<const ParseGeneratorTableReference &>(table_reference);
 
       if (reference_signature == nullptr) {
-        reference_alias = generator_table_reference.generator_function()->name();
+        reference_alias =
+            generator_table_reference.generator_function()->name();
       } else {
         DCHECK(reference_signature->table_alias() != nullptr);
         reference_alias = reference_signature->table_alias();
@@ -1929,7 +2006,8 @@ L::LogicalPtr Resolver::resolveTableReference(const ParseTableReference &table_r
       logical_plan = resolveGeneratorTableReference(generator_table_reference,
                                                     reference_alias);
 
-      if (reference_signature != nullptr && reference_signature->column_aliases() != nullptr) {
+      if (reference_signature != nullptr &&
+          reference_signature->column_aliases() != nullptr) {
         logical_plan = RenameOutputColumns(logical_plan, *reference_signature);
       }
 
@@ -1944,7 +2022,9 @@ L::LogicalPtr Resolver::resolveTableReference(const ParseTableReference &table_r
 
       reference_alias = reference_signature->table_alias();
       logical_plan = resolveSetOperation(
-          *static_cast<const ParseSubqueryTableReference&>(table_reference).subquery_expr()->set_operation(),
+          *static_cast<const ParseSubqueryTableReference &>(table_reference)
+               .subquery_expr()
+               ->set_operation(),
           reference_alias->value(),
           nullptr /* type_hints */,
           nullptr /* parent_resolver */);
@@ -1960,7 +2040,7 @@ L::LogicalPtr Resolver::resolveTableReference(const ParseTableReference &table_r
       NameResolver joined_table_name_resolver;
 
       logical_plan = resolveJoinedTableReference(
-          static_cast<const ParseJoinedTableReference&>(table_reference),
+          static_cast<const ParseJoinedTableReference &>(table_reference),
           &joined_table_name_resolver);
 
       name_resolver->merge(&joined_table_name_resolver);
@@ -1976,8 +2056,7 @@ L::LogicalPtr Resolver::resolveTableReference(const ParseTableReference &table_r
 L::LogicalPtr Resolver::RenameOutputColumns(
     const L::LogicalPtr &logical_plan,
     const ParseTableReferenceSignature &table_signature) {
-  const PtrList<ParseString> *column_aliases =
-      table_signature.column_aliases();
+  const PtrList<ParseString> *column_aliases = table_signature.column_aliases();
   const std::vector<E::AttributeReferencePtr> output_attributes =
       logical_plan->getOutputAttributes();
 
@@ -1987,18 +2066,19 @@ L::LogicalPtr Resolver::RenameOutputColumns(
   std::vector<E::NamedExpressionPtr> project_expressions;
   if (column_aliases->size() != output_attributes.size()) {
     THROW_SQL_ERROR_AT(&table_signature)
-        << "The number of named columns is different from the number of table columns ("
-        << std::to_string(column_aliases->size()) << " vs. " << std::to_string(output_attributes.size()) << ")";
+        << "The number of named columns is different from the number of table "
+           "columns ("
+        << std::to_string(column_aliases->size()) << " vs. "
+        << std::to_string(output_attributes.size()) << ")";
   }
 
   int attr_index = 0;
   for (const ParseString &column_alias : *column_aliases) {
     project_expressions.emplace_back(
-        E::Alias::Create(
-            context_->nextExprId(),
-            output_attributes[attr_index],
-            column_alias.value(),
-            column_alias.value()));
+        E::Alias::Create(context_->nextExprId(),
+                         output_attributes[attr_index],
+                         column_alias.value(),
+                         column_alias.value()));
     ++attr_index;
   }
 
@@ -2021,10 +2101,10 @@ E::WindowInfo Resolver::resolveWindow(const ParseWindow &parse_window,
           name_resolver,
           "PARTITION BY clause" /* clause_name */,
           nullptr /* select_list_info */);
-      E::ScalarPtr partition_by_scalar = resolveExpression(
-          unresolved_partition_by_expression,
-          nullptr,  // No Type hint.
-          &expr_resolution_info);
+      E::ScalarPtr partition_by_scalar =
+          resolveExpression(unresolved_partition_by_expression,
+                            nullptr,  // No Type hint.
+                            &expr_resolution_info);
 
       if (partition_by_scalar->isConstant()) {
         THROW_SQL_ERROR_AT(&unresolved_partition_by_expression)
@@ -2032,10 +2112,11 @@ E::WindowInfo Resolver::resolveWindow(const ParseWindow &parse_window,
       }
 
       E::AttributeReferencePtr partition_by_attribute;
-      if (!E::SomeAttributeReference::MatchesWithConditionalCast(partition_by_scalar,
-                                                                 &partition_by_attribute)) {
+      if (!E::SomeAttributeReference::MatchesWithConditionalCast(
+              partition_by_scalar, &partition_by_attribute)) {
         THROW_SQL_ERROR_AT(&unresolved_partition_by_expression)
-            << "Only attribute name allowed in PARTITION BY in window definition";
+            << "Only attribute name allowed in PARTITION BY in window "
+               "definition";
       }
 
       partition_by_attributes.push_back(partition_by_attribute);
@@ -2050,10 +2131,10 @@ E::WindowInfo Resolver::resolveWindow(const ParseWindow &parse_window,
           name_resolver,
           "ORDER BY clause" /* clause name */,
           nullptr /* select_list_info */);
-      E::ScalarPtr order_by_scalar = resolveExpression(
-          *order_by_item.ordering_expression(),
-          nullptr,  // No Type hint.
-          &expr_resolution_info);
+      E::ScalarPtr order_by_scalar =
+          resolveExpression(*order_by_item.ordering_expression(),
+                            nullptr,  // No Type hint.
+                            &expr_resolution_info);
 
       if (order_by_scalar->isConstant()) {
         THROW_SQL_ERROR_AT(&order_by_item)
@@ -2061,8 +2142,8 @@ E::WindowInfo Resolver::resolveWindow(const ParseWindow &parse_window,
       }
 
       E::AttributeReferencePtr order_by_attribute;
-      if (!E::SomeAttributeReference::MatchesWithConditionalCast(order_by_scalar,
-                                                                 &order_by_attribute)) {
+      if (!E::SomeAttributeReference::MatchesWithConditionalCast(
+              order_by_scalar, &order_by_attribute)) {
         THROW_SQL_ERROR_AT(&order_by_item)
             << "Only attribute name allowed in ORDER BY in window definition";
       }
@@ -2075,7 +2156,8 @@ E::WindowInfo Resolver::resolveWindow(const ParseWindow &parse_window,
 
   // Resolve window frame
   if (parse_window.frame_info() != nullptr) {
-    const quickstep::ParseFrameInfo *parse_frame_info = parse_window.frame_info();
+    const quickstep::ParseFrameInfo *parse_frame_info =
+        parse_window.frame_info();
     // For FRAME mode, the first attribute in ORDER BY must be numeric.
     // TODO(Shixuan): Time-related types should also be supported. To handle
     // this, some changes in the parser needs to be done since the time range
@@ -2083,7 +2165,8 @@ E::WindowInfo Resolver::resolveWindow(const ParseWindow &parse_window,
     // needed because -1 might not make sense in this case.
     if (!parse_frame_info->is_row &&
         (order_by_attributes.empty() ||
-         order_by_attributes[0]->getValueType().getSuperTypeID() != Type::SuperTypeID::kNumeric)) {
+         order_by_attributes[0]->getValueType().getSuperTypeID() !=
+             Type::SuperTypeID::kNumeric)) {
       THROW_SQL_ERROR_AT(&parse_window)
           << "A numeric attribute should be specified as the first ORDER BY "
           << "attribute in FRAME mode";
@@ -2101,11 +2184,10 @@ E::WindowInfo Resolver::resolveWindow(const ParseWindow &parse_window,
                        frame_info);
 }
 
-const CatalogRelation* Resolver::resolveRelationName(
+const CatalogRelation *Resolver::resolveRelationName(
     const ParseString *relation_name) {
   const CatalogRelation *relation =
-      catalog_database_.getRelationByName(
-          ToLower(relation_name->value()));
+      catalog_database_.getRelationByName(ToLower(relation_name->value()));
   if (relation == nullptr) {
     THROW_SQL_ERROR_AT(relation_name) << "Unrecognized relation "
                                       << relation_name->value();
@@ -2118,16 +2200,22 @@ L::LogicalPtr Resolver::resolveSimpleTableReference(
   // First look up the name in the subqueries.
   const std::string lower_table_name = ToLower(table_name.value());
   const std::unordered_map<std::string, int>::const_iterator subplan_it =
-      with_queries_info_.with_query_name_to_vector_position.find(lower_table_name);
-  if (subplan_it != with_queries_info_.with_query_name_to_vector_position.end()) {
+      with_queries_info_.with_query_name_to_vector_position.find(
+          lower_table_name);
+  if (subplan_it !=
+      with_queries_info_.with_query_name_to_vector_position.end()) {
     with_queries_info_.unreferenced_query_indexes.erase(subplan_it->second);
 
     const std::vector<E::AttributeReferencePtr> with_query_attributes =
-        with_queries_info_.with_query_plans[subplan_it->second]->getOutputAttributes();
+        with_queries_info_.with_query_plans[subplan_it->second]
+            ->getOutputAttributes();
 
-    // Create a vector of new attributes to delegate the original output attributes
-    // from the WITH query, to avoid (ExprId -> CatalogAttribute) mapping collision
-    // later in ExecutionGenerator when there are multiple SharedSubplanReference's
+    // Create a vector of new attributes to delegate the original output
+    // attributes
+    // from the WITH query, to avoid (ExprId -> CatalogAttribute) mapping
+    // collision
+    // later in ExecutionGenerator when there are multiple
+    // SharedSubplanReference's
     // referencing a same shared subplan.
     std::vector<E::AttributeReferencePtr> delegator_attributes;
     for (const E::AttributeReferencePtr &attribute : with_query_attributes) {
@@ -2140,9 +2228,8 @@ L::LogicalPtr Resolver::resolveSimpleTableReference(
                                         attribute->scope()));
     }
 
-    return L::SharedSubplanReference::Create(subplan_it->second,
-                                             with_query_attributes,
-                                             delegator_attributes);
+    return L::SharedSubplanReference::Create(
+        subplan_it->second, with_query_attributes, delegator_attributes);
   }
 
   // Then look up the name in the database.
@@ -2154,7 +2241,8 @@ L::LogicalPtr Resolver::resolveSimpleTableReference(
     scoped_table_name = reference_alias;
   }
 
-  return L::TableReference::Create(relation, scoped_table_name->value(), context_);
+  return L::TableReference::Create(
+      relation, scoped_table_name->value(), context_);
 }
 
 L::LogicalPtr Resolver::resolveGeneratorTableReference(
@@ -2166,24 +2254,27 @@ L::LogicalPtr Resolver::resolveGeneratorTableReference(
   const quickstep::GeneratorFunction *func_template =
       GeneratorFunctionFactory::Instance().getByName(func_name->value());
   if (func_template == nullptr) {
-      THROW_SQL_ERROR_AT(func_name)
-          << "Generator function " << func_name->value() << " not found";
+    THROW_SQL_ERROR_AT(func_name) << "Generator function " << func_name->value()
+                                  << " not found";
   }
 
   // Check that all arguments are constant literals, also convert them into a
   // list of TypedValue's.
-  const PtrList<ParseExpression> *func_args = table_reference.generator_function()->arguments();
+  const PtrList<ParseExpression> *func_args =
+      table_reference.generator_function()->arguments();
   std::vector<TypedValue> concretized_args;
   if (func_args != nullptr) {
-    for (const ParseExpression& arg : *func_args) {
+    for (const ParseExpression &arg : *func_args) {
       if (arg.getExpressionType() != ParseExpression::kScalarLiteral) {
-        THROW_SQL_ERROR_AT(&arg)
-            << "Argument(s) to a generator function can only be constant literals";
+        THROW_SQL_ERROR_AT(&arg) << "Argument(s) to a generator function can "
+                                    "only be constant literals";
       }
-      const ParseScalarLiteral &scalar_literal_arg = static_cast<const ParseScalarLiteral&>(arg);
-      const Type* dumb_concretized_type;
+      const ParseScalarLiteral &scalar_literal_arg =
+          static_cast<const ParseScalarLiteral &>(arg);
+      const Type *dumb_concretized_type;
       concretized_args.emplace_back(
-          scalar_literal_arg.literal_value()->concretize(nullptr, &dumb_concretized_type));
+          scalar_literal_arg.literal_value()->concretize(
+              nullptr, &dumb_concretized_type));
     }
   }
 
@@ -2200,35 +2291,37 @@ L::LogicalPtr Resolver::resolveGeneratorTableReference(
         << "Invalid arguments";
   }
 
-  return L::TableGenerator::Create(quickstep::GeneratorFunctionHandlePtr(func_handle),
-                                   reference_alias->value(),
-                                   context_);
+  return L::TableGenerator::Create(
+      quickstep::GeneratorFunctionHandlePtr(func_handle),
+      reference_alias->value(),
+      context_);
 }
-
 
 L::LogicalPtr Resolver::resolveJoinedTableReference(
     const ParseJoinedTableReference &joined_table_reference,
     NameResolver *name_resolver) {
-  std::size_t start_relation_idx_for_left = name_resolver->nextScopedRelationPosition();
-  L::LogicalPtr left_table =
-      resolveTableReference(*joined_table_reference.left_table(), name_resolver);
+  std::size_t start_relation_idx_for_left =
+      name_resolver->nextScopedRelationPosition();
+  L::LogicalPtr left_table = resolveTableReference(
+      *joined_table_reference.left_table(), name_resolver);
 
-  std::size_t start_relation_idx_for_right = name_resolver->nextScopedRelationPosition();
-  L::LogicalPtr right_table =
-      resolveTableReference(*joined_table_reference.right_table(), name_resolver);
+  std::size_t start_relation_idx_for_right =
+      name_resolver->nextScopedRelationPosition();
+  L::LogicalPtr right_table = resolveTableReference(
+      *joined_table_reference.right_table(), name_resolver);
 
   std::size_t end_relation_idx = name_resolver->nextScopedRelationPosition();
 
   ExpressionResolutionInfo resolution_info(*name_resolver,
                                            "join clause" /* clause_name */,
                                            nullptr /* select_list_info */);
-  const E::PredicatePtr on_predicate =
-      resolvePredicate(*joined_table_reference.join_predicate(), &resolution_info);
+  const E::PredicatePtr on_predicate = resolvePredicate(
+      *joined_table_reference.join_predicate(), &resolution_info);
 
   switch (joined_table_reference.join_type()) {
     case ParseJoinedTableReference::JoinType::kInnerJoin: {
       return L::Filter::Create(
-          L::MultiwayCartesianJoin::Create({ left_table, right_table }),
+          L::MultiwayCartesianJoin::Create({left_table, right_table}),
           on_predicate);
     }
     case ParseJoinedTableReference::JoinType::kRightOuterJoin: {
@@ -2254,14 +2347,15 @@ L::LogicalPtr Resolver::resolveJoinedTableReference(
       break;
   }
 
-  THROW_SQL_ERROR_AT(&joined_table_reference) << "Full outer join is not supported yet";
+  THROW_SQL_ERROR_AT(&joined_table_reference)
+      << "Full outer join is not supported yet";
 }
 
-L::LogicalPtr Resolver::resolveSortInWindow(
-    const L::LogicalPtr &logical_plan,
-    const E::WindowInfo &window_info) {
+L::LogicalPtr Resolver::resolveSortInWindow(const L::LogicalPtr &logical_plan,
+                                            const E::WindowInfo &window_info) {
   // Sort the table by (p_key, o_key).
-  std::vector<E::AttributeReferencePtr> sort_attributes(window_info.partition_by_attributes);
+  std::vector<E::AttributeReferencePtr> sort_attributes(
+      window_info.partition_by_attributes);
   sort_attributes.insert(sort_attributes.end(),
                          window_info.order_by_attributes.begin(),
                          window_info.order_by_attributes.end());
@@ -2271,14 +2365,14 @@ L::LogicalPtr Resolver::resolveSortInWindow(
     return logical_plan;
   }
 
-  std::vector<bool> sort_directions(
-      window_info.partition_by_attributes.size(), true);
+  std::vector<bool> sort_directions(window_info.partition_by_attributes.size(),
+                                    true);
   sort_directions.insert(sort_directions.end(),
                          window_info.order_by_directions.begin(),
                          window_info.order_by_directions.end());
 
-  std::vector<bool> sort_nulls_first(
-      window_info.partition_by_attributes.size(), false);
+  std::vector<bool> sort_nulls_first(window_info.partition_by_attributes.size(),
+                                     false);
   sort_nulls_first.insert(sort_nulls_first.end(),
                           window_info.nulls_first.begin(),
                           window_info.nulls_first.end());
@@ -2296,7 +2390,7 @@ L::LogicalPtr Resolver::resolveSortInWindow(
 void Resolver::resolveSelectClause(
     const ParseSelectionClause &parse_selection,
     const std::string &select_name,
-    const std::vector<const Type*> *type_hints,
+    const std::vector<const Type *> *type_hints,
     const NameResolver &name_resolver,
     QueryAggregationInfo *query_aggregation_info,
     WindowAggregationInfo *window_aggregation_info,
@@ -2306,7 +2400,8 @@ void Resolver::resolveSelectClause(
   switch (parse_selection.getSelectionType()) {
     case ParseSelectionClause::kStar: {
       // Add all visible attributes.
-      *project_expressions = E::ToNamedExpressions(name_resolver.getVisibleAttributeReferences());
+      *project_expressions =
+          E::ToNamedExpressions(name_resolver.getVisibleAttributeReferences());
       has_aggregate_per_expression->insert(has_aggregate_per_expression->end(),
                                            project_expressions->size(),
                                            false);
@@ -2314,14 +2409,15 @@ void Resolver::resolveSelectClause(
     }
     case ParseSelectionClause::kNonStar: {
       const ParseSelectionList &selection_list =
-          static_cast<const ParseSelectionList&>(parse_selection);
+          static_cast<const ParseSelectionList &>(parse_selection);
 
       // Ignore type hints if its size does not match the number of columns.
-      if (type_hints != nullptr && type_hints->size() != selection_list.select_item_list().size()) {
+      if (type_hints != nullptr &&
+          type_hints->size() != selection_list.select_item_list().size()) {
         type_hints = nullptr;
       }
 
-      std::vector<const Type*>::size_type tid = 0;
+      std::vector<const Type *>::size_type tid = 0;
       for (const ParseSelectionItem &selection_item :
            selection_list.select_item_list()) {
         const ParseString *parse_alias = selection_item.alias();
@@ -2332,10 +2428,10 @@ void Resolver::resolveSelectClause(
             query_aggregation_info,
             window_aggregation_info,
             nullptr /* select_list_info */);
-        const E::ScalarPtr project_scalar =
-            resolveExpression(*parse_project_expression,
-                              (type_hints == nullptr ? nullptr : type_hints->at(tid)),
-                              &expr_resolution_info);
+        const E::ScalarPtr project_scalar = resolveExpression(
+            *parse_project_expression,
+            (type_hints == nullptr ? nullptr : type_hints->at(tid)),
+            &expr_resolution_info);
 
         // If the resolved expression is a named expression,
         // we reuse its ID. Because we resolve an aggregate function
@@ -2344,8 +2440,8 @@ void Resolver::resolveSelectClause(
         // identify the SELECT-list expression during the aggregate validation.
         E::ExprId project_expression_id;
         E::NamedExpressionPtr project_named_expression;
-        if (E::SomeNamedExpression::MatchesWithConditionalCast(project_scalar,
-                                                               &project_named_expression)) {
+        if (E::SomeNamedExpression::MatchesWithConditionalCast(
+                project_scalar, &project_named_expression)) {
           project_expression_id = project_named_expression->id();
         } else {
           project_expression_id = context_->nextExprId();
@@ -2368,13 +2464,15 @@ void Resolver::resolveSelectClause(
                                                         generated_name,
                                                         select_name);
           } else if (project_named_expression->attribute_alias().at(0) == '$') {
-            // Rename the expression with an internal alias name so that the output
+            // Rename the expression with an internal alias name so that the
+            // output
             // is more human readable.
-            project_named_expression = E::Alias::Create(project_named_expression->id(),
-                                                        project_named_expression,
-                                                        project_named_expression->attribute_name(),
-                                                        selection_item.generateName(),
-                                                        select_name);
+            project_named_expression =
+                E::Alias::Create(project_named_expression->id(),
+                                 project_named_expression,
+                                 project_named_expression->attribute_name(),
+                                 selection_item.generateName(),
+                                 select_name);
           }
         }
         project_expressions->push_back(project_named_expression);
@@ -2394,7 +2492,7 @@ E::ScalarPtr Resolver::resolveExpression(
   switch (parse_expression.getExpressionType()) {
     case ParseExpression::kAttribute: {
       const ParseAttribute &parse_attribute_scalar =
-          static_cast<const ParseAttribute&>(parse_expression);
+          static_cast<const ParseAttribute &>(parse_expression);
       if (parse_attribute_scalar.rel_name() == nullptr &&
           expression_resolution_info->select_list_info != nullptr) {
         // Check if it is an alias reference to a SELECT-list expression.
@@ -2413,7 +2511,8 @@ E::ScalarPtr Resolver::resolveExpression(
           DCHECK_GE(found_it->second, 0);
           DCHECK_LT(
               found_it->second,
-              static_cast<int>(expression_resolution_info->select_list_info->select_list_expressions.size()));
+              static_cast<int>(expression_resolution_info->select_list_info
+                                   ->select_list_expressions.size()));
 
           if (expression_resolution_info->select_list_info
                   ->has_aggregate_per_expression[found_it->second]) {
@@ -2429,7 +2528,8 @@ E::ScalarPtr Resolver::resolveExpression(
           }
 
           const E::NamedExpressionPtr select_list_expression =
-              expression_resolution_info->select_list_info->select_list_expressions[found_it->second];
+              expression_resolution_info->select_list_info
+                  ->select_list_expressions[found_it->second];
           if (E::SomeAttributeReference::Matches(select_list_expression)) {
             return select_list_expression;
           } else {
@@ -2437,13 +2537,14 @@ E::ScalarPtr Resolver::resolveExpression(
             if (select_list_expression->isConstant()) {
               // De-alias the expression.
               E::AliasPtr select_list_alias_expression;
-              CHECK(E::SomeAlias::MatchesWithConditionalCast(select_list_expression,
-                                                             &select_list_alias_expression));
+              CHECK(E::SomeAlias::MatchesWithConditionalCast(
+                  select_list_expression, &select_list_alias_expression));
               return std::static_pointer_cast<const E::Scalar>(
                   select_list_alias_expression->expression());
             }
 
-            expression_resolution_info->select_list_info->is_referenced[found_it->second] = true;
+            expression_resolution_info->select_list_info
+                ->is_referenced[found_it->second] = true;
             return E::ToRef(select_list_expression);
           }
         }
@@ -2454,24 +2555,24 @@ E::ScalarPtr Resolver::resolveExpression(
     }
     case ParseExpression::kBinaryExpression: {
       const ParseBinaryExpression &parse_binary_scalar =
-          static_cast<const ParseBinaryExpression&>(parse_expression);
+          static_cast<const ParseBinaryExpression &>(parse_expression);
 
-      std::pair<const Type*, const Type*> argument_type_hints
-          = parse_binary_scalar.op().pushDownTypeHint(type_hint);
+      std::pair<const Type *, const Type *> argument_type_hints =
+          parse_binary_scalar.op().pushDownTypeHint(type_hint);
 
       ExpressionResolutionInfo left_resolution_info(
           *expression_resolution_info);
-      E::ScalarPtr left_argument = resolveExpression(
-          *parse_binary_scalar.left_operand(),
-           argument_type_hints.first,
-           &left_resolution_info);
+      E::ScalarPtr left_argument =
+          resolveExpression(*parse_binary_scalar.left_operand(),
+                            argument_type_hints.first,
+                            &left_resolution_info);
 
       ExpressionResolutionInfo right_resolution_info(
           *expression_resolution_info);
-      E::ScalarPtr right_argument = resolveExpression(
-          *parse_binary_scalar.right_operand(),
-          argument_type_hints.second,
-          &right_resolution_info);
+      E::ScalarPtr right_argument =
+          resolveExpression(*parse_binary_scalar.right_operand(),
+                            argument_type_hints.second,
+                            &right_resolution_info);
 
       if (left_resolution_info.hasAggregate()) {
         expression_resolution_info->parse_aggregate_expression =
@@ -2482,8 +2583,10 @@ E::ScalarPtr Resolver::resolveExpression(
       }
 
       // Check if either argument is a NULL literal of an unknown type.
-      const bool left_is_nulltype = (left_argument->getValueType().getTypeID() == kNullType);
-      const bool right_is_nulltype = (right_argument->getValueType().getTypeID() == kNullType);
+      const bool left_is_nulltype =
+          (left_argument->getValueType().getTypeID() == kNullType);
+      const bool right_is_nulltype =
+          (right_argument->getValueType().getTypeID() == kNullType);
 
       // If either argument is a NULL of unknown type, we try to resolve the
       // type of this BinaryExpression as follows:
@@ -2510,10 +2613,11 @@ E::ScalarPtr Resolver::resolveExpression(
       // such restrictions could be violated if a parent node in the expression
       // tree converts a value of NullType to something that it shouldn't be.
       if (left_is_nulltype || right_is_nulltype) {
-        const Type *fixed_result_type
-            = parse_binary_scalar.op().resultTypeForPartialArgumentTypes(
+        const Type *fixed_result_type =
+            parse_binary_scalar.op().resultTypeForPartialArgumentTypes(
                 left_is_nulltype ? nullptr : &(left_argument->getValueType()),
-                right_is_nulltype ? nullptr : &(right_argument->getValueType()));
+                right_is_nulltype ? nullptr
+                                  : &(right_argument->getValueType()));
         if (fixed_result_type != nullptr) {
           return E::ScalarLiteral::Create(fixed_result_type->makeNullValue(),
                                           *fixed_result_type);
@@ -2524,7 +2628,8 @@ E::ScalarPtr Resolver::resolveExpression(
           if (parse_binary_scalar.op().partialTypeSignatureIsPlausible(
                   &nullable_type_hint,
                   left_is_nulltype ? nullptr : &(left_argument->getValueType()),
-                  right_is_nulltype ? nullptr : &(right_argument->getValueType()))) {
+                  right_is_nulltype ? nullptr
+                                    : &(right_argument->getValueType()))) {
             return E::ScalarLiteral::Create(nullable_type_hint.makeNullValue(),
                                             nullable_type_hint);
           }
@@ -2533,60 +2638,57 @@ E::ScalarPtr Resolver::resolveExpression(
         if (parse_binary_scalar.op().partialTypeSignatureIsPlausible(
                 nullptr,
                 left_is_nulltype ? nullptr : &(left_argument->getValueType()),
-                right_is_nulltype ? nullptr : &(right_argument->getValueType()))) {
+                right_is_nulltype ? nullptr
+                                  : &(right_argument->getValueType()))) {
           const Type &null_type = TypeFactory::GetType(kNullType, true);
-          return E::ScalarLiteral::Create(null_type.makeNullValue(),
-                                          null_type);
+          return E::ScalarLiteral::Create(null_type.makeNullValue(), null_type);
         }
 
         // If nothing above worked, fall through to canApplyToTypes() below,
         // which should fail.
       }
 
-      if (!parse_binary_scalar.op().canApplyToTypes(left_argument->getValueType(),
-                                                    right_argument->getValueType())) {
+      if (!parse_binary_scalar.op().canApplyToTypes(
+              left_argument->getValueType(), right_argument->getValueType())) {
         THROW_SQL_ERROR_AT(&parse_binary_scalar)
-            << "Can not apply binary operation \"" << parse_binary_scalar.op().getName()
-            << "\" to arguments of types " << left_argument->getValueType().getName()
-            << " and " << right_argument->getValueType().getName();
+            << "Can not apply binary operation \""
+            << parse_binary_scalar.op().getName() << "\" to arguments of types "
+            << left_argument->getValueType().getName() << " and "
+            << right_argument->getValueType().getName();
       }
 
-      return E::BinaryExpression::Create(parse_binary_scalar.op(),
-                                         left_argument,
-                                         right_argument);
+      return E::BinaryExpression::Create(
+          parse_binary_scalar.op(), left_argument, right_argument);
     }
     case ParseExpression::kScalarLiteral: {
       const ParseScalarLiteral &parse_literal_scalar =
-          static_cast<const ParseScalarLiteral&>(parse_expression);
+          static_cast<const ParseScalarLiteral &>(parse_expression);
       const Type *concrete_type = nullptr;
-      TypedValue concrete = parse_literal_scalar.literal_value()
-          ->concretize(type_hint, &concrete_type);
+      TypedValue concrete = parse_literal_scalar.literal_value()->concretize(
+          type_hint, &concrete_type);
       return E::ScalarLiteral::Create(std::move(concrete), *concrete_type);
     }
     case ParseExpression::kSearchedCaseExpression: {
       const ParseSearchedCaseExpression &parse_searched_case_expression =
-          static_cast<const ParseSearchedCaseExpression&>(parse_expression);
-      return resolveSearchedCaseExpression(
-          parse_searched_case_expression,
-          type_hint,
-          expression_resolution_info);
+          static_cast<const ParseSearchedCaseExpression &>(parse_expression);
+      return resolveSearchedCaseExpression(parse_searched_case_expression,
+                                           type_hint,
+                                           expression_resolution_info);
     }
     case ParseExpression::kSimpleCaseExpression: {
       const ParseSimpleCaseExpression &parse_simple_case_expression =
-          static_cast<const ParseSimpleCaseExpression&>(parse_expression);
+          static_cast<const ParseSimpleCaseExpression &>(parse_expression);
       return resolveSimpleCaseExpression(
-          parse_simple_case_expression,
-          type_hint,
-          expression_resolution_info);
+          parse_simple_case_expression, type_hint, expression_resolution_info);
     }
     case ParseExpression::kUnaryExpression: {
       const ParseUnaryExpression &parse_unary_expr =
-          static_cast<const ParseUnaryExpression&>(parse_expression);
+          static_cast<const ParseUnaryExpression &>(parse_expression);
 
-      E::ScalarPtr argument = resolveExpression(
-          *parse_unary_expr.operand(),
-          parse_unary_expr.op().pushDownTypeHint(type_hint),
-          expression_resolution_info);
+      E::ScalarPtr argument =
+          resolveExpression(*parse_unary_expr.operand(),
+                            parse_unary_expr.op().pushDownTypeHint(type_hint),
+                            expression_resolution_info);
 
       // If the argument is a NULL of unknown Type, try to resolve result Type
       // of this UnaryExpression as follows:
@@ -2603,7 +2705,8 @@ E::ScalarPtr Resolver::resolveExpression(
       // always completely capture information about what types the NULL result
       // can take on, since NullType is implicitly convertable to any Type.
       if (argument->getValueType().getTypeID() == kNullType) {
-        const Type *fixed_result_type = parse_unary_expr.op().fixedNullableResultType();
+        const Type *fixed_result_type =
+            parse_unary_expr.op().fixedNullableResultType();
         if (fixed_result_type != nullptr) {
           return E::ScalarLiteral::Create(fixed_result_type->makeNullValue(),
                                           *fixed_result_type);
@@ -2618,34 +2721,34 @@ E::ScalarPtr Resolver::resolveExpression(
         }
 
         const Type &null_type = TypeFactory::GetType(kNullType, true);
-        return E::ScalarLiteral::Create(null_type.makeNullValue(),
-                                        null_type);
+        return E::ScalarLiteral::Create(null_type.makeNullValue(), null_type);
       }
 
       if (!parse_unary_expr.op().canApplyToType(argument->getValueType())) {
         THROW_SQL_ERROR_AT(&parse_unary_expr)
-            << "Can not apply unary operation \"" << parse_unary_expr.op().getName()
-            << "\" to argument of type " << argument->getValueType().getName();
+            << "Can not apply unary operation \""
+            << parse_unary_expr.op().getName() << "\" to argument of type "
+            << argument->getValueType().getName();
       }
 
       return E::UnaryExpression::Create(parse_unary_expr.op(), argument);
     }
     case ParseExpression::kFunctionCall: {
       return resolveFunctionCall(
-          static_cast<const ParseFunctionCall&>(parse_expression),
+          static_cast<const ParseFunctionCall &>(parse_expression),
           expression_resolution_info);
     }
     case ParseExpression::kSubqueryExpression: {
-      const std::vector<const Type*> type_hints = { type_hint };
+      const std::vector<const Type *> type_hints = {type_hint};
       return resolveSubqueryExpression(
-          static_cast<const ParseSubqueryExpression&>(parse_expression),
+          static_cast<const ParseSubqueryExpression &>(parse_expression),
           &type_hints,
           expression_resolution_info,
           true /* has_single_column */);
     }
     case ParseExpression::kExtract: {
       const ParseExtractFunction &parse_extract =
-          static_cast<const ParseExtractFunction&>(parse_expression);
+          static_cast<const ParseExtractFunction &>(parse_expression);
 
       const ParseString &extract_field = *parse_extract.extract_field();
       const std::string lowered_unit = ToLower(extract_field.value());
@@ -2663,15 +2766,16 @@ E::ScalarPtr Resolver::resolveExpression(
       } else if (lowered_unit == "second") {
         extract_unit = DateExtractUnit::kSecond;
       } else {
-        THROW_SQL_ERROR_AT(&extract_field)
-            << "Invalid extract unit: " << extract_field.value();
+        THROW_SQL_ERROR_AT(&extract_field) << "Invalid extract unit: "
+                                           << extract_field.value();
       }
 
-      const DateExtractOperation &op = DateExtractOperation::Instance(extract_unit);
-      const E::ScalarPtr argument = resolveExpression(
-          *parse_extract.date_expression(),
-          op.pushDownTypeHint(type_hint),
-          expression_resolution_info);
+      const DateExtractOperation &op =
+          DateExtractOperation::Instance(extract_unit);
+      const E::ScalarPtr argument =
+          resolveExpression(*parse_extract.date_expression(),
+                            op.pushDownTypeHint(type_hint),
+                            expression_resolution_info);
 
       if (!op.canApplyToType(argument->getValueType())) {
         THROW_SQL_ERROR_AT(parse_extract.date_expression())
@@ -2683,7 +2787,7 @@ E::ScalarPtr Resolver::resolveExpression(
     }
     case ParseExpression::kSubstring: {
       const ParseSubstringFunction &parse_substring =
-          static_cast<const ParseSubstringFunction&>(parse_expression);
+          static_cast<const ParseSubstringFunction &>(parse_expression);
 
       // Validate start position and substring length.
       if (parse_substring.start_position() <= 0) {
@@ -2696,10 +2800,10 @@ E::ScalarPtr Resolver::resolveExpression(
       }
 
       // Convert 1-base position to 0-base position
-      const std::size_t zero_base_start_position = parse_substring.start_position() - 1;
-      const SubstringOperation &op =
-          SubstringOperation::Instance(zero_base_start_position,
-                                       parse_substring.length());
+      const std::size_t zero_base_start_position =
+          parse_substring.start_position() - 1;
+      const SubstringOperation &op = SubstringOperation::Instance(
+          zero_base_start_position, parse_substring.length());
 
       const E::ScalarPtr argument =
           resolveExpression(*parse_substring.operand(),
@@ -2727,13 +2831,16 @@ E::ScalarPtr Resolver::resolveSearchedCaseExpression(
   std::vector<E::ScalarPtr> conditional_result_expressions;
   const Type *result_data_type = nullptr;
 
-  for (const ParseSearchedWhenClause &when_clause : *parse_searched_case_expression.when_clauses()) {
-    ExpressionResolutionInfo condition_predicate_resolution_info(*expression_resolution_info);
+  for (const ParseSearchedWhenClause &when_clause :
+       *parse_searched_case_expression.when_clauses()) {
+    ExpressionResolutionInfo condition_predicate_resolution_info(
+        *expression_resolution_info);
     condition_predicates.emplace_back(
         resolvePredicate(*when_clause.condition_predicate(),
                          &condition_predicate_resolution_info));
 
-    ExpressionResolutionInfo result_expression_resolution_info(*expression_resolution_info);
+    ExpressionResolutionInfo result_expression_resolution_info(
+        *expression_resolution_info);
     const E::ScalarPtr result_expression =
         resolveExpression(*when_clause.result_expression(),
                           type_hint,
@@ -2744,16 +2851,15 @@ E::ScalarPtr Resolver::resolveSearchedCaseExpression(
     if (result_data_type == nullptr) {
       result_data_type = &result_expression->getValueType();
     } else if (!result_expression->getValueType().equals(*result_data_type)) {
-      const Type *temp_result_data_type =
-          TypeFactory::GetUnifyingType(*result_data_type,
-                                       result_expression->getValueType());
+      const Type *temp_result_data_type = TypeFactory::GetUnifyingType(
+          *result_data_type, result_expression->getValueType());
 
       if (temp_result_data_type == nullptr) {
         THROW_SQL_ERROR_AT(when_clause.result_expression())
             << "The result expression in the WHEN clause has an incompatible "
             << "type with preceding result expressions ("
-            << result_expression->getValueType().getName()
-            << " vs. " << result_data_type->getName() << ")";
+            << result_expression->getValueType().getName() << " vs. "
+            << result_data_type->getName() << ")";
       }
       result_data_type = temp_result_data_type;
     }
@@ -2774,44 +2880,49 @@ E::ScalarPtr Resolver::resolveSearchedCaseExpression(
   // Resolve the ELSE result expression.
   E::ScalarPtr else_result_expression;
   if (parse_searched_case_expression.else_result_expression() != nullptr) {
-    ExpressionResolutionInfo else_expression_resolution_info(*expression_resolution_info);
-    else_result_expression =
-        resolveExpression(*parse_searched_case_expression.else_result_expression(),
-                          result_data_type,
-                          &else_expression_resolution_info);
+    ExpressionResolutionInfo else_expression_resolution_info(
+        *expression_resolution_info);
+    else_result_expression = resolveExpression(
+        *parse_searched_case_expression.else_result_expression(),
+        result_data_type,
+        &else_expression_resolution_info);
 
     if (!else_result_expression->getValueType().equals(*result_data_type)) {
-      const Type *temp_result_data_type =
-          TypeFactory::GetUnifyingType(*result_data_type,
-                                       else_result_expression->getValueType());
+      const Type *temp_result_data_type = TypeFactory::GetUnifyingType(
+          *result_data_type, else_result_expression->getValueType());
       if (temp_result_data_type == nullptr) {
-        THROW_SQL_ERROR_AT(parse_searched_case_expression.else_result_expression())
+        THROW_SQL_ERROR_AT(
+            parse_searched_case_expression.else_result_expression())
             << "The result expression in the ELSE clause has an incompatible "
                "type with result expressions in the WHEN clauses ("
-            << else_result_expression->getValueType().getName()
-            << " vs. " << result_data_type->getName() << ")";
+            << else_result_expression->getValueType().getName() << " vs. "
+            << result_data_type->getName() << ")";
       }
       result_data_type = temp_result_data_type;
     }
 
     // Propagate the aggregation info.
-    if (!expression_resolution_info->hasAggregate()
-        && else_expression_resolution_info.hasAggregate()) {
+    if (!expression_resolution_info->hasAggregate() &&
+        else_expression_resolution_info.hasAggregate()) {
       expression_resolution_info->parse_aggregate_expression =
           else_expression_resolution_info.parse_aggregate_expression;
     }
   }
 
   // Cast all the result expressions to the same type.
-  for (E::ScalarPtr &conditional_result_expression : conditional_result_expressions) {
-    if (conditional_result_expression->getValueType().getTypeID() != result_data_type->getTypeID()) {
+  for (E::ScalarPtr &conditional_result_expression :
+       conditional_result_expressions) {
+    if (conditional_result_expression->getValueType().getTypeID() !=
+        result_data_type->getTypeID()) {
       conditional_result_expression =
           E::Cast::Create(conditional_result_expression, *result_data_type);
     }
   }
-  if (else_result_expression != nullptr
-      && else_result_expression->getValueType().getTypeID() != result_data_type->getTypeID()) {
-    else_result_expression = E::Cast::Create(else_result_expression, *result_data_type);
+  if (else_result_expression != nullptr &&
+      else_result_expression->getValueType().getTypeID() !=
+          result_data_type->getTypeID()) {
+    else_result_expression =
+        E::Cast::Create(else_result_expression, *result_data_type);
   }
 
   if (else_result_expression == nullptr) {
@@ -2831,12 +2942,12 @@ E::ScalarPtr Resolver::resolveSimpleCaseExpression(
     const Type *type_hint,
     ExpressionResolutionInfo *expression_resolution_info) {
   // Resolve the CASE operand.
-  ExpressionResolutionInfo case_expression_resolution_info(*expression_resolution_info);
+  ExpressionResolutionInfo case_expression_resolution_info(
+      *expression_resolution_info);
   E::ScalarPtr case_operand =
-      resolveExpression(
-          *parse_simple_case_expression.case_operand(),
-          nullptr /* type_hint */,
-          &case_expression_resolution_info);
+      resolveExpression(*parse_simple_case_expression.case_operand(),
+                        nullptr /* type_hint */,
+                        &case_expression_resolution_info);
 
   // Propagate the aggregation info.
   expression_resolution_info->parse_aggregate_expression =
@@ -2848,28 +2959,33 @@ E::ScalarPtr Resolver::resolveSimpleCaseExpression(
   const Type *result_data_type = nullptr;
   const Type *condition_operand_data_type = &case_operand->getValueType();
 
-  for (const ParseSimpleWhenClause &when_clause : *parse_simple_case_expression.when_clauses()) {
-    ExpressionResolutionInfo condition_operand_resolution_info(*expression_resolution_info);
+  for (const ParseSimpleWhenClause &when_clause :
+       *parse_simple_case_expression.when_clauses()) {
+    ExpressionResolutionInfo condition_operand_resolution_info(
+        *expression_resolution_info);
     const E::ScalarPtr condition_operand =
         resolveExpression(*when_clause.condition_operand(),
                           condition_operand_data_type,
                           &condition_operand_resolution_info);
-    if (!condition_operand->getValueType().equals(*condition_operand_data_type)) {
+    if (!condition_operand->getValueType().equals(
+            *condition_operand_data_type)) {
       const Type *temp_condition_operand_data_type =
           TypeFactory::GetUnifyingType(*condition_operand_data_type,
                                        condition_operand->getValueType());
       if (temp_condition_operand_data_type == nullptr) {
         THROW_SQL_ERROR_AT(when_clause.condition_operand())
-            << "The comparison expression in the WHEN clause has an incompatible "
+            << "The comparison expression in the WHEN clause has an "
+               "incompatible "
             << "type with preceding comparison expressions"
-            << condition_operand->getValueType().getName()
-            << " vs. " << condition_operand_data_type->getName() << ")";
+            << condition_operand->getValueType().getName() << " vs. "
+            << condition_operand_data_type->getName() << ")";
       }
       condition_operand_data_type = temp_condition_operand_data_type;
     }
     condition_operands.emplace_back(condition_operand);
 
-    ExpressionResolutionInfo result_expression_resolution_info(*expression_resolution_info);
+    ExpressionResolutionInfo result_expression_resolution_info(
+        *expression_resolution_info);
     const E::ScalarPtr result_expression =
         resolveExpression(*when_clause.result_expression(),
                           type_hint,
@@ -2880,15 +2996,14 @@ E::ScalarPtr Resolver::resolveSimpleCaseExpression(
     if (result_data_type == nullptr) {
       result_data_type = &result_expression->getValueType();
     } else if (!result_expression->getValueType().equals(*result_data_type)) {
-      const Type *temp_result_data_type =
-          TypeFactory::GetUnifyingType(*result_data_type,
-                                       result_expression->getValueType());
+      const Type *temp_result_data_type = TypeFactory::GetUnifyingType(
+          *result_data_type, result_expression->getValueType());
       if (temp_result_data_type == nullptr) {
         THROW_SQL_ERROR_AT(when_clause.result_expression())
             << "The result expression in the WHEN clause has an incompatible "
             << "type with preceding result expressions ("
-            << result_expression->getValueType().getName()
-            << " vs. " << result_data_type->getName() << ")";
+            << result_expression->getValueType().getName() << " vs. "
+            << result_data_type->getName() << ")";
       }
       result_data_type = temp_result_data_type;
     }
@@ -2909,21 +3024,23 @@ E::ScalarPtr Resolver::resolveSimpleCaseExpression(
   // Resolve the ELSE result expression.
   E::ScalarPtr else_result_expression;
   if (parse_simple_case_expression.else_result_expression() != nullptr) {
-    ExpressionResolutionInfo else_expression_resolution_info(*expression_resolution_info);
-    else_result_expression =
-        resolveExpression(*parse_simple_case_expression.else_result_expression(),
-                          result_data_type,
-                          &else_expression_resolution_info);
+    ExpressionResolutionInfo else_expression_resolution_info(
+        *expression_resolution_info);
+    else_result_expression = resolveExpression(
+        *parse_simple_case_expression.else_result_expression(),
+        result_data_type,
+        &else_expression_resolution_info);
     if (!else_result_expression->getValueType().equals(*result_data_type)) {
-      const Type *temp_result_data_type =
-          TypeFactory::GetUnifyingType(*result_data_type,
-                                       else_result_expression->getValueType());
+      const Type *temp_result_data_type = TypeFactory::GetUnifyingType(
+          *result_data_type, else_result_expression->getValueType());
       if (temp_result_data_type == nullptr) {
-        THROW_SQL_ERROR_AT(parse_simple_case_expression.else_result_expression())
-            << "The result expression in the ELSE clause has an incompatible type "
+        THROW_SQL_ERROR_AT(
+            parse_simple_case_expression.else_result_expression())
+            << "The result expression in the ELSE clause has an incompatible "
+               "type "
                "with result expressions in the WHEN clauses ("
-            << else_result_expression->getValueType().getName()
-            << " vs. " << result_data_type->getName() << ")";
+            << else_result_expression->getValueType().getName() << " vs. "
+            << result_data_type->getName() << ")";
       }
       result_data_type = temp_result_data_type;
     }
@@ -2936,26 +3053,30 @@ E::ScalarPtr Resolver::resolveSimpleCaseExpression(
     }
   }
 
-  const Comparison &equal_comp = ComparisonFactory::GetComparison(ComparisonID::kEqual);
+  const Comparison &equal_comp =
+      ComparisonFactory::GetComparison(ComparisonID::kEqual);
   if (!equal_comp.canCompareTypes(case_operand->getValueType(),
                                   *condition_operand_data_type)) {
     THROW_SQL_ERROR_AT(parse_simple_case_expression.case_operand())
         << "The CASE operand type cannot be compared with the type of "
-        << "comparison expressions ("
-        << case_operand->getValueType().getName()
+        << "comparison expressions (" << case_operand->getValueType().getName()
         << " vs. " << condition_operand_data_type->getName() << ")";
   }
 
   // Cast all the result expressions to the same type.
-  for (E::ScalarPtr &conditional_result_expression : conditional_result_expressions) {
-    if (conditional_result_expression->getValueType().getTypeID() != result_data_type->getTypeID()) {
+  for (E::ScalarPtr &conditional_result_expression :
+       conditional_result_expressions) {
+    if (conditional_result_expression->getValueType().getTypeID() !=
+        result_data_type->getTypeID()) {
       conditional_result_expression =
           E::Cast::Create(conditional_result_expression, *result_data_type);
     }
   }
-  if (else_result_expression != nullptr
-      && else_result_expression->getValueType().getTypeID() != result_data_type->getTypeID()) {
-    else_result_expression = E::Cast::Create(else_result_expression, *result_data_type);
+  if (else_result_expression != nullptr &&
+      else_result_expression->getValueType().getTypeID() !=
+          result_data_type->getTypeID()) {
+    else_result_expression =
+        E::Cast::Create(else_result_expression, *result_data_type);
   }
 
   if (else_result_expression == nullptr) {
@@ -2973,12 +3094,14 @@ E::ScalarPtr Resolver::resolveSimpleCaseExpression(
 
 // TODO(chasseur): For now this only handles resolving aggregate functions. In
 // the future it should be extended to resolve scalar functions as well.
-// TODO(Shixuan): This will handle resolving window aggregation function as well,
+// TODO(Shixuan): This will handle resolving window aggregation function as
+// well,
 // which could be extended to general scalar functions.
 E::ScalarPtr Resolver::resolveFunctionCall(
     const ParseFunctionCall &parse_function_call,
     ExpressionResolutionInfo *expression_resolution_info) {
-  const std::string function_name = ToLower(parse_function_call.name()->value());
+  const std::string function_name =
+      ToLower(parse_function_call.name()->value());
 
   // First check for the special case COUNT(*).
   bool count_star = false;
@@ -2993,17 +3116,17 @@ E::ScalarPtr Resolver::resolveFunctionCall(
   std::vector<E::ScalarPtr> resolved_arguments;
   const PtrList<ParseExpression> *unresolved_arguments =
       parse_function_call.arguments();
-  // The first aggregate function and window aggregate function in the arguments.
+  // The first aggregate function and window aggregate function in the
+  // arguments.
   const ParseTreeNode *first_aggregate_function = nullptr;
   const ParseTreeNode *first_window_aggregate_function = nullptr;
   if (unresolved_arguments != nullptr) {
     for (const ParseExpression &unresolved_argument : *unresolved_arguments) {
       ExpressionResolutionInfo expr_resolution_info(
           *expression_resolution_info);
-      resolved_arguments.push_back(
-          resolveExpression(unresolved_argument,
-                            nullptr,  // No Type hint.
-                            &expr_resolution_info));
+      resolved_arguments.push_back(resolveExpression(unresolved_argument,
+                                                     nullptr,  // No Type hint.
+                                                     &expr_resolution_info));
       if (expr_resolution_info.hasAggregate() &&
           first_aggregate_function == nullptr) {
         first_aggregate_function =
@@ -3013,8 +3136,8 @@ E::ScalarPtr Resolver::resolveFunctionCall(
       if (expr_resolution_info.hasWindowAggregate() &&
           first_window_aggregate_function == nullptr &&
           parse_function_call.isWindow()) {
-          first_window_aggregate_function =
-              expr_resolution_info.parse_window_aggregate_expression;
+        first_window_aggregate_function =
+            expr_resolution_info.parse_window_aggregate_expression;
       }
     }
   }
@@ -3039,8 +3162,7 @@ E::ScalarPtr Resolver::resolveFunctionCall(
   if (aggregate == nullptr && window_aggregate == nullptr) {
     THROW_SQL_ERROR_AT(&parse_function_call)
         << "Unrecognized function name \""
-        << parse_function_call.name()->value()
-        << "\"";
+        << parse_function_call.name()->value() << "\"";
   }
 
   // Make sure aggregates are allowed in this context.
@@ -3067,7 +3189,8 @@ E::ScalarPtr Resolver::resolveFunctionCall(
   if ((aggregate != nullptr &&
        aggregate->getAggregationID() == AggregationID::kCount) ||
       (window_aggregate != nullptr &&
-       window_aggregate->getWindowAggregationID() == WindowAggregationID::kCount)) {
+       window_aggregate->getWindowAggregationID() ==
+           WindowAggregationID::kCount)) {
     if ((resolved_arguments.empty()) && !count_star) {
       THROW_SQL_ERROR_AT(&parse_function_call)
           << "COUNT aggregate requires an argument (either scalar or star (*))";
@@ -3075,14 +3198,15 @@ E::ScalarPtr Resolver::resolveFunctionCall(
   }
 
   // Resolve each of the Scalar arguments to the aggregate.
-  std::vector<const Type*> argument_types;
+  std::vector<const Type *> argument_types;
   for (const E::ScalarPtr &argument : resolved_arguments) {
     argument_types.emplace_back(&argument->getValueType());
   }
 
   // Make sure that the aggregate can apply to the specified argument(s).
-  if ((aggregate != nullptr && !aggregate->canApplyToTypes(argument_types))
-      || (window_aggregate != nullptr && !window_aggregate->canApplyToTypes(argument_types))) {
+  if ((aggregate != nullptr && !aggregate->canApplyToTypes(argument_types)) ||
+      (window_aggregate != nullptr &&
+       !window_aggregate->canApplyToTypes(argument_types))) {
     THROW_SQL_ERROR_AT(&parse_function_call)
         << "Aggregate function " << aggregate->getName()
         << " can not apply to the given argument(s).";
@@ -3097,19 +3221,23 @@ E::ScalarPtr Resolver::resolveFunctionCall(
 
   // Create the optimizer representation of the resolved aggregate and an alias
   // for it to appear in the output relation.
-  const E::AggregateFunctionPtr aggregate_function
-      = E::AggregateFunction::Create(*aggregate,
-                                     resolved_arguments,
-                                     expression_resolution_info->query_aggregation_info->has_group_by,
-                                     parse_function_call.is_distinct());
+  const E::AggregateFunctionPtr aggregate_function =
+      E::AggregateFunction::Create(
+          *aggregate,
+          resolved_arguments,
+          expression_resolution_info->query_aggregation_info->has_group_by,
+          parse_function_call.is_distinct());
   const std::string internal_alias = GenerateAggregateAttributeAlias(
-      expression_resolution_info->query_aggregation_info->aggregate_expressions.size());
-  const E::AliasPtr aggregate_alias = E::Alias::Create(context_->nextExprId(),
-                                                       aggregate_function,
-                                                       "" /* attribute_name */,
-                                                       internal_alias,
-                                                       "$aggregate" /* relation_name */);
-  expression_resolution_info->query_aggregation_info->aggregate_expressions.emplace_back(aggregate_alias);
+      expression_resolution_info->query_aggregation_info->aggregate_expressions
+          .size());
+  const E::AliasPtr aggregate_alias =
+      E::Alias::Create(context_->nextExprId(),
+                       aggregate_function,
+                       "" /* attribute_name */,
+                       internal_alias,
+                       "$aggregate" /* relation_name */);
+  expression_resolution_info->query_aggregation_info->aggregate_expressions
+      .emplace_back(aggregate_alias);
   expression_resolution_info->parse_aggregate_expression = &parse_function_call;
   return E::ToRef(aggregate_alias);
 }
@@ -3119,29 +3247,31 @@ E::ScalarPtr Resolver::resolveWindowAggregateFunction(
     ExpressionResolutionInfo *expression_resolution_info,
     const ::quickstep::WindowAggregateFunction *window_aggregate,
     const std::vector<E::ScalarPtr> &resolved_arguments) {
-  // A window aggregate function might be defined OVER a window name or a window.
+  // A window aggregate function might be defined OVER a window name or a
+  // window.
   E::WindowAggregateFunctionPtr window_aggregate_function;
   if (parse_function_call.window_name() != nullptr) {
-    std::unordered_map<std::string, WindowPlan> window_map
-        = expression_resolution_info->window_aggregation_info->window_map;
+    std::unordered_map<std::string, WindowPlan> window_map =
+        expression_resolution_info->window_aggregation_info->window_map;
     std::string window_name = parse_function_call.window_name()->value();
-    std::unordered_map<std::string, WindowPlan>::const_iterator map_it
-        = window_map.find(window_name);
+    std::unordered_map<std::string, WindowPlan>::const_iterator map_it =
+        window_map.find(window_name);
 
     if (map_it == window_map.end()) {
       THROW_SQL_ERROR_AT(parse_function_call.window_name())
           << "Undefined window " << window_name;
     }
 
-    window_aggregate_function =
-        E::WindowAggregateFunction::Create(*window_aggregate,
-                                           resolved_arguments,
-                                           map_it->second.window_info,
-                                           parse_function_call.window_name()->value(),
-                                           parse_function_call.is_distinct());
+    window_aggregate_function = E::WindowAggregateFunction::Create(
+        *window_aggregate,
+        resolved_arguments,
+        map_it->second.window_info,
+        parse_function_call.window_name()->value(),
+        parse_function_call.is_distinct());
   } else {
-    E::WindowInfo resolved_window = resolveWindow(*parse_function_call.window(),
-                                                  expression_resolution_info->name_resolver);
+    E::WindowInfo resolved_window =
+        resolveWindow(*parse_function_call.window(),
+                      expression_resolution_info->name_resolver);
 
     window_aggregate_function =
         E::WindowAggregateFunction::Create(*window_aggregate,
@@ -3152,21 +3282,25 @@ E::ScalarPtr Resolver::resolveWindowAggregateFunction(
   }
 
   const std::string internal_alias = GenerateWindowAggregateAttributeAlias(
-      expression_resolution_info->query_aggregation_info->aggregate_expressions.size());
-  const E::AliasPtr aggregate_alias = E::Alias::Create(context_->nextExprId(),
-                                                       window_aggregate_function,
-                                                       "" /* attribute_name */,
-                                                       internal_alias,
-                                                       "$window_aggregate" /* relation_name */);
+      expression_resolution_info->query_aggregation_info->aggregate_expressions
+          .size());
+  const E::AliasPtr aggregate_alias =
+      E::Alias::Create(context_->nextExprId(),
+                       window_aggregate_function,
+                       "" /* attribute_name */,
+                       internal_alias,
+                       "$window_aggregate" /* relation_name */);
 
-  if (!expression_resolution_info->window_aggregation_info->window_aggregate_expressions.empty()) {
+  if (!expression_resolution_info->window_aggregation_info
+           ->window_aggregate_expressions.empty()) {
     THROW_SQL_ERROR_AT(&parse_function_call)
         << "Currently we only support single window aggregate in the query";
   }
 
   expression_resolution_info->window_aggregation_info
       ->window_aggregate_expressions.emplace_back(aggregate_alias);
-  expression_resolution_info->parse_window_aggregate_expression = &parse_function_call;
+  expression_resolution_info->parse_window_aggregate_expression =
+      &parse_function_call;
   return E::ToRef(aggregate_alias);
 }
 
@@ -3193,12 +3327,13 @@ void Resolver::checkComparisonCanApplyTo(
     const Comparison &op,
     const expressions::ScalarPtr &left_operand,
     const expressions::ScalarPtr &right_operand) const {
-  if (!op.canCompareTypes(left_operand->getValueType(), right_operand->getValueType())) {
-     THROW_SQL_ERROR_AT(location)
-         << "Comparison operation " << op.getName()
-         << " cannot be applied between "
-         << left_operand->getValueType().getName() << " and "
-         << right_operand->getValueType().getName();
+  if (!op.canCompareTypes(left_operand->getValueType(),
+                          right_operand->getValueType())) {
+    THROW_SQL_ERROR_AT(location) << "Comparison operation " << op.getName()
+                                 << " cannot be applied between "
+                                 << left_operand->getValueType().getName()
+                                 << " and "
+                                 << right_operand->getValueType().getName();
   }
 }
 
@@ -3208,7 +3343,7 @@ E::PredicatePtr Resolver::resolvePredicate(
   switch (parse_predicate.getParsePredicateType()) {
     case ParsePredicate::kBetween: {
       const ParsePredicateBetween &between_predicate =
-          static_cast<const ParsePredicateBetween&>(parse_predicate);
+          static_cast<const ParsePredicateBetween &>(parse_predicate);
       ExpressionResolutionInfo lower_bound_resolution_info(
           *expression_resolution_info);
       E::ScalarPtr lower_bound_operand =
@@ -3217,10 +3352,10 @@ E::PredicatePtr Resolver::resolvePredicate(
                             &lower_bound_resolution_info);
       ExpressionResolutionInfo check_expr_resolution_info(
           *expression_resolution_info);
-      E::ScalarPtr check_operand = resolveExpression(
-          *between_predicate.check_operand(),
-          nullptr,  // No Type hint.
-          &check_expr_resolution_info);
+      E::ScalarPtr check_operand =
+          resolveExpression(*between_predicate.check_operand(),
+                            nullptr,  // No Type hint.
+                            &check_expr_resolution_info);
       ExpressionResolutionInfo upper_bound_resolution_info(
           *expression_resolution_info);
       E::ScalarPtr upper_bound_operand =
@@ -3247,15 +3382,20 @@ E::PredicatePtr Resolver::resolvePredicate(
       //
       // TODO(chasseur): Once we have proper 3-valued logic, we should assume
       // unknown in this case, not false.
-      const bool check_operand_nulltype = check_operand->getValueType().getTypeID() == kNullType;
-      const bool lower_bound_nulltype = lower_bound_operand->getValueType().getTypeID() == kNullType;
-      const bool upper_bound_nulltype = upper_bound_operand->getValueType().getTypeID() == kNullType;
+      const bool check_operand_nulltype =
+          check_operand->getValueType().getTypeID() == kNullType;
+      const bool lower_bound_nulltype =
+          lower_bound_operand->getValueType().getTypeID() == kNullType;
+      const bool upper_bound_nulltype =
+          upper_bound_operand->getValueType().getTypeID() == kNullType;
 
       E::PredicatePtr lower_bound_compare;
       if (lower_bound_nulltype || check_operand_nulltype) {
         if (less_or_equal.canComparePartialTypes(
-                lower_bound_nulltype ? nullptr : &(lower_bound_operand->getValueType()),
-                check_operand_nulltype ? nullptr : &(check_operand->getValueType()))) {
+                lower_bound_nulltype ? nullptr
+                                     : &(lower_bound_operand->getValueType()),
+                check_operand_nulltype ? nullptr
+                                       : &(check_operand->getValueType()))) {
           lower_bound_compare = E::PredicateLiteral::Create(false);
         }
       }
@@ -3264,16 +3404,18 @@ E::PredicatePtr Resolver::resolvePredicate(
                                   less_or_equal,
                                   lower_bound_operand,
                                   check_operand);
-        lower_bound_compare = E::ComparisonExpression::Create(less_or_equal,
-                                                              lower_bound_operand,
-                                                              check_operand);
+        lower_bound_compare = E::ComparisonExpression::Create(
+            less_or_equal, lower_bound_operand, check_operand);
       }
 
       E::PredicatePtr upper_bound_compare;
       if (check_operand_nulltype || upper_bound_compare) {
         if (less_or_equal.canComparePartialTypes(
-                check_operand_nulltype ? nullptr : &(check_operand->getValueType()),
-                upper_bound_nulltype ? nullptr : &(upper_bound_operand->getValueType()))) {
+                check_operand_nulltype ? nullptr
+                                       : &(check_operand->getValueType()),
+                upper_bound_nulltype
+                    ? nullptr
+                    : &(upper_bound_operand->getValueType()))) {
           upper_bound_compare = E::PredicateLiteral::Create(false);
         }
       }
@@ -3282,36 +3424,33 @@ E::PredicatePtr Resolver::resolvePredicate(
                                   less_or_equal,
                                   check_operand,
                                   upper_bound_operand);
-        upper_bound_compare = E::ComparisonExpression::Create(less_or_equal,
-                                                              check_operand,
-                                                              upper_bound_operand);
+        upper_bound_compare = E::ComparisonExpression::Create(
+            less_or_equal, check_operand, upper_bound_operand);
       }
 
       return E::LogicalAnd::Create(
-          {E::ComparisonExpression::Create(less_or_equal,
-                                           lower_bound_operand,
-                                           check_operand),
-           E::ComparisonExpression::Create(less_or_equal,
-                                           check_operand,
-                                           upper_bound_operand)});
+          {E::ComparisonExpression::Create(
+               less_or_equal, lower_bound_operand, check_operand),
+           E::ComparisonExpression::Create(
+               less_or_equal, check_operand, upper_bound_operand)});
     }
     case ParsePredicate::kComparison: {
       const ParsePredicateComparison &comparison_predicate =
-          static_cast<const ParsePredicateComparison&>(parse_predicate);
+          static_cast<const ParsePredicateComparison &>(parse_predicate);
 
       ExpressionResolutionInfo left_expr_resolution_info(
           *expression_resolution_info);
-      E::ScalarPtr left_operand = resolveExpression(
-          *comparison_predicate.left_operand(),
-          nullptr,  // No Type hint
-          &left_expr_resolution_info);
+      E::ScalarPtr left_operand =
+          resolveExpression(*comparison_predicate.left_operand(),
+                            nullptr,  // No Type hint
+                            &left_expr_resolution_info);
 
       ExpressionResolutionInfo right_expr_resolution_info(
           *expression_resolution_info);
-      E::ScalarPtr right_operand = resolveExpression(
-          *comparison_predicate.right_operand(),
-          nullptr,  // No Type hint
-          &right_expr_resolution_info);
+      E::ScalarPtr right_operand =
+          resolveExpression(*comparison_predicate.right_operand(),
+                            nullptr,  // No Type hint
+                            &right_expr_resolution_info);
 
       if (left_expr_resolution_info.hasAggregate()) {
         expression_resolution_info->parse_aggregate_expression =
@@ -3326,12 +3465,16 @@ E::PredicatePtr Resolver::resolvePredicate(
       //
       // TODO(chasseur): Once we have proper 3-valued logic, we should assume
       // unknown in this case, not false.
-      const bool left_operand_nulltype = left_operand->getValueType().getTypeID() == kNullType;
-      const bool right_operand_nulltype = right_operand->getValueType().getTypeID() == kNullType;
+      const bool left_operand_nulltype =
+          left_operand->getValueType().getTypeID() == kNullType;
+      const bool right_operand_nulltype =
+          right_operand->getValueType().getTypeID() == kNullType;
       if (left_operand_nulltype || right_operand_nulltype) {
         if (comparison_predicate.op().canComparePartialTypes(
-                left_operand_nulltype ? nullptr : &(left_operand->getValueType()),
-                right_operand_nulltype ? nullptr : &(right_operand->getValueType()))) {
+                left_operand_nulltype ? nullptr
+                                      : &(left_operand->getValueType()),
+                right_operand_nulltype ? nullptr
+                                       : &(right_operand->getValueType()))) {
           return E::PredicateLiteral::Create(false);
         }
       }
@@ -3341,30 +3484,31 @@ E::PredicatePtr Resolver::resolvePredicate(
                                 left_operand,
                                 right_operand);
 
-      return E::ComparisonExpression::Create(comparison_predicate.op(),
-                                             left_operand,
-                                             right_operand);
+      return E::ComparisonExpression::Create(
+          comparison_predicate.op(), left_operand, right_operand);
     }
     case ParsePredicate::kNegation: {
       const ParsePredicateNegation &negation_predicate =
-          static_cast<const ParsePredicateNegation&>(parse_predicate);
+          static_cast<const ParsePredicateNegation &>(parse_predicate);
       const E::PredicatePtr operand = resolvePredicate(
           *negation_predicate.operand(), expression_resolution_info);
       return E::LogicalNot::Create(operand);
     }
     case ParsePredicate::kConjunction: {
-      return E::LogicalAnd::Create(
-          resolvePredicates(static_cast<const ParsePredicateWithList&>(parse_predicate).operands(),
-                            expression_resolution_info));
+      return E::LogicalAnd::Create(resolvePredicates(
+          static_cast<const ParsePredicateWithList &>(parse_predicate)
+              .operands(),
+          expression_resolution_info));
     }
     case ParsePredicate::kDisjunction: {
-      return E::LogicalOr::Create(
-          resolvePredicates(static_cast<const ParsePredicateWithList&>(parse_predicate).operands(),
-                            expression_resolution_info));
+      return E::LogicalOr::Create(resolvePredicates(
+          static_cast<const ParsePredicateWithList &>(parse_predicate)
+              .operands(),
+          expression_resolution_info));
     }
     case ParsePredicate::kExists: {
       const ParsePredicateExists &exists =
-          static_cast<const ParsePredicateExists&>(parse_predicate);
+          static_cast<const ParsePredicateExists &>(parse_predicate);
       return E::Exists::Create(
           resolveSubqueryExpression(*exists.subquery(),
                                     nullptr /* type_hints */,
@@ -3373,45 +3517,52 @@ E::PredicatePtr Resolver::resolvePredicate(
     }
     case ParsePredicate::kInTableQuery: {
       const ParsePredicateInTableQuery &in_table_query =
-          static_cast<const ParsePredicateInTableQuery&>(parse_predicate);
+          static_cast<const ParsePredicateInTableQuery &>(parse_predicate);
 
-      ExpressionResolutionInfo test_expr_resolution_info(*expression_resolution_info);
+      ExpressionResolutionInfo test_expr_resolution_info(
+          *expression_resolution_info);
       const E::ScalarPtr test_expression =
           resolveExpression(*in_table_query.test_expression(),
                             nullptr /* type_hint */,
                             &test_expr_resolution_info);
-      if (test_expr_resolution_info.hasAggregate() && !expression_resolution_info->hasAggregate()) {
+      if (test_expr_resolution_info.hasAggregate() &&
+          !expression_resolution_info->hasAggregate()) {
         expression_resolution_info->parse_aggregate_expression =
             test_expr_resolution_info.parse_aggregate_expression;
       }
 
-      ExpressionResolutionInfo table_query_resolution_info(*expression_resolution_info);
-      const std::vector<const Type*> type_hints = { &test_expression->getValueType() };
+      ExpressionResolutionInfo table_query_resolution_info(
+          *expression_resolution_info);
+      const std::vector<const Type *> type_hints = {
+          &test_expression->getValueType()};
       const E::SubqueryExpressionPtr table_query =
           resolveSubqueryExpression(*in_table_query.table_query(),
                                     &type_hints,
                                     &table_query_resolution_info,
                                     true /* has_single_column */);
-      return E::InTableQuery::Create(test_expression,
-                                     table_query);
+      return E::InTableQuery::Create(test_expression, table_query);
     }
     case ParsePredicate::kInValueList: {
       const ParsePredicateInValueList &in_value_list =
-          static_cast<const ParsePredicateInValueList&>(parse_predicate);
+          static_cast<const ParsePredicateInValueList &>(parse_predicate);
 
-      ExpressionResolutionInfo test_expr_resolution_info(*expression_resolution_info);
+      ExpressionResolutionInfo test_expr_resolution_info(
+          *expression_resolution_info);
       const E::ScalarPtr test_expression =
           resolveExpression(*in_value_list.test_expression(),
                             nullptr /* type_hint */,
                             &test_expr_resolution_info);
-      if (test_expr_resolution_info.hasAggregate() && !expression_resolution_info->hasAggregate()) {
+      if (test_expr_resolution_info.hasAggregate() &&
+          !expression_resolution_info->hasAggregate()) {
         expression_resolution_info->parse_aggregate_expression =
             test_expr_resolution_info.parse_aggregate_expression;
       }
 
       std::vector<E::ScalarPtr> match_expressions;
-      for (const ParseExpression &parse_match_expression : *in_value_list.value_list()) {
-        ExpressionResolutionInfo match_expr_resolution_info(*expression_resolution_info);
+      for (const ParseExpression &parse_match_expression :
+           *in_value_list.value_list()) {
+        ExpressionResolutionInfo match_expr_resolution_info(
+            *expression_resolution_info);
         E::ScalarPtr match_expression =
             resolveExpression(parse_match_expression,
                               &test_expression->getValueType(),
@@ -3419,23 +3570,25 @@ E::PredicatePtr Resolver::resolvePredicate(
 
         const Comparison &equality_comparison =
             ComparisonFactory::GetComparison(ComparisonID::kEqual);
-        if (!equality_comparison.canCompareTypes(match_expression->getValueType(),
-                                                 test_expression->getValueType())) {
+        if (!equality_comparison.canCompareTypes(
+                match_expression->getValueType(),
+                test_expression->getValueType())) {
           THROW_SQL_ERROR_AT(&parse_match_expression)
               << "The value expression has the type "
               << match_expression->getValueType().getName()
-              << ", which cannot be compared with the type of the test expression "
+              << ", which cannot be compared with the type of the test "
+                 "expression "
               << test_expression->getValueType().getName();
         }
 
-        if (match_expr_resolution_info.hasAggregate() && !expression_resolution_info->hasAggregate()) {
+        if (match_expr_resolution_info.hasAggregate() &&
+            !expression_resolution_info->hasAggregate()) {
           expression_resolution_info->parse_aggregate_expression =
               match_expr_resolution_info.parse_aggregate_expression;
         }
         match_expressions.emplace_back(match_expression);
       }
-      return E::InValueList::Create(test_expression,
-                                    match_expressions);
+      return E::InValueList::Create(test_expression, match_expressions);
     }
     default:
       LOG(FATAL) << "Unknown predicate: " << parse_predicate.toString();
@@ -3445,7 +3598,8 @@ E::PredicatePtr Resolver::resolvePredicate(
 void Resolver::rewriteIfOrdinalReference(
     const ParseTreeNode *location,
     const ExpressionResolutionInfo &expr_resolution_info,
-    SelectListInfo *select_list_info, E::ScalarPtr *expression) {
+    SelectListInfo *select_list_info,
+    E::ScalarPtr *expression) {
   E::ScalarLiteralPtr literal;
   if (E::SomeScalarLiteral::MatchesWithConditionalCast(*expression, &literal) &&
       literal->getValueType().getTypeID() == kInt &&
@@ -3481,10 +3635,11 @@ void Resolver::rewriteIfOrdinalReference(
     if (select_list_info->select_list_expressions[position]->isConstant()) {
       // De-alias the expression.
       E::AliasPtr select_list_alias_expression;
-      CHECK(E::SomeAlias::MatchesWithConditionalCast(select_list_info->select_list_expressions[position],
-                                                     &select_list_alias_expression));
-      CHECK(E::SomeScalar::MatchesWithConditionalCast(select_list_alias_expression->expression(),
-                                                      expression));
+      CHECK(E::SomeAlias::MatchesWithConditionalCast(
+          select_list_info->select_list_expressions[position],
+          &select_list_alias_expression));
+      CHECK(E::SomeScalar::MatchesWithConditionalCast(
+          select_list_alias_expression->expression(), expression));
       return;
     }
 
@@ -3493,16 +3648,17 @@ void Resolver::rewriteIfOrdinalReference(
   }
 }
 
-void Resolver::CollapseSetOperation(const ParseSetOperation &toplevel,
-                                    const ParseSetOperation &current,
-                                    std::vector<const ParseSetOperation*> *output) {
+void Resolver::CollapseSetOperation(
+    const ParseSetOperation &toplevel,
+    const ParseSetOperation &current,
+    std::vector<const ParseSetOperation *> *output) {
   if (current.getOperationType() == ParseSetOperation::kSelect ||
       current.getOperationType() != toplevel.getOperationType()) {
     output->emplace_back(&current);
   } else {
     for (const auto &child : current.operands()) {
       CollapseSetOperation(
-          toplevel, static_cast<const ParseSetOperation&>(child), output);
+          toplevel, static_cast<const ParseSetOperation &>(child), output);
     }
   }
 }
