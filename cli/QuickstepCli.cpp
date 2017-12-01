@@ -23,6 +23,7 @@
 #include <cstddef>
 #include <cstdio>
 #include <exception>
+#include <fstream>
 #include <memory>
 #include <string>
 #include <utility>
@@ -153,6 +154,8 @@ DEFINE_string(mode, "local",
 
 DECLARE_bool(profile_and_report_workorder_perf);
 DECLARE_bool(visualize_execution_dag);
+
+DEFINE_string(execution_dag_log, "", "The log file for writing execution dag to.");
 
 }  // namespace quickstep
 
@@ -299,6 +302,13 @@ int main(int argc, char* argv[]) {
   std::unique_ptr<SqlParserWrapper> parser_wrapper(new SqlParserWrapper());
   std::chrono::time_point<std::chrono::steady_clock> start, end;
 
+  std::unique_ptr<std::ofstream> execution_dag_log_out;
+  const bool has_execution_dag_log = !quickstep::FLAGS_execution_dag_log.empty();
+  if (has_execution_dag_log) {
+    execution_dag_log_out = std::make_unique<std::ofstream>(
+        quickstep::FLAGS_execution_dag_log, std::ios::out | std::ios::app);
+  }
+
 #ifdef QUICKSTEP_ENABLE_GOOGLE_PROFILER
   bool started_profiling = false;
 #endif
@@ -353,6 +363,9 @@ int main(int argc, char* argv[]) {
         }
         // Here the statement is presumed to be a query.
         const std::size_t query_id = query_processor->query_id();
+        if (has_execution_dag_log) {
+          *execution_dag_log_out << "#####QUERY ID " << query_id << "#####" << "\n";
+        }
         const CatalogRelation *query_result_relation = nullptr;
         std::unique_ptr<quickstep::ExecutionDAGVisualizer> dag_visualizer;
 
@@ -418,7 +431,12 @@ int main(int argc, char* argv[]) {
             if (profiling_stats) {
               dag_visualizer->bindProfilingStats(*profiling_stats);
             }
-            std::cerr << "\n" << dag_visualizer->toDOT() << "\n";
+            if (has_execution_dag_log) {
+              CHECK(execution_dag_log_out != nullptr);
+              *execution_dag_log_out << "\n" << dag_visualizer->toDOT() << "\n";
+            } else {
+              std::cerr << "\n" << dag_visualizer->toDOT() << "\n";
+            }
           }
         } catch (const std::exception &e) {
           fprintf(io_handle->err(), "QUERY EXECUTION ERROR: %s\n", e.what());

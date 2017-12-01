@@ -135,6 +135,8 @@ DEFINE_int32(block_domain, 1,
 static const volatile bool block_domain_dummy
     = gflags::RegisterFlagValidator(&FLAGS_block_domain, &ValidateBlockDomain);
 
+DEFINE_bool(force_save_dirty_blocks, false, "Force save dirty blocks.");
+
 /**
  * @brief Set or validate the buffer pool slots. When automatically picking a
  *        default value, check if the system is "small" or "large." Set the
@@ -391,16 +393,17 @@ bool StorageManager::saveBlockOrBlob(const block_id block, const bool force) {
   // particular entry in 'blocks_' for the specified 'block'. If and when we
   // switch blocks_ to something with more fine-grained locking, this should
   // be revisited.
-  if (!force) {
-    return true;
-  }
-
   SpinSharedMutexSharedLock<false> read_lock(blocks_shared_mutex_);
 
   std::unordered_map<block_id, BlockHandle>::iterator block_it = blocks_.find(block);
   if (block_it == blocks_.end()) {
     return false;
   }
+
+  if (!force && !(FLAGS_force_save_dirty_blocks && block_it->second.block->isDirty())) {
+    return true;
+  }
+
 
   bool res = file_manager_->writeBlockOrBlob(block,
                                              block_it->second.block_memory,
