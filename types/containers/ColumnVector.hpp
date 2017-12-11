@@ -172,6 +172,13 @@ class NativeColumnVector : public ColumnVector {
     return true;
   }
 
+  void clear() {
+    actual_length_ = 0;
+    if (null_bitmap_ != nullptr) {
+      null_bitmap_->clear();
+    }
+  }
+
   /**
    * @brief Determine if this NativeColumnVector's Type is nullable.
    *

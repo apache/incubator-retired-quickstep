@@ -25,6 +25,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <limits>
+#include <vector>
 
 #include "utility/BitManipulation.hpp"
 #include "utility/Macros.hpp"
@@ -75,7 +76,7 @@ class BitVector {
    *
    * @param num_bits The length of the BitVector in bits.
    **/
-  explicit BitVector(const std::size_t num_bits)
+  explicit BitVector(const std::size_t num_bits, const bool initialize = true)
       : owned_(true),
         short_version_(enable_short_version && (num_bits < 33)),
         // NOTE(chasseur): If 'num_bits' is 0, we put 'this' in 'data_array_'
@@ -86,7 +87,9 @@ class BitVector {
                                                             : this)),
         num_bits_(num_bits),
         data_array_size_((num_bits >> kHigherOrderShift) + (num_bits & kLowerOrderMask ? 1 : 0)) {
-    clear();
+    if (initialize) {
+      clear();
+    }
   }
 
   /**
@@ -853,6 +856,27 @@ class BitVector {
     }
 
     return num_bits_;
+  }
+
+  inline void unionWith(const void *other) {
+    DCHECK(!enable_short_version);
+    const std::size_t *other_data_array = static_cast<const std::size_t*>(other);
+    for (std::size_t array_idx = 0; array_idx < data_array_size_; ++array_idx) {
+      data_array_[array_idx] |= other_data_array[array_idx];
+    }
+  }
+
+  inline void subtractTo(const BitVector &other, std::vector<int> *output) {
+    DCHECK(!enable_short_version);
+    for (std::size_t array_idx = 0; array_idx < data_array_size_; ++array_idx) {
+      const std::size_t base = array_idx << kHigherOrderShift;
+      std::size_t value = data_array_[array_idx] & ~other.data_array_[array_idx];
+      while (value != 0) {
+        const std::size_t offset = leading_zero_count<std::size_t>(value);
+        value ^= TopBit<std::size_t>() >> offset;
+        output->emplace_back(base + offset);
+      }
+    }
   }
 
  private:

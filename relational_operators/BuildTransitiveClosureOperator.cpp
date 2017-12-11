@@ -107,7 +107,6 @@ void BuildTransitiveClosureWorkOrder::execute() {
 }
 
 void BuildTransitiveClosureWorkOrder::buildStartRelation(ValueAccessor *accessor) {
-  std::cout << "BuildStartRelation: " << block_ << "\n";
   InvokeOnAnyValueAccessor(
       accessor,
       [&](auto *accessor) -> void {
@@ -119,7 +118,6 @@ void BuildTransitiveClosureWorkOrder::buildStartRelation(ValueAccessor *accessor
 }
 
 void BuildTransitiveClosureWorkOrder::buildEdgeRelation(ValueAccessor *accessor) {
-  std::cout << "BuildEdgeRelation: " << block_ << "\n";
   InvokeOnAnyValueAccessor(
       accessor,
       [&](auto *accessor) -> void {

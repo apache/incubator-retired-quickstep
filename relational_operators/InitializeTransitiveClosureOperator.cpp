@@ -45,9 +45,14 @@ bool InitializeTransitiveClosureOperator::getAllWorkOrders(
   if (started_) {
     return true;
   }
+  started_ = true;
 
   TransitiveClosureState *state =
       query_context->getTransitiveClosureState(transitive_closure_context_index_);
+
+  if (state->range() == 0) {
+    return true;
+  }
 
   constexpr std::size_t kMinBatchSize = 1024ul * 1024ul * 4ul;
   const std::size_t range = state->range();
@@ -66,7 +71,6 @@ bool InitializeTransitiveClosureOperator::getAllWorkOrders(
         op_index_);
   }
 
-  started_ = true;
   return true;
 }
 

@@ -118,6 +118,13 @@ class BarrieredReadWriteConcurrentBitVector {
   }
 
   /**
+   * @return The underlying bytes of this bit vector.
+   **/
+  inline const void *getData() const {
+    return data_array_;
+  }
+
+  /**
    * @brief Clear this bit vector, setting all bits to zero.
    **/
   inline void clear() {

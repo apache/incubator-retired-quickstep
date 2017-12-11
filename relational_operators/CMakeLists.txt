@@ -585,11 +585,16 @@ endif(QUICKSTEP_HAVE_FILE_MANAGER_HDFS)
 target_link_libraries(quickstep_relationaloperators_TransitiveClosureOperator
                       glog
                       quickstep_catalog_CatalogRelation
+                      quickstep_cli_Flags
                       quickstep_queryexecution_QueryContext
+                      quickstep_queryexecution_WorkOrderProtosContainer
+                      quickstep_queryexecution_WorkOrdersContainer
                       quickstep_relationaloperators_RelationalOperator
                       quickstep_relationaloperators_WorkOrder
+                      quickstep_relationaloperators_WorkOrder_proto
                       quickstep_storage_StorageBlockInfo
                       quickstep_storage_TransitiveClosureState
+                      quickstep_utility_BitVector
                       quickstep_utility_Macros
                       quickstep_utility_Range
                       tmb)

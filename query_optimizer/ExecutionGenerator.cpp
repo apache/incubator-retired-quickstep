@@ -2488,18 +2488,23 @@ void ExecutionGenerator::convertTransitiveClosure(
                                  &output_relation,
                                  insert_destination_proto);
 
+  const QueryPlan::DAGNodeIndex tc_operator_index =
+      execution_plan_->addRelationalOperator(
+          new TransitiveClosureOperator(query_handle_->query_id(),
+                                        transitive_closure_state_index,
+                                        *output_relation,
+                                        insert_destination_index));
+  insert_destination_proto->set_relational_op_index(tc_operator_index);
 
-  (void)insert_destination_index;
+  execution_plan_->addDirectDependency(tc_operator_index,
+                                       build_tc_operator_index,
+                                       true /* is_pipeline_breaker */);
 
-  // TODO: fix
-  insert_destination_proto->set_relational_op_index(build_tc_operator_index /* FIX */);
   physical_to_output_relation_map_.emplace(
       std::piecewise_construct,
       std::forward_as_tuple(physical_plan),
-      std::forward_as_tuple(build_tc_operator_index /* FIX */, output_relation));
-
-  temporary_relation_info_vec_.emplace_back(build_tc_operator_index /* FIX */,
-                                            output_relation);
+      std::forward_as_tuple(tc_operator_index, output_relation));
+  temporary_relation_info_vec_.emplace_back(tc_operator_index, output_relation);
 }
 
 }  // namespace optimizer

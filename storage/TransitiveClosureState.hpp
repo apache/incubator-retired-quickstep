@@ -69,6 +69,14 @@ class TransitiveClosureState {
     edges_[source]->setBit(destination);
   }
 
+  inline bool hasStart(const int value) {
+    return starts_->getBit(value);
+  }
+
+  inline const void* getEdgeData(const int source) const {
+    return edges_[source]->getData();
+  }
+
  private:
   const int range_;
   std::unique_ptr<BarrieredReadWriteConcurrentBitVector> starts_;
