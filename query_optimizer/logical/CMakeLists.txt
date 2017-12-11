@@ -44,6 +44,7 @@ add_library(quickstep_queryoptimizer_logical_Sort Sort.cpp Sort.hpp)
 add_library(quickstep_queryoptimizer_logical_TableReference TableReference.cpp TableReference.hpp)
 add_library(quickstep_queryoptimizer_logical_TableGenerator ../../empty_src.cpp TableGenerator.hpp)
 add_library(quickstep_queryoptimizer_logical_TopLevelPlan TopLevelPlan.cpp TopLevelPlan.hpp)
+add_library(quickstep_queryoptimizer_logical_TransitiveClosure TransitiveClosure.cpp TransitiveClosure.hpp)
 add_library(quickstep_queryoptimizer_logical_UpdateTable UpdateTable.cpp UpdateTable.hpp)
 add_library(quickstep_queryoptimizer_logical_WindowAggregate WindowAggregate.cpp WindowAggregate.hpp)
 
@@ -270,6 +271,13 @@ target_link_libraries(quickstep_queryoptimizer_logical_TopLevelPlan
                       quickstep_queryoptimizer_logical_LogicalType
                       quickstep_utility_Cast
                       quickstep_utility_Macros)
+target_link_libraries(quickstep_queryoptimizer_logical_TransitiveClosure
+                      glog
+                      quickstep_queryoptimizer_OptimizerTree
+                      quickstep_queryoptimizer_expressions_AttributeReference
+                      quickstep_queryoptimizer_logical_Logical
+                      quickstep_queryoptimizer_logical_LogicalType
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_logical_UpdateTable
                       glog
                       quickstep_queryoptimizer_OptimizerTree
@@ -324,5 +332,6 @@ target_link_libraries(quickstep_queryoptimizer_logical
                       quickstep_queryoptimizer_logical_TableGenerator
                       quickstep_queryoptimizer_logical_TableReference
                       quickstep_queryoptimizer_logical_TopLevelPlan
+                      quickstep_queryoptimizer_logical_TransitiveClosure
                       quickstep_queryoptimizer_logical_UpdateTable
                       quickstep_queryoptimizer_logical_WindowAggregate)

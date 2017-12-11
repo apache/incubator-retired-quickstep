@@ -101,7 +101,8 @@ class ParseTableReference : public ParseTreeNode {
     kGeneratorTableReference,
     kJoinedTableReference,
     kSimpleTableReference,
-    kSubqueryTableReference
+    kSubqueryTableReference,
+    kTransitiveClosureTableReference
   };
 
   /**

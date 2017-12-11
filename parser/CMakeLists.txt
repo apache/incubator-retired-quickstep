@@ -114,6 +114,9 @@ add_library(quickstep_parser_ParseString ParseString.cpp ParseString.hpp)
 add_library(quickstep_parser_ParseSubqueryExpression ParseSubqueryExpression.cpp ParseSubqueryExpression.hpp)
 add_library(quickstep_parser_ParseSubqueryTableReference ParseSubqueryTableReference.cpp ParseSubqueryTableReference.hpp)
 add_library(quickstep_parser_ParseTableReference ParseTableReference.cpp ParseTableReference.hpp)
+add_library(quickstep_parser_ParseTransitiveClosureTableReference
+            ParseTransitiveClosureTableReference.cpp
+            ParseTransitiveClosureTableReference.hpp)
 add_library(quickstep_parser_ParseTreeNode ../empty_src.cpp ParseTreeNode.hpp)
 add_library(quickstep_parser_ParseWindow ../empty_src.cpp ParseWindow.hpp)
 add_library(quickstep_parser_ParserUtil ParserUtil.cpp ParserUtil.hpp)
@@ -311,6 +314,9 @@ target_link_libraries(quickstep_parser_ParseTableReference
                       quickstep_parser_ParseTreeNode
                       quickstep_utility_Macros
                       quickstep_utility_PtrList)
+target_link_libraries(quickstep_parser_ParseTransitiveClosureTableReference
+                      quickstep_parser_ParseTableReference
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_parser_ParseTreeNode
                       quickstep_utility_Macros
                       quickstep_utility_TreeStringSerializable)
@@ -361,6 +367,7 @@ target_link_libraries(quickstep_parser_SqlParser
                       quickstep_parser_ParseSubqueryExpression
                       quickstep_parser_ParseSubqueryTableReference
                       quickstep_parser_ParseTableReference
+                      quickstep_parser_ParseTransitiveClosureTableReference
                       quickstep_parser_ParseWindow
                       quickstep_parser_ParserUtil
                       quickstep_storage_StorageBlockInfo
@@ -442,6 +449,7 @@ target_link_libraries(quickstep_parser
                       quickstep_parser_ParseSubqueryExpression
                       quickstep_parser_ParseSubqueryTableReference
                       quickstep_parser_ParseTableReference
+                      quickstep_parser_ParseTransitiveClosureTableReference
                       quickstep_parser_ParseTreeNode
                       quickstep_parser_ParseWindow
                       quickstep_parser_SqlLexer

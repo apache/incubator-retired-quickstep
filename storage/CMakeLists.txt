@@ -256,6 +256,7 @@ add_library(quickstep_storage_SubBlocksReference ../empty_src.cpp SubBlocksRefer
 add_library(quickstep_storage_ThreadPrivateCompactKeyHashTable
             ThreadPrivateCompactKeyHashTable.cpp
             ThreadPrivateCompactKeyHashTable.hpp)
+add_library(quickstep_storage_TransitiveClosureState TransitiveClosureState.cpp TransitiveClosureState.hpp)
 add_library(quickstep_storage_TupleIdSequence ../empty_src.cpp TupleIdSequence.hpp)
 add_library(quickstep_storage_TupleReference ../empty_src.cpp TupleReference.hpp)
 add_library(quickstep_storage_TupleStorageSubBlock TupleStorageSubBlock.cpp TupleStorageSubBlock.hpp)
@@ -1087,6 +1088,9 @@ target_link_libraries(quickstep_storage_ThreadPrivateCompactKeyHashTable
                       quickstep_types_containers_ColumnVectorsValueAccessor
                       quickstep_utility_Macros
                       quickstep_utility_ScopedBuffer)
+target_link_libraries(quickstep_storage_TransitiveClosureState
+                      quickstep_utility_BarrieredReadWriteConcurrentBitVector
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_storage_TupleIdSequence
                       glog
                       quickstep_storage_StorageBlockInfo
@@ -1215,6 +1219,7 @@ target_link_libraries(quickstep_storage
                       quickstep_storage_SubBlockTypeRegistryMacros
                       quickstep_storage_SubBlocksReference
                       quickstep_storage_ThreadPrivateCompactKeyHashTable
+                      quickstep_storage_TransitiveClosureState
                       quickstep_storage_TupleIdSequence
                       quickstep_storage_TupleReference
                       quickstep_storage_TupleStorageSubBlock

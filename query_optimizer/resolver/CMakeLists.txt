@@ -67,6 +67,7 @@ target_link_libraries(quickstep_queryoptimizer_resolver_Resolver
                       quickstep_parser_ParseSubqueryExpression
                       quickstep_parser_ParseSubqueryTableReference
                       quickstep_parser_ParseTableReference
+                      quickstep_parser_ParseTransitiveClosureTableReference
                       quickstep_parser_ParseWindow
                       quickstep_queryoptimizer_OptimizerContext
                       quickstep_queryoptimizer_Validator
@@ -116,6 +117,7 @@ target_link_libraries(quickstep_queryoptimizer_resolver_Resolver
                       quickstep_queryoptimizer_logical_TableGenerator
                       quickstep_queryoptimizer_logical_TableReference
                       quickstep_queryoptimizer_logical_TopLevelPlan
+                      quickstep_queryoptimizer_logical_TransitiveClosure
                       quickstep_queryoptimizer_logical_UpdateTable
                       quickstep_queryoptimizer_logical_WindowAggregate
                       quickstep_queryoptimizer_resolver_NameResolver

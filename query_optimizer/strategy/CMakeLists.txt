@@ -75,6 +75,7 @@ target_link_libraries(quickstep_queryoptimizer_strategy_OneToOne
                       quickstep_queryoptimizer_OptimizerContext
                       quickstep_queryoptimizer_expressions_AttributeReference
                       quickstep_queryoptimizer_expressions_ExpressionUtil
+                      quickstep_queryoptimizer_expressions_ExpressionType
                       quickstep_queryoptimizer_logical_CopyFrom
                       quickstep_queryoptimizer_logical_CopyTo
                       quickstep_queryoptimizer_logical_CreateIndex
@@ -92,6 +93,7 @@ target_link_libraries(quickstep_queryoptimizer_strategy_OneToOne
                       quickstep_queryoptimizer_logical_TableGenerator
                       quickstep_queryoptimizer_logical_TableReference
                       quickstep_queryoptimizer_logical_TopLevelPlan
+                      quickstep_queryoptimizer_logical_TransitiveClosure
                       quickstep_queryoptimizer_logical_UpdateTable
                       quickstep_queryoptimizer_logical_WindowAggregate
                       quickstep_queryoptimizer_physical_Aggregate
@@ -103,13 +105,16 @@ target_link_libraries(quickstep_queryoptimizer_strategy_OneToOne
                       quickstep_queryoptimizer_physical_DropTable
                       quickstep_queryoptimizer_physical_InsertSelection
                       quickstep_queryoptimizer_physical_InsertTuple
+                      quickstep_queryoptimizer_physical_PatternMatcher
                       quickstep_queryoptimizer_physical_Physical
                       quickstep_queryoptimizer_physical_Sample
+                      quickstep_queryoptimizer_physical_Selection
                       quickstep_queryoptimizer_physical_SharedSubplanReference
                       quickstep_queryoptimizer_physical_Sort
                       quickstep_queryoptimizer_physical_TableGenerator
                       quickstep_queryoptimizer_physical_TableReference
                       quickstep_queryoptimizer_physical_TopLevelPlan
+                      quickstep_queryoptimizer_physical_TransitiveClosure
                       quickstep_queryoptimizer_physical_UnionAll
                       quickstep_queryoptimizer_physical_UpdateTable
                       quickstep_queryoptimizer_physical_WindowAggregate

@@ -47,6 +47,7 @@ class SharedSubplanReference;
 class Sort;
 class TableReference;
 class TopLevelPlan;
+class TransitiveClosure;
 class UpdateTable;
 class WindowAggregate;
 
@@ -134,6 +135,7 @@ using SomeSharedSubplanReference = SomeLogicalNode<SharedSubplanReference, Logic
 using SomeSort = SomeLogicalNode<Sort, LogicalType::kSort>;
 using SomeTableReference = SomeLogicalNode<TableReference, LogicalType::kTableReference>;
 using SomeTopLevelPlan = SomeLogicalNode<TopLevelPlan, LogicalType::kTopLevelPlan>;
+using SomeTransitiveClosure = SomeLogicalNode<TransitiveClosure, LogicalType::kTransitiveClosure>;
 using SomeUpdateTable = SomeLogicalNode<UpdateTable, LogicalType::kUpdateTable>;
 using SomeWindowAggregate = SomeLogicalNode<WindowAggregate, LogicalType::kWindowAggregate>;
 

@@ -39,6 +39,7 @@
 #include "query_optimizer/physical/TableGenerator.hpp"
 #include "query_optimizer/physical/TableReference.hpp"
 #include "query_optimizer/physical/TopLevelPlan.hpp"
+#include "query_optimizer/physical/TransitiveClosure.hpp"
 #include "query_optimizer/physical/UnionAll.hpp"
 #include "query_optimizer/physical/WindowAggregate.hpp"
 #include "types/TypedValue.hpp"
@@ -226,6 +227,9 @@ class StarSchemaSimpleCostModel : public CostModel {
 
   std::size_t estimateCardinalityForTopLevelPlan(
       const physical::TopLevelPlanPtr &physical_plan);
+
+  std::size_t estimateCardinalityForTransitiveClosure(
+      const physical::TransitiveClosurePtr &physical_plan);
 
   std::size_t estimateCardinalityForWindowAggregate(
       const physical::WindowAggregatePtr &physical_plan);

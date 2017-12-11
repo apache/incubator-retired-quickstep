@@ -35,6 +35,7 @@
 #include "query_optimizer/physical/TableGenerator.hpp"
 #include "query_optimizer/physical/TableReference.hpp"
 #include "query_optimizer/physical/TopLevelPlan.hpp"
+#include "query_optimizer/physical/TransitiveClosure.hpp"
 #include "query_optimizer/physical/UnionAll.hpp"
 #include "query_optimizer/physical/WindowAggregate.hpp"
 #include "utility/Macros.hpp"
@@ -114,6 +115,9 @@ class SimpleCostModel : public CostModel {
   // which is the sum of the cardinality of all children operators.
   std::size_t estimateCardinalityForUnionAll(
       const physical::UnionAllPtr &physical_plan);
+
+  std::size_t estimateCardinalityForTransitiveClosure(
+      const physical::TransitiveClosurePtr &physical_plan);
 
   const std::vector<physical::PhysicalPtr> &shared_subplans_;
 

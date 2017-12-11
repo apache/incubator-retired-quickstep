@@ -55,6 +55,7 @@
 #include "query_optimizer/physical/TableGenerator.hpp"
 #include "query_optimizer/physical/TableReference.hpp"
 #include "query_optimizer/physical/TopLevelPlan.hpp"
+#include "query_optimizer/physical/TransitiveClosure.hpp"
 #include "query_optimizer/physical/UnionAll.hpp"
 #include "types/Type.hpp"
 #include "types/TypeID.hpp"
@@ -116,6 +117,9 @@ std::size_t StarSchemaSimpleCostModel::estimateCardinality(
     case P::PhysicalType::kSort:
       return estimateCardinalityForSort(
           std::static_pointer_cast<const P::Sort>(physical_plan));
+    case P::PhysicalType::kTransitiveClosure:
+      return estimateCardinalityForTransitiveClosure(
+          std::static_pointer_cast<const P::TransitiveClosure>(physical_plan));
     case P::PhysicalType::kWindowAggregate:
       return estimateCardinalityForWindowAggregate(
           std::static_pointer_cast<const P::WindowAggregate>(physical_plan));
@@ -216,6 +220,13 @@ std::size_t StarSchemaSimpleCostModel::estimateCardinalityForUnionAll(
   return cardinality;
 }
 
+std::size_t StarSchemaSimpleCostModel::estimateCardinalityForTransitiveClosure(
+    const P::TransitiveClosurePtr &physical_plan) {
+  std::size_t left_cardinality = estimateCardinality(physical_plan->start());
+  std::size_t right_cardinality = estimateCardinality(physical_plan->edge());
+  return std::max(left_cardinality, right_cardinality);
+}
+
 std::size_t StarSchemaSimpleCostModel::estimateNumGroupsForAggregate(
     const physical::AggregatePtr &aggregate) {
   if (aggregate->grouping_expressions().empty()) {
@@ -286,6 +297,7 @@ std::size_t StarSchemaSimpleCostModel::estimateNumDistinctValues(
         return static_cast<std::size_t>(
             left_child_num_distinct_values * right_child_selectivity + 0.5);
       }
+      break;
     }
     case P::PhysicalType::kHashJoin: {
       const P::HashJoinPtr &hash_join =
@@ -306,6 +318,20 @@ std::size_t StarSchemaSimpleCostModel::estimateNumDistinctValues(
         return static_cast<std::size_t>(
             right_child_num_distinct_values * left_child_selectivity * filter_selectivity + 0.5);
       }
+      break;
+    }
+    case P::PhysicalType::kTransitiveClosure: {
+      const P::TransitiveClosurePtr &transitive_closure =
+          std::static_pointer_cast<const P::TransitiveClosure>(physical_plan);
+      const P::PhysicalPtr start = transitive_closure->start();
+      if (E::ContainsExprId(start->getOutputAttributes(), attribute_id)) {
+        return estimateNumDistinctValues(attribute_id, start);
+      }
+      const P::PhysicalPtr edge = transitive_closure->edge();
+      if (E::ContainsExprId(edge->getOutputAttributes(), attribute_id)) {
+        return estimateNumDistinctValues(attribute_id, edge);
+      }
+      break;
     }
     default:
       break;

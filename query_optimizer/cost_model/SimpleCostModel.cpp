@@ -38,6 +38,7 @@
 #include "query_optimizer/physical/TableGenerator.hpp"
 #include "query_optimizer/physical/TableReference.hpp"
 #include "query_optimizer/physical/TopLevelPlan.hpp"
+#include "query_optimizer/physical/TransitiveClosure.hpp"
 #include "query_optimizer/physical/UnionAll.hpp"
 #include "query_optimizer/physical/WindowAggregate.hpp"
 
@@ -88,6 +89,9 @@ std::size_t SimpleCostModel::estimateCardinality(
     case P::PhysicalType::kSort:
       return estimateCardinalityForSort(
           std::static_pointer_cast<const P::Sort>(physical_plan));
+    case P::PhysicalType::kTransitiveClosure:
+      return estimateCardinalityForTransitiveClosure(
+          std::static_pointer_cast<const P::TransitiveClosure>(physical_plan));
     case P::PhysicalType::kWindowAggregate:
       return estimateCardinalityForWindowAggregate(
           std::static_pointer_cast<const P::WindowAggregate>(physical_plan));
@@ -174,6 +178,12 @@ std::size_t SimpleCostModel::estimateCardinalityForUnionAll(
     cardinality += estimateCardinality(operand);
   }
   return cardinality;
+}
+
+std::size_t SimpleCostModel::estimateCardinalityForTransitiveClosure(
+    const physical::TransitiveClosurePtr &physical_plan) {
+  return std::max(estimateCardinality(physical_plan->start()),
+                  estimateCardinality(physical_plan->edge()));
 }
 
 }  // namespace cost

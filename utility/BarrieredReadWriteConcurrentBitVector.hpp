@@ -131,6 +131,7 @@ class BarrieredReadWriteConcurrentBitVector {
    * @return The value of the bit at bit_num.
    **/
   inline bool getBit(const std::size_t bit_num) const {
+    DCHECK_LT(bit_num, num_bits_);
     const std::size_t data_value =
         data_array_[bit_num >> kHigherOrderShift].load(std::memory_order_relaxed);
     return (data_value << (bit_num & kLowerOrderMask)) & kTopBit;
@@ -143,6 +144,7 @@ class BarrieredReadWriteConcurrentBitVector {
    * @param value The new value to set for the bit at bit_num.
    **/
   inline void setBit(const std::size_t bit_num) const {
+    DCHECK_LT(bit_num, num_bits_);
     data_array_[bit_num >> kHigherOrderShift].fetch_or(
         kTopBit >> (bit_num & kLowerOrderMask), std::memory_order_relaxed);
   }

@@ -38,6 +38,9 @@ add_library(quickstep_relationaloperators_BuildAggregationExistenceMapOperator
             BuildAggregationExistenceMapOperator.hpp)
 add_library(quickstep_relationaloperators_BuildHashOperator BuildHashOperator.cpp BuildHashOperator.hpp)
 add_library(quickstep_relationaloperators_BuildLIPFilterOperator BuildLIPFilterOperator.cpp BuildLIPFilterOperator.hpp)
+add_library(quickstep_relationaloperators_BuildTransitiveClosureOperator
+            BuildTransitiveClosureOperator.cpp
+            BuildTransitiveClosureOperator.hpp)
 add_library(quickstep_relationaloperators_CreateIndexOperator ../empty_src.cpp CreateIndexOperator.hpp)
 add_library(quickstep_relationaloperators_CreateTableOperator ../empty_src.cpp CreateTableOperator.hpp)
 add_library(quickstep_relationaloperators_DestroyAggregationStateOperator
@@ -53,6 +56,9 @@ add_library(quickstep_relationaloperators_HashJoinOperator HashJoinOperator.cpp 
 add_library(quickstep_relationaloperators_InitializeAggregationOperator
             InitializeAggregationOperator.cpp
             InitializeAggregationOperator.hpp)
+add_library(quickstep_relationaloperators_InitializeTransitiveClosureOperator
+            InitializeTransitiveClosureOperator.cpp
+            InitializeTransitiveClosureOperator.hpp)
 add_library(quickstep_relationaloperators_InsertOperator InsertOperator.cpp InsertOperator.hpp)
 add_library(quickstep_relationaloperators_NestedLoopsJoinOperator
             NestedLoopsJoinOperator.cpp
@@ -73,6 +79,9 @@ add_library(quickstep_relationaloperators_SortRunGenerationOperator SortRunGener
             SortRunGenerationOperator.hpp)
 add_library(quickstep_relationaloperators_TableExportOperator TableExportOperator.cpp TableExportOperator.hpp)
 add_library(quickstep_relationaloperators_TableGeneratorOperator TableGeneratorOperator.cpp TableGeneratorOperator.hpp)
+add_library(quickstep_relationaloperators_TransitiveClosureOperator
+            TransitiveClosureOperator.cpp
+            TransitiveClosureOperator.hpp)
 add_library(quickstep_relationaloperators_TextScanOperator TextScanOperator.cpp TextScanOperator.hpp)
 add_library(quickstep_relationaloperators_UnionAllOperator UnionAllOperator.cpp UnionAllOperator.hpp)
 add_library(quickstep_relationaloperators_UpdateOperator UpdateOperator.cpp UpdateOperator.hpp)
@@ -170,6 +179,28 @@ target_link_libraries(quickstep_relationaloperators_BuildLIPFilterOperator
                       quickstep_utility_lipfilter_LIPFilterAdaptiveProber
                       quickstep_utility_lipfilter_LIPFilterBuilder
                       quickstep_utility_lipfilter_LIPFilterUtil
+                      tmb)
+target_link_libraries(quickstep_relationaloperators_BuildTransitiveClosureOperator
+                      glog
+                      quickstep_catalog_CatalogRelation
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_cli_Flags
+                      quickstep_queryexecution_QueryContext
+                      quickstep_queryexecution_WorkOrderProtosContainer
+                      quickstep_queryexecution_WorkOrdersContainer
+                      quickstep_relationaloperators_RelationalOperator
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_relationaloperators_WorkOrder_proto
+                      quickstep_storage_StorageBlock
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_storage_StorageManager
+                      quickstep_storage_TransitiveClosureState
+                      quickstep_storage_TupleStorageSubBlock
+                      quickstep_storage_ValueAccessor
+                      quickstep_storage_ValueAccessorUtil
+                      quickstep_utility_BlockIDStream
+                      quickstep_utility_Macros
+                      quickstep_utility_Range
                       tmb)
 target_link_libraries(quickstep_relationaloperators_CreateIndexOperator
                       glog
@@ -303,6 +334,20 @@ target_link_libraries(quickstep_relationaloperators_InitializeAggregationOperato
                       quickstep_relationaloperators_WorkOrder_proto
                       quickstep_storage_AggregationOperationState
                       quickstep_utility_Macros
+                      tmb)
+target_link_libraries(quickstep_relationaloperators_InitializeTransitiveClosureOperator
+                      glog
+                      quickstep_cli_Flags
+                      quickstep_queryexecution_QueryContext
+                      quickstep_queryexecution_WorkOrderProtosContainer
+                      quickstep_queryexecution_WorkOrdersContainer
+                      quickstep_relationaloperators_RelationalOperator
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_relationaloperators_WorkOrder_proto
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_storage_TransitiveClosureState
+                      quickstep_utility_Macros
+                      quickstep_utility_Range
                       tmb)
 target_link_libraries(quickstep_relationaloperators_InsertOperator
                       glog
@@ -537,6 +582,17 @@ if (QUICKSTEP_HAVE_FILE_MANAGER_HDFS)
   target_link_libraries(quickstep_relationaloperators_TextScanOperator
                         ${LIBHDFS3_LIBRARIES})
 endif(QUICKSTEP_HAVE_FILE_MANAGER_HDFS)
+target_link_libraries(quickstep_relationaloperators_TransitiveClosureOperator
+                      glog
+                      quickstep_catalog_CatalogRelation
+                      quickstep_queryexecution_QueryContext
+                      quickstep_relationaloperators_RelationalOperator
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_storage_TransitiveClosureState
+                      quickstep_utility_Macros
+                      quickstep_utility_Range
+                      tmb)
 target_link_libraries(quickstep_relationaloperators_UnionAllOperator
                       glog
                       quickstep_catalog_CatalogRelation
@@ -639,6 +695,7 @@ target_link_libraries(quickstep_relationaloperators
                       quickstep_relationaloperators_BuildAggregationExistenceMapOperator
                       quickstep_relationaloperators_BuildLIPFilterOperator
                       quickstep_relationaloperators_BuildHashOperator
+                      quickstep_relationaloperators_BuildTransitiveClosureOperator
                       quickstep_relationaloperators_CreateIndexOperator
                       quickstep_relationaloperators_CreateTableOperator
                       quickstep_relationaloperators_DeleteOperator
@@ -648,6 +705,7 @@ target_link_libraries(quickstep_relationaloperators
                       quickstep_relationaloperators_FinalizeAggregationOperator
                       quickstep_relationaloperators_HashJoinOperator
                       quickstep_relationaloperators_InitializeAggregationOperator
+                      quickstep_relationaloperators_InitializeTransitiveClosureOperator
                       quickstep_relationaloperators_InsertOperator
                       quickstep_relationaloperators_NestedLoopsJoinOperator
                       quickstep_relationaloperators_RebuildWorkOrder
@@ -662,6 +720,7 @@ target_link_libraries(quickstep_relationaloperators
                       quickstep_relationaloperators_TableExportOperator
                       quickstep_relationaloperators_TableGeneratorOperator
                       quickstep_relationaloperators_TextScanOperator
+                      quickstep_relationaloperators_TransitiveClosureOperator
                       quickstep_relationaloperators_UnionAllOperator
                       quickstep_relationaloperators_UpdateOperator
                       quickstep_relationaloperators_WindowAggregationOperator

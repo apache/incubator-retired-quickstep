@@ -33,6 +33,7 @@
 #include "storage/AggregationOperationState.hpp"
 #include "storage/HashTable.hpp"
 #include "storage/InsertDestination.hpp"
+#include "storage/TransitiveClosureState.hpp"
 #include "storage/WindowAggregationOperationState.hpp"
 #include "threading/SpinSharedMutex.hpp"
 #include "types/containers/Tuple.hpp"
@@ -586,6 +587,16 @@ class QueryContext {
     return window_aggregation_states_[id].release();
   }
 
+  TransitiveClosureState* getTransitiveClosureState(const std::size_t id) const {
+    DCHECK_LT(id, transitive_closure_states_.size());
+    return transitive_closure_states_[id].get();
+  }
+
+  void destroyTransitiveClosureState(const std::size_t id) {
+    DCHECK_LT(id, transitive_closure_states_.size());
+    transitive_closure_states_[id].reset();
+  }
+
   /**
    * @brief Get the total memory footprint of the temporary data structures
    *        used for query execution (e.g. join hash tables, aggregation hash
@@ -650,6 +661,7 @@ class QueryContext {
   std::vector<std::unique_ptr<Tuple>> tuples_;
   std::vector<std::unordered_map<attribute_id, std::unique_ptr<const Scalar>>> update_groups_;
   std::vector<std::unique_ptr<WindowAggregationOperationState>> window_aggregation_states_;
+  std::vector<std::unique_ptr<TransitiveClosureState>> transitive_closure_states_;
 
   mutable SpinSharedMutex<false> hash_tables_mutex_;
   mutable SpinSharedMutex<false> aggregation_states_mutex_;

@@ -53,6 +53,7 @@ enum class LogicalType {
   kTableGenerator,
   kTableReference,
   kTopLevelPlan,
+  kTransitiveClosure,
   kUpdateTable,
   kWindowAggregate
 };

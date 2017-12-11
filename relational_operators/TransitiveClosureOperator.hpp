@@ -17,51 +17,41 @@
  * under the License.
  **/
 
-#ifndef QUICKSTEP_QUERY_OPTIMIZER_PHYSICAL_PHYSICAL_TYPE_HPP_
-#define QUICKSTEP_QUERY_OPTIMIZER_PHYSICAL_PHYSICAL_TYPE_HPP_
+#ifndef QUICKSTEP_RELATIONAL_OPERATORS_TRANSITIVE_CLOSURE_OPERATOR_HPP_
+#define QUICKSTEP_RELATIONAL_OPERATORS_TRANSITIVE_CLOSURE_OPERATOR_HPP_
+
+#include <cstddef>
+#include <string>
+#include <vector>
+
+#include "catalog/CatalogRelation.hpp"
+#include "query_execution/QueryContext.hpp"
+#include "relational_operators/RelationalOperator.hpp"
+#include "relational_operators/WorkOrder.hpp"
+#include "storage/StorageBlockInfo.hpp"
+#include "storage/TransitiveClosureState.hpp"
+#include "utility/Macros.hpp"
+#include "utility/Range.hpp"
+
+#include "glog/logging.h"
+
+#include "tmb/id_typedefs.h"
+
+namespace tmb { class MessageBus; }
 
 namespace quickstep {
-namespace optimizer {
-namespace physical {
 
-/** \addtogroup OptimizerPhysical
+class StorageManager;
+class WorkOrderProtosContainer;
+class WorkOrdersContainer;
+
+/** \addtogroup RelationalOperators
  *  @{
  */
 
-/**
- * @brief Optimizer physical node types.
- **/
-enum class PhysicalType {
-  kAggregate = 0,
-  kCopyFrom,
-  kCopyTo,
-  kCreateIndex,
-  kCreateTable,
-  kCrossReferenceCoalesceAggregate,
-  kDeleteTuples,
-  kDropTable,
-  kFilterJoin,
-  kHashJoin,
-  kInsertSelection,
-  kInsertTuple,
-  kNestedLoopsJoin,
-  kSample,
-  kSelection,
-  kSharedSubplanReference,
-  kSort,
-  kTableGenerator,
-  kTableReference,
-  kTopLevelPlan,
-  kTransitiveClosure,
-  kUnionAll,
-  kUpdateTable,
-  kWindowAggregate
-};
 
 /** @} */
 
-}  // namespace physical
-}  // namespace optimizer
 }  // namespace quickstep
 
-#endif /* QUICKSTEP_QUERY_OPTIMIZER_PHYSICAL_PHYSICAL_TYPE_HPP_ */
+#endif  // QUICKSTEP_RELATIONAL_OPERATORS_INITIALIZE_TRANSITIVE_CLOSURE_OPERATOR_HPP_

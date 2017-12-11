@@ -63,6 +63,7 @@
 #include "query_optimizer/physical/TableGenerator.hpp"
 #include "query_optimizer/physical/TableReference.hpp"
 #include "query_optimizer/physical/TopLevelPlan.hpp"
+#include "query_optimizer/physical/TransitiveClosure.hpp"
 #include "query_optimizer/physical/UnionAll.hpp"
 #include "query_optimizer/physical/UpdateTable.hpp"
 #include "query_optimizer/physical/WindowAggregate.hpp"
@@ -373,6 +374,8 @@ class ExecutionGenerator {
    * @param physical_plan The TableGenerator to be converted.
    */
   void convertTableGenerator(const physical::TableGeneratorPtr &physical_plan);
+
+  void convertTransitiveClosure(const physical::TransitiveClosurePtr &physical_plan);
 
   /**
    * @brief Converts a physical WindowAggregate to a WindowAggregation operator.

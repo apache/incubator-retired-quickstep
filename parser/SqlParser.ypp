@@ -97,6 +97,7 @@ typedef struct YYLTYPE {
 #include "parser/ParseSubqueryExpression.hpp"
 #include "parser/ParseSubqueryTableReference.hpp"
 #include "parser/ParseTableReference.hpp"
+#include "parser/ParseTransitiveClosureTableReference.hpp"
 #include "parser/ParseWindow.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "types/Type.hpp"
@@ -259,15 +260,16 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_BLOCKPROPERTIES;
 %token TOKEN_BLOCKSAMPLE;
 %token TOKEN_BLOOM_FILTER;
-%token TOKEN_CSB_TREE;
 %token TOKEN_BY;
 %token TOKEN_CASE;
 %token TOKEN_CHARACTER;
 %token TOKEN_CHECK;
 %token TOKEN_COLUMN;
+%token TOKEN_CONNECT;
 %token TOKEN_CONSTRAINT;
 %token TOKEN_COPY;
 %token TOKEN_CREATE;
+%token TOKEN_CSB_TREE;
 %token TOKEN_CURRENT;
 %token TOKEN_DATE;
 %token TOKEN_DATETIME;
@@ -1360,6 +1362,10 @@ join_type:
 joined_table_reference:
   joined_table_reference join_type TOKEN_JOIN table_reference TOKEN_ON or_expression {
     $$ = new quickstep::ParseJoinedTableReference(@3.first_line, @3.first_column, $2, $1, $4, $6);
+  }
+  | '(' table_reference TOKEN_CONNECT TOKEN_BY table_reference ')' table_reference_signature {
+    $$ = new quickstep::ParseTransitiveClosureTableReference(@3.first_line, @3.first_column, $2, $5);
+    $$->set_table_reference_signature($7);
   }
   | table_reference {
     $$ = $1;

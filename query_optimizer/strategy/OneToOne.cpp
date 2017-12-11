@@ -25,6 +25,7 @@
 #include "query_optimizer/LogicalToPhysicalMapper.hpp"
 #include "query_optimizer/OptimizerContext.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"
+#include "query_optimizer/expressions/ExpressionType.hpp"
 #include "query_optimizer/expressions/ExpressionUtil.hpp"
 #include "query_optimizer/logical/CopyFrom.hpp"
 #include "query_optimizer/logical/CopyTo.hpp"
@@ -42,6 +43,7 @@
 #include "query_optimizer/logical/TableGenerator.hpp"
 #include "query_optimizer/logical/TableReference.hpp"
 #include "query_optimizer/logical/TopLevelPlan.hpp"
+#include "query_optimizer/logical/TransitiveClosure.hpp"
 #include "query_optimizer/logical/UpdateTable.hpp"
 #include "query_optimizer/logical/WindowAggregate.hpp"
 #include "query_optimizer/physical/Aggregate.hpp"
@@ -53,12 +55,15 @@
 #include "query_optimizer/physical/DropTable.hpp"
 #include "query_optimizer/physical/InsertSelection.hpp"
 #include "query_optimizer/physical/InsertTuple.hpp"
+#include "query_optimizer/physical/PatternMatcher.hpp"
 #include "query_optimizer/physical/Sample.hpp"
+#include "query_optimizer/physical/Selection.hpp"
 #include "query_optimizer/physical/SharedSubplanReference.hpp"
 #include "query_optimizer/physical/Sort.hpp"
 #include "query_optimizer/physical/TableGenerator.hpp"
 #include "query_optimizer/physical/TableReference.hpp"
 #include "query_optimizer/physical/TopLevelPlan.hpp"
+#include "query_optimizer/physical/TransitiveClosure.hpp"
 #include "query_optimizer/physical/UnionAll.hpp"
 #include "query_optimizer/physical/UpdateTable.hpp"
 #include "query_optimizer/physical/WindowAggregate.hpp"
@@ -240,6 +245,42 @@ bool OneToOne::generatePlan(const L::LogicalPtr &logical_input,
           table_generator->generator_function_handle(),
           table_generator->table_alias(),
           table_generator->attribute_list());
+      return true;
+    }
+    case L::LogicalType::kTransitiveClosure: {
+      const L::TransitiveClosurePtr transitive_closure =
+          std::static_pointer_cast<const L::TransitiveClosure>(logical_input);
+      P::PhysicalPtr start =
+          physical_mapper_->createOrGetPhysicalFromLogical(transitive_closure->start());
+      P::PhysicalPtr edge =
+          physical_mapper_->createOrGetPhysicalFromLogical(transitive_closure->edge());
+
+      const auto start_attrs = start->getOutputAttributes();
+      DCHECK_EQ(1u, start_attrs.size());
+      const auto edge_attrs = edge->getOutputAttributes();
+      DCHECK_EQ(2u, edge_attrs.size());
+
+      P::SelectionPtr selection;
+      if (P::SomeSelection::MatchesWithConditionalCast(start, &selection) &&
+          selection->filter_predicate() == nullptr) {
+        const auto &exprs = selection->project_expressions();
+        DCHECK_EQ(1u, exprs.size());
+        if (exprs.front()->id() == start_attrs.front()->id()) {
+          start = selection->input();
+        }
+      }
+      if (P::SomeSelection::MatchesWithConditionalCast(edge, &selection) &&
+          selection->filter_predicate() == nullptr) {
+        const auto &exprs = selection->project_expressions();
+        DCHECK_EQ(2u, exprs.size());
+        if (exprs[0]->id() == edge_attrs[0]->id() &&
+            exprs[1]->id() == edge_attrs[1]->id()) {
+          edge = selection->input();
+        }
+      }
+
+      *physical_output = P::TransitiveClosure::Create(
+          start, edge, start_attrs[0], edge_attrs[0], edge_attrs[1]);
       return true;
     }
     case L::LogicalType::kUpdateTable: {

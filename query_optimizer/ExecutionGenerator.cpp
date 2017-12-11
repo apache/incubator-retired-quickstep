@@ -101,6 +101,7 @@
 #include "query_optimizer/physical/TableGenerator.hpp"
 #include "query_optimizer/physical/TableReference.hpp"
 #include "query_optimizer/physical/TopLevelPlan.hpp"
+#include "query_optimizer/physical/TransitiveClosure.hpp"
 #include "query_optimizer/physical/UnionAll.hpp"
 #include "query_optimizer/physical/UpdateTable.hpp"
 #include "query_optimizer/physical/WindowAggregate.hpp"
@@ -108,6 +109,7 @@
 #include "relational_operators/BuildAggregationExistenceMapOperator.hpp"
 #include "relational_operators/BuildHashOperator.hpp"
 #include "relational_operators/BuildLIPFilterOperator.hpp"
+#include "relational_operators/BuildTransitiveClosureOperator.hpp"
 #include "relational_operators/CreateIndexOperator.hpp"
 #include "relational_operators/CreateTableOperator.hpp"
 #include "relational_operators/DeleteOperator.hpp"
@@ -117,6 +119,7 @@
 #include "relational_operators/FinalizeAggregationOperator.hpp"
 #include "relational_operators/HashJoinOperator.hpp"
 #include "relational_operators/InitializeAggregationOperator.hpp"
+#include "relational_operators/InitializeTransitiveClosureOperator.hpp"
 #include "relational_operators/InsertOperator.hpp"
 #include "relational_operators/NestedLoopsJoinOperator.hpp"
 #include "relational_operators/RelationalOperator.hpp"
@@ -128,6 +131,7 @@
 #include "relational_operators/TableExportOperator.hpp"
 #include "relational_operators/TableGeneratorOperator.hpp"
 #include "relational_operators/TextScanOperator.hpp"
+#include "relational_operators/TransitiveClosureOperator.hpp"
 #include "relational_operators/UnionAllOperator.hpp"
 #include "relational_operators/UpdateOperator.hpp"
 #include "relational_operators/WindowAggregationOperator.hpp"
@@ -243,6 +247,60 @@ bool CheckAggregatePartitioned(const std::size_t num_aggregate_functions,
   // There are GROUP BYs without DISTINCT. Check if the estimated number of
   // groups is large enough to warrant a partitioned aggregation.
   return estimated_num_groups >= FLAGS_partition_aggregation_num_groups_threshold;
+}
+
+void CheckExactPositiveRangeForAttribute(const P::PhysicalPtr &physical,
+                                         const E::AttributeReferencePtr &attribute,
+                                         cost::StarSchemaSimpleCostModel *cost_model,
+                                         int *range) {
+  if (attribute->getValueType().getTypeID() != kInt) {
+    THROW_SQL_ERROR() << "Can not apply fast transitive closure with non-integer types";
+  }
+
+  bool min_is_exact;
+  bool max_is_exact;
+  const TypedValue min_value =
+      cost_model->findMinValueStat(physical, attribute, &min_is_exact);
+  const TypedValue max_value =
+      cost_model->findMaxValueStat(physical, attribute, &max_is_exact);
+
+  if (min_value.isNull() || max_value.isNull() || (!min_is_exact) || (!max_is_exact)) {
+    THROW_SQL_ERROR() << "Can not apply fast transitive closure without exact statistics";
+  }
+
+  const int min_cpp_value = min_value.getLiteral<int>();
+  const int max_cpp_value = max_value.getLiteral<int>();
+  if (min_cpp_value < 0) {
+    THROW_SQL_ERROR() << "Can not apply fast transitive closure with negative values";
+  }
+  if (max_cpp_value > 1000000) {
+    THROW_SQL_ERROR() << "Can not apply fast transitive closure with values larger than 100000";
+  }
+  *range = max_cpp_value;
+}
+
+int GetTransitiveClosureValueRange(const P::TransitiveClosurePtr &transitive_closure,
+                                   cost::StarSchemaSimpleCostModel *cost_model) {
+  const P::PhysicalPtr start = transitive_closure->start();
+  const P::PhysicalPtr edge = transitive_closure->edge();
+
+  const auto start_attrs = start->getOutputAttributes();
+  const auto edge_attrs = edge->getOutputAttributes();
+  DCHECK_EQ(1u, start_attrs.size());
+  DCHECK_EQ(2u, edge_attrs.size());
+
+  for (const auto &attr : {start_attrs[0], edge_attrs[0], edge_attrs[1]}) {
+    if (attr->getValueType().getTypeID() != kInt) {
+      THROW_SQL_ERROR() << "Can not apply fast transitive closure with non-integer types";
+    }
+  }
+
+  int source_max_value;
+  int destination_max_value;
+  CheckExactPositiveRangeForAttribute(edge, edge_attrs[0], cost_model, &source_max_value);
+  CheckExactPositiveRangeForAttribute(edge, edge_attrs[1], cost_model, &destination_max_value);
+
+  return std::max(source_max_value, destination_max_value) + 1;
 }
 
 }  // namespace
@@ -396,6 +454,9 @@ void ExecutionGenerator::generatePlanInternal(
     case P::PhysicalType::kTableReference:
       return convertTableReference(
           std::static_pointer_cast<const P::TableReference>(physical_plan));
+    case P::PhysicalType::kTransitiveClosure:
+      return convertTransitiveClosure(
+          std::static_pointer_cast<const P::TransitiveClosure>(physical_plan));
     case P::PhysicalType::kUnionAll:
       return convertUnionAll(
           std::static_pointer_cast<const P::UnionAll>(physical_plan));
@@ -438,8 +499,7 @@ void ExecutionGenerator::createTemporaryCatalogRelation(
                              project_expression->getValueType(),
                              aid,
                              project_expression->attribute_alias()));
-    attribute_substitution_map_[project_expression->id()] =
-        catalog_attribute.get();
+    attribute_substitution_map_[project_expression->id()] = catalog_attribute.get();
     catalog_relation->addAttribute(catalog_attribute.release());
     ++aid;
   }
@@ -2359,6 +2419,86 @@ void ExecutionGenerator::convertWindowAggregate(
       std::forward_as_tuple(physical_plan),
       std::forward_as_tuple(window_aggregation_operator_index, output_relation));
   temporary_relation_info_vec_.emplace_back(window_aggregation_operator_index,
+                                            output_relation);
+}
+
+void ExecutionGenerator::convertTransitiveClosure(
+    const physical::TransitiveClosurePtr &physical_plan) {
+  const int range = GetTransitiveClosureValueRange(
+      physical_plan, cost_model_for_aggregation_.get());
+
+  const std::size_t transitive_closure_state_index =
+      query_context_proto_->transitive_closure_states_size();
+  S::QueryContext::TransitiveClosureState *transitive_closure_state_proto =
+      query_context_proto_->add_transitive_closure_states();
+
+  transitive_closure_state_proto->set_range(range);
+
+  const CatalogRelationInfo *start_relation_info =
+      findRelationInfoOutputByPhysical(physical_plan->start());
+  const CatalogRelationInfo *edge_relation_info =
+      findRelationInfoOutputByPhysical(physical_plan->edge());
+
+  const attribute_id start_attr_id =
+      attribute_substitution_map_[physical_plan->start_attr()->id()]->getID();
+  const attribute_id source_attr_id =
+      attribute_substitution_map_[physical_plan->source_attr()->id()]->getID();
+  const attribute_id destination_attr_id =
+      attribute_substitution_map_[physical_plan->destination_attr()->id()]->getID();
+
+  const QueryPlan::DAGNodeIndex init_tc_operator_index =
+      execution_plan_->addRelationalOperator(
+          new InitializeTransitiveClosureOperator(query_handle_->query_id(),
+                                                  transitive_closure_state_index));
+
+  const QueryPlan::DAGNodeIndex build_tc_operator_index =
+      execution_plan_->addRelationalOperator(
+          new BuildTransitiveClosureOperator(query_handle_->query_id(),
+                                             transitive_closure_state_index,
+                                             *start_relation_info->relation,
+                                             *edge_relation_info->relation,
+                                             start_relation_info->isStoredRelation(),
+                                             edge_relation_info->isStoredRelation(),
+                                             start_attr_id,
+                                             source_attr_id,
+                                             destination_attr_id));
+
+  execution_plan_->addDirectDependency(build_tc_operator_index,
+                                       init_tc_operator_index,
+                                       true /* is_pipeline_breaker */);
+
+  if (!start_relation_info->isStoredRelation()) {
+    execution_plan_->addDirectDependency(build_tc_operator_index,
+                                         start_relation_info->producer_operator_index,
+                                         false /* is_pipeline_breaker */);
+  }
+  if (!edge_relation_info->isStoredRelation()) {
+    execution_plan_->addDirectDependency(build_tc_operator_index,
+                                         edge_relation_info->producer_operator_index,
+                                         false /* is_pipeline_breaker */);
+  }
+
+  // Create InsertDestination proto.
+  const CatalogRelation *output_relation = nullptr;
+  const QueryContext::insert_destination_id insert_destination_index =
+      query_context_proto_->insert_destinations_size();
+  S::InsertDestination *insert_destination_proto =
+      query_context_proto_->add_insert_destinations();
+  createTemporaryCatalogRelation(physical_plan,
+                                 &output_relation,
+                                 insert_destination_proto);
+
+
+  (void)insert_destination_index;
+
+  // TODO: fix
+  insert_destination_proto->set_relational_op_index(build_tc_operator_index /* FIX */);
+  physical_to_output_relation_map_.emplace(
+      std::piecewise_construct,
+      std::forward_as_tuple(physical_plan),
+      std::forward_as_tuple(build_tc_operator_index /* FIX */, output_relation));
+
+  temporary_relation_info_vec_.emplace_back(build_tc_operator_index /* FIX */,
                                             output_relation);
 }
 

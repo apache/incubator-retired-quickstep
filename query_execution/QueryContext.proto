@@ -54,6 +54,10 @@ message QueryContext {
     required int32 relation_id = 1;
     repeated UpdateAssignment update_assignments = 2;
   }
+  
+  message TransitiveClosureState {
+    required int32 range = 1;
+  }
 
   repeated AggregationOperationStateContext aggregation_states = 1;
   repeated GeneratorFunctionHandle generator_functions = 2;
@@ -70,10 +74,9 @@ message QueryContext {
   repeated UpdateGroup update_groups = 11;
 
   repeated WindowAggregationOperationState window_aggregation_states = 12;
+  repeated TransitiveClosureState transitive_closure_states = 13;
 
-  required uint64 query_id = 13;
-
-  repeated uint64 num_partitions_for_nested_loops_joins = 14;
-
-  optional uint64 num_partitions_for_lips = 15 [default = 1];
+  required uint64 query_id = 14;
+  repeated uint64 num_partitions_for_nested_loops_joins = 15;
+  optional uint64 num_partitions_for_lips = 16 [default = 1];
 }

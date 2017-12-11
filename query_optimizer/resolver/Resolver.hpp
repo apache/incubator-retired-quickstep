@@ -68,6 +68,7 @@ class ParseString;
 class ParseSubqueryExpression;
 class ParseTableReference;
 class ParseTableReferenceSignature;
+class ParseTransitiveClosureTableReference;
 class ParseTreeNode;
 class ParseWindow;
 template <class T>
@@ -366,7 +367,7 @@ class Resolver {
    * @return The logical plan to derive the table.
    */
   logical::LogicalPtr resolveTableReference(const ParseTableReference &table_reference,
-                                            NameResolver *name_resolver);
+                                            NameResolver *name_resolver = nullptr);
 
   /**
    * @brief Resolves a table reference by name, and converts it to a logical
@@ -402,6 +403,9 @@ class Resolver {
   logical::LogicalPtr resolveJoinedTableReference(
       const ParseJoinedTableReference &joined_table_reference,
       NameResolver *name_resolver);
+
+  logical::LogicalPtr resolveTransitiveClosureTableReference(
+      const ParseTransitiveClosureTableReference &transitive_closure_table_reference);
 
   /**
    * @brief Renames the output columns from \p logical_plan based on the table signature

@@ -37,6 +37,7 @@
 #include "storage/HashTableFactory.hpp"
 #include "storage/InsertDestination.hpp"
 #include "storage/InsertDestination.pb.h"
+#include "storage/TransitiveClosureState.hpp"
 #include "types/TypedValue.hpp"
 #include "types/containers/Tuple.hpp"
 #include "utility/SortConfiguration.hpp"
@@ -167,6 +168,11 @@ QueryContext::QueryContext(const serialization::QueryContext &proto,
         WindowAggregationOperationState::ReconstructFromProto(proto.window_aggregation_states(i),
                                                               database,
                                                               storage_manager));
+  }
+
+  for (int i = 0; i < proto.transitive_closure_states_size(); ++i) {
+    transitive_closure_states_.emplace_back(
+        std::make_unique<TransitiveClosureState>(proto.transitive_closure_states(i).range()));
   }
 }
 

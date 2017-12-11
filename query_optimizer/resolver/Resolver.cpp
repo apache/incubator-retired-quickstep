@@ -63,6 +63,7 @@
 #include "parser/ParseSubqueryExpression.hpp"
 #include "parser/ParseSubqueryTableReference.hpp"
 #include "parser/ParseTableReference.hpp"
+#include "parser/ParseTransitiveClosureTableReference.hpp"
 #include "parser/ParseWindow.hpp"
 #include "query_optimizer/OptimizerContext.hpp"
 #include "query_optimizer/Validator.hpp"
@@ -111,6 +112,7 @@
 #include "query_optimizer/logical/TableGenerator.hpp"
 #include "query_optimizer/logical/TableReference.hpp"
 #include "query_optimizer/logical/TopLevelPlan.hpp"
+#include "query_optimizer/logical/TransitiveClosure.hpp"
 #include "query_optimizer/logical/UpdateTable.hpp"
 #include "query_optimizer/logical/WindowAggregate.hpp"
 #include "query_optimizer/resolver/NameResolver.hpp"
@@ -1966,6 +1968,21 @@ L::LogicalPtr Resolver::resolveTableReference(const ParseTableReference &table_r
       name_resolver->merge(&joined_table_name_resolver);
       break;
     }
+    case ParseTableReference::kTransitiveClosureTableReference: {
+      DCHECK(reference_signature != nullptr)
+          << "Transitive closure subquery must be explicitly named";
+      DCHECK(reference_signature->table_alias() != nullptr);
+
+      logical_plan = resolveTransitiveClosureTableReference(
+          static_cast<const ParseTransitiveClosureTableReference&>(table_reference));
+
+      if (reference_signature->column_aliases() != nullptr) {
+        logical_plan = RenameOutputColumns(logical_plan, *reference_signature);
+      }
+
+      name_resolver->addRelation(reference_signature->table_alias(), logical_plan);
+      break;
+    }
     default:
       LOG(FATAL) << "Unhandeled table reference " << table_reference.toString();
   }
@@ -2255,6 +2272,34 @@ L::LogicalPtr Resolver::resolveJoinedTableReference(
   }
 
   THROW_SQL_ERROR_AT(&joined_table_reference) << "Full outer join is not supported yet";
+}
+
+L::LogicalPtr Resolver::resolveTransitiveClosureTableReference(
+    const ParseTransitiveClosureTableReference &transitive_closure_table_reference) {
+  std::unique_ptr<NameResolver> local_name_resolver;
+
+  local_name_resolver = std::make_unique<NameResolver>();
+  L::LogicalPtr start_table =
+      resolveTableReference(*transitive_closure_table_reference.start_table(),
+                            local_name_resolver.get());
+  const std::vector<E::AttributeReferencePtr> start_attrs = start_table->getOutputAttributes();
+  if (start_attrs.size() != 1) {
+    THROW_SQL_ERROR_AT(transitive_closure_table_reference.start_table())
+        << "The table must contain exactly one column";
+  }
+
+  local_name_resolver = std::make_unique<NameResolver>();
+  L::LogicalPtr edge_table =
+      resolveTableReference(*transitive_closure_table_reference.edge_table(),
+                            local_name_resolver.get());
+  const std::vector<E::AttributeReferencePtr> edge_attrs = edge_table->getOutputAttributes();
+  if (edge_attrs.size() != 2) {
+    THROW_SQL_ERROR_AT(transitive_closure_table_reference.edge_table())
+        << "The table must contain exactly two columns";
+  }
+
+  return L::TransitiveClosure::Create(
+      start_table, edge_table, start_attrs[0], edge_attrs[0], edge_attrs[1]);
 }
 
 L::LogicalPtr Resolver::resolveSortInWindow(
