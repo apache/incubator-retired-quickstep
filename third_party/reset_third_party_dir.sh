@@ -32,6 +32,7 @@ third_party_dir_names=("benchmark"
                        "linenoise"
                        "re2"
                        "gperftools"
+                       "glog"
                        )
 
 for ((lib_index=0; lib_index < ${#third_party_dir_names[*]}; lib_index++))

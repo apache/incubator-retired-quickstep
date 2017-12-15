@@ -1,0 +1,11 @@
+--- utilities.cc	2017-12-15 14:10:40.000000002 -0600
++++ utilities.cc.new	2017-12-15 14:08:13.000000002 -0600
+@@ -300,7 +300,7 @@
+     g_my_user_name = "invalid-user";
+   }
+ }
+-REGISTER_MODULE_INITIALIZER(utilities, MyUserNameInitializer());
++REGISTER_MODULE_INITIALIZER(utilities, MyUserNameInitializer())
+ 
+ #ifdef HAVE_STACKTRACE
+ void DumpStackTraceToString(string* stacktrace) {

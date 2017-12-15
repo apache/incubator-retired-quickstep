@@ -587,6 +587,7 @@ if(USE_TCMALLOC)
   if (COMPILER_HAS_WNO_RETURN_TYPE_C_LINKAGE)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-return-type-c-linkage")
   endif()
+  include_directories(${CMAKE_CURRENT_BINARY_DIR}/third_party)
 endif()
 
 # Add Protocol Buffers.
@@ -649,7 +650,7 @@ if (WIN32)
   include_directories(${THIRD_PARTY_SOURCE_DIR}/glog/src/windows)
 else()
   include_directories(${THIRD_PARTY_SOURCE_DIR}/glog/src)
-  include_directories(${CMAKE_CURRENT_BINARY_DIR}/third_party)
+  include_directories(${CMAKE_CURRENT_BINARY_DIR}/third_party/glog)
 endif()
 
 include_directories("${THIRD_PARTY_SOURCE_DIR}/re2")

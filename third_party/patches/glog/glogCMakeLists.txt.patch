@@ -1,0 +1,23 @@
+--- CMakeLists.txt	2017-12-15 14:10:23.000000002 -0600
++++ CMakeLists-new.txt	2017-12-15 14:07:52.000000002 -0600
+@@ -26,7 +26,7 @@
+ set (CPACK_PACKAGE_VERSION_PATCH ${GLOG_PATCH_VERSION})
+ set (CPACK_PACKAGE_VERSION ${GLOG_VERSION})
+ 
+-option (WITH_GFLAGS "Use gflags" ON)
++option (WITH_GFLAGS "Use gflags" OFF)
+ option (WITH_THREADS "Enable multithreading support" ON)
+ 
+ list (APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+@@ -377,6 +377,11 @@
+ 
+ add_compile_options ($<$<BOOL:${HAVE_NO_UNNAMED_TYPE_TEMPLATE_ARGS}>:-Wno-unnamed-type-template-args>)
+ 
++CHECK_CXX_COMPILER_FLAG("-Wno-sign-compare" COMPILER_HAS_WNO_SIGN_ERROR)
++if (COMPILER_HAS_WNO_SIGN_ERROR)
++  add_compile_options(-Wno-sign-compare)
++endif()
++
+ add_library (glog
+   ${GLOG_SRCS}
+ )

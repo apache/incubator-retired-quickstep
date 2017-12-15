@@ -49,6 +49,7 @@ third_party_dir_names=("benchmark"
                        "linenoise"
                        "re2"
                        "gperftools"
+                       "glog"
                        )
 
 third_party_lib_urls=("https://github.com/google/benchmark/archive/v1.1.0.tar.gz"
@@ -57,6 +58,7 @@ third_party_lib_urls=("https://github.com/google/benchmark/archive/v1.1.0.tar.gz
                       "https://github.com/antirez/linenoise/archive/1.0.tar.gz"
                       "https://github.com/google/re2/archive/2017-01-01.tar.gz"
                       "https://github.com/gperftools/gperftools/releases/download/gperftools-2.5/gperftools-2.5.tar.gz"
+                      "https://github.com/google/glog/archive/v0.3.5.tar.gz"
                       )
 
 downloaded_archive_names=("v1.1.0.tar.gz"
@@ -65,9 +67,11 @@ downloaded_archive_names=("v1.1.0.tar.gz"
                           "1.0.tar.gz"
                           "2017-01-01.tar.gz"
                           "gperftools-2.5.tar.gz"
+                          "v0.3.5.tar.gz"
                           )
 
 tar_options=("-xzf"
+             "-xzf"
              "-xzf"
              "-xzf"
              "-xzf"
@@ -125,3 +129,7 @@ patch ${THIRD_PARTY_SRC_DIR}/re2/CMakeLists.txt ${PATCH_DIR}/re2/re2CMake.patch
 # Apply benchmark patches.
 patch ${THIRD_PARTY_SRC_DIR}/benchmark/CMakeLists.txt ${PATCH_DIR}/benchmark/benchmarkCMake.patch
 patch ${THIRD_PARTY_SRC_DIR}/benchmark/src/CMakeLists.txt ${PATCH_DIR}/benchmark/benchmarkSrcCMakeLists.patch
+
+# Apply glog patches.
+patch ${THIRD_PARTY_SRC_DIR}/glog/CMakeLists.txt ${PATCH_DIR}/glog/glogCMakeLists.txt.patch
+patch ${THIRD_PARTY_SRC_DIR}/glog/src/utilities.cc ${PATCH_DIR}/glog/utilities.cc.patch
