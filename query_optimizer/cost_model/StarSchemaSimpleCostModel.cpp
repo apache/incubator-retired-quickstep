@@ -605,7 +605,6 @@ attribute_id StarSchemaSimpleCostModel::findCatalogRelationAttributeId(
 
 bool StarSchemaSimpleCostModel::canUseCollisionFreeAggregation(
     const P::AggregatePtr &aggregate,
-    const std::size_t estimated_num_groups,
     std::size_t *max_num_groups) {
 #ifdef QUICKSTEP_DISTRIBUTED
   // Currently we cannot do this fast path with the distributed setting. See
@@ -661,7 +660,7 @@ bool StarSchemaSimpleCostModel::canUseCollisionFreeAggregation(
   //    of hardcoding it as a gflag.
   if (min_cpp_value < 0 ||
       max_cpp_value >= FLAGS_collision_free_vector_table_max_size ||
-      max_cpp_value / static_cast<double>(estimated_num_groups) > 256.0) {
+      max_cpp_value / static_cast<double>(estimateNumGroupsForAggregate(aggregate)) > 256.0) {
     return false;
   }
 
@@ -762,6 +761,42 @@ bool StarSchemaSimpleCostModel::canUseTwoPhaseCompactKeyAggregation(
       default:
         return false;
     }
+  }
+
+  return true;
+}
+
+bool StarSchemaSimpleCostModel::canUseCompactKeySeparateChainingAggregation(
+    const P::AggregatePtr &aggregate) {
+  P::TableReferencePtr table_reference;
+  if (!P::SomeTableReference::MatchesWithConditionalCast(aggregate->input(), &table_reference)) {
+    return false;
+  }
+
+  const auto &stat = table_reference->relation()->getStatistics();
+  if (!stat.isExact() || !stat.hasNumTuples()) {
+    return false;
+  }
+
+  if (stat.getNumTuples() <= 1000u) {
+    return false;
+  }
+
+  // Require fix-length non-nullable keys that can be packed into a 64-bit QWORD.
+  std::size_t total_key_size = 0;
+  for (const auto &key_expr : aggregate->grouping_expressions()) {
+    const Type &type = key_expr->getValueType();
+    if (type.isNullable() || type.isVariableLength()) {
+      return false;
+    }
+    total_key_size += type.maximumByteLength();
+  }
+  if (total_key_size > sizeof(std::uint64_t)) {
+    return false;
+  }
+
+  if (!aggregate->aggregate_expressions().empty()) {
+    return false;
   }
 
   return true;

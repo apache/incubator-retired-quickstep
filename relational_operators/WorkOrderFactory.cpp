@@ -395,12 +395,22 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
     }
     case serialization::INSERT: {
       LOG(INFO) << "Creating InsertWorkOrder for Query " << query_id << " in Shiftboss " << shiftboss_index;
+
+      const int tuple_count = proto.ExtensionSize(serialization::InsertWorkOrder::tuple_indexes);
+      std::vector<std::unique_ptr<Tuple>> tuple_indexes;
+
+      for (int specific_tuple_index = 0; specific_tuple_index < tuple_count; specific_tuple_index++) {
+        const int tuple_index =
+            proto.GetExtension(serialization::InsertWorkOrder::tuple_indexes, specific_tuple_index);
+        tuple_indexes.emplace_back(
+            std::unique_ptr<Tuple>(query_context->releaseTuple(tuple_index)));
+      }
+
       return new InsertWorkOrder(
           query_id,
           query_context->getInsertDestination(
               proto.GetExtension(serialization::InsertWorkOrder::insert_destination_index)),
-          query_context->releaseTuple(
-              proto.GetExtension(serialization::InsertWorkOrder::tuple_index)));
+              std::move(tuple_indexes));
     }
     case serialization::NESTED_LOOP_JOIN: {
       const partition_id part_id =
@@ -852,12 +862,20 @@ bool WorkOrderFactory::ProtoIsValid(const serialization::WorkOrder &proto,
              proto.HasExtension(serialization::InitializeAggregationWorkOrder::state_partition_id);
     }
     case serialization::INSERT: {
+      const int tuple_count = proto.ExtensionSize(serialization::InsertWorkOrder::tuple_indexes);
+      std::vector<QueryContext::tuple_id> tuple_indexes;
+
+      for (int specific_tuple_index = 0; specific_tuple_index < tuple_count; specific_tuple_index++) {
+        const int tuple_index =
+            proto.GetExtension(serialization::InsertWorkOrder::tuple_indexes, specific_tuple_index);
+        tuple_indexes.push_back(tuple_index);
+      }
+
       return proto.HasExtension(serialization::InsertWorkOrder::insert_destination_index) &&
              query_context.isValidInsertDestinationId(
                  proto.GetExtension(serialization::InsertWorkOrder::insert_destination_index)) &&
-             proto.HasExtension(serialization::InsertWorkOrder::tuple_index) &&
-             query_context.isValidTupleId(
-                 proto.GetExtension(serialization::InsertWorkOrder::tuple_index));
+             proto.HasExtension(serialization::InsertWorkOrder::tuple_indexes) &&
+             query_context.areValidTupleIds(tuple_indexes);
     }
     case serialization::NESTED_LOOP_JOIN: {
       if (!proto.HasExtension(serialization::NestedLoopsJoinWorkOrder::left_relation_id) ||

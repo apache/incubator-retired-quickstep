@@ -61,7 +61,11 @@ P::PhysicalPtr ReorderColumns::applyInternal(const P::PhysicalPtr &input,
   if (skip_transform) {
     std::vector<P::PhysicalPtr> new_children;
     for (const P::PhysicalPtr &child : input->children()) {
-      new_children.emplace_back(applyInternal(child, lock_ordering && is_not_transformable));
+      bool child_lock_ordering = lock_ordering && is_not_transformable;
+      if (child->getPhysicalType() == P::PhysicalType::kUnionAll) {
+        child_lock_ordering = true;
+      }
+      new_children.emplace_back(applyInternal(child, child_lock_ordering));
     }
 
     if (new_children != input->children()) {

@@ -132,6 +132,7 @@
 #include "relational_operators/UpdateOperator.hpp"
 #include "relational_operators/WindowAggregationOperator.hpp"
 #include "storage/AggregationOperationState.pb.h"
+#include "storage/Flags.hpp"
 #include "storage/HashTable.pb.h"
 #include "storage/HashTableFactory.hpp"
 #include "storage/InsertDestination.pb.h"
@@ -198,70 +199,6 @@ namespace P = ::quickstep::optimizer::physical;
 namespace S = ::quickstep::serialization;
 
 namespace {
-
-size_t CacheLineAlignedBytes(const size_t actual_bytes) {
-  return (actual_bytes + kCacheLineBytes - 1) / kCacheLineBytes * kCacheLineBytes;
-}
-
-size_t CalculateNumInitializationPartitionsForCollisionFreeVectorTable(const size_t memory_size) {
-  // At least 1 partition, at most (#workers * 2) partitions.
-  return std::max(1uL, std::min(memory_size / kCollisonFreeVectorInitBlobSize,
-                                static_cast<size_t>(2 * FLAGS_num_workers)));
-}
-
-void CalculateCollisionFreeAggregationInfo(
-    const size_t num_entries, const vector<pair<AggregationID, vector<const Type *>>> &group_by_aggrs_info,
-    S::CollisionFreeVectorInfo *collision_free_vector_info) {
-  size_t memory_size = CacheLineAlignedBytes(
-      BarrieredReadWriteConcurrentBitVector::BytesNeeded(num_entries));
-
-  for (std::size_t i = 0; i < group_by_aggrs_info.size(); ++i) {
-    const auto &group_by_aggr_info = group_by_aggrs_info[i];
-
-    size_t state_size = 0;
-    switch (group_by_aggr_info.first) {
-      case AggregationID::kCount: {
-        state_size = sizeof(atomic<size_t>);
-        break;
-      }
-      case AggregationID::kSum: {
-        const vector<const Type *> &argument_types = group_by_aggr_info.second;
-        DCHECK_EQ(1u, argument_types.size());
-        switch (argument_types.front()->getTypeID()) {
-          case TypeID::kInt:
-          case TypeID::kLong:
-            state_size = sizeof(atomic<std::int64_t>);
-            break;
-          case TypeID::kFloat:
-          case TypeID::kDouble:
-            state_size = sizeof(atomic<double>);
-            break;
-          default:
-            LOG(FATAL) << "No support by CollisionFreeVector";
-        }
-        break;
-      }
-      default:
-        LOG(FATAL) << "No support by CollisionFreeVector";
-    }
-
-    collision_free_vector_info->add_state_offsets(memory_size);
-    memory_size += CacheLineAlignedBytes(state_size * num_entries);
-  }
-
-  collision_free_vector_info->set_memory_size(memory_size);
-  collision_free_vector_info->set_num_init_partitions(
-      CalculateNumInitializationPartitionsForCollisionFreeVectorTable(memory_size));
-}
-
-size_t CalculateNumFinalizationPartitionsForCollisionFreeVectorTable(const size_t num_entries) {
-  // Set finalization segment size as 4096 entries.
-  constexpr size_t kFinalizeSegmentSize = 4uL * 1024L;
-
-  // At least 1 partition, at most (#workers * 2) partitions.
-  return std::max(1uL, std::min(num_entries / kFinalizeSegmentSize,
-                                static_cast<size_t>(2 * FLAGS_num_workers)));
-}
 
 bool CheckAggregatePartitioned(const std::size_t num_aggregate_functions,
                                const std::vector<bool> &is_distincts,
@@ -1212,6 +1149,7 @@ void ExecutionGenerator::convertCopyFrom(
         ->MergeFrom(output_relation->getPartitionScheme()->getProto());
   } else {
     insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
+
     const StorageBlockLayout &layout = output_relation->getDefaultStorageBlockLayout();
     const auto sub_block_type = layout.getDescription().tuple_store_description().sub_block_type();
     if (sub_block_type != TupleStorageSubBlockDescription::COMPRESSED_COLUMN_STORE) {
@@ -1464,72 +1402,75 @@ void ExecutionGenerator::convertInsertTuple(
       *catalog_database_->getRelationById(
           input_relation_info->relation->getID());
 
-  for (const std::vector<expressions::ScalarLiteralPtr> &tuple : physical_plan->column_values()) {
-    // Construct the tuple proto to be inserted.
-    const QueryContext::tuple_id tuple_index = query_context_proto_->tuples_size();
 
+  // Construct the tuple proto to be inserted.
+  std::vector<QueryContext::tuple_id> tuple_indexes;
+
+  for (const std::vector<expressions::ScalarLiteralPtr> &tuple : physical_plan->column_values()) {
+    const QueryContext::tuple_id tuple_index = query_context_proto_->tuples_size();
     S::Tuple *tuple_proto = query_context_proto_->add_tuples();
     for (const E::ScalarLiteralPtr &literal : tuple) {
       tuple_proto->add_attribute_values()->CopyFrom(literal->value().getProto());
     }
-
-    // FIXME(qzeng): A better way is using a traits struct to look up whether a storage
-    //               block supports ad-hoc insertion instead of hard-coding the block types.
-    const StorageBlockLayout &storage_block_layout =
-        input_relation.getDefaultStorageBlockLayout();
-    if (storage_block_layout.getDescription().tuple_store_description().sub_block_type() ==
-        TupleStorageSubBlockDescription::COMPRESSED_COLUMN_STORE ||
-        storage_block_layout.getDescription().tuple_store_description().sub_block_type() ==
-              TupleStorageSubBlockDescription::COMPRESSED_PACKED_ROW_STORE) {
-      THROW_SQL_ERROR() << "INSERT statement is not supported for the relation "
-                        << input_relation.getName()
-                        << ", because its storage blocks do not support ad-hoc insertion";
-    }
-
-    // Create InsertDestination proto.
-    const QueryContext::insert_destination_id insert_destination_index =
-        query_context_proto_->insert_destinations_size();
-    S::InsertDestination *insert_destination_proto = query_context_proto_->add_insert_destinations();
-
-    insert_destination_proto->set_relation_id(input_relation.getID());
-    insert_destination_proto->mutable_layout()->MergeFrom(
-        input_relation.getDefaultStorageBlockLayout().getDescription());
-
-    if (input_relation.hasPartitionScheme()) {
-      insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::PARTITION_AWARE);
-      insert_destination_proto->MutableExtension(S::PartitionAwareInsertDestination::partition_scheme)
-          ->MergeFrom(input_relation.getPartitionScheme()->getProto());
-    } else {
-      insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
-
-      const vector<block_id> blocks(input_relation.getBlocksSnapshot());
-      for (const block_id block : blocks) {
-        insert_destination_proto->AddExtension(S::BlockPoolInsertDestination::blocks, block);
-      }
-    }
-
-    const QueryPlan::DAGNodeIndex insert_operator_index =
-        execution_plan_->addRelationalOperator(
-            new InsertOperator(query_handle_->query_id(),
-                               input_relation,
-                               insert_destination_index,
-                               tuple_index));
-    insert_destination_proto->set_relational_op_index(insert_operator_index);
-
-    CatalogRelation *mutable_relation =
-        catalog_database_->getRelationByIdMutable(input_relation.getID());
-    const QueryPlan::DAGNodeIndex save_blocks_index =
-        execution_plan_->addRelationalOperator(
-            new SaveBlocksOperator(query_handle_->query_id(), mutable_relation));
-    if (!input_relation_info->isStoredRelation()) {
-      execution_plan_->addDirectDependency(insert_operator_index,
-                                           input_relation_info->producer_operator_index,
-                                           true /* is_pipeline_breaker */);
-    }
-    execution_plan_->addDirectDependency(save_blocks_index,
-                                         insert_operator_index,
-                                         false /* is_pipeline_breaker */);
+    tuple_indexes.push_back(tuple_index);
   }
+
+  // FIXME(qzeng): A better way is using a traits struct to look up whether a storage
+  //               block supports ad-hoc insertion instead of hard-coding the block types.
+  const StorageBlockLayout &storage_block_layout =
+      input_relation.getDefaultStorageBlockLayout();
+  if (storage_block_layout.getDescription().tuple_store_description().sub_block_type() ==
+      TupleStorageSubBlockDescription::COMPRESSED_COLUMN_STORE ||
+      storage_block_layout.getDescription().tuple_store_description().sub_block_type() ==
+            TupleStorageSubBlockDescription::COMPRESSED_PACKED_ROW_STORE) {
+    THROW_SQL_ERROR() << "INSERT statement is not supported for the relation "
+                      << input_relation.getName()
+                      << ", because its storage blocks do not support ad-hoc insertion";
+  }
+
+  // Create InsertDestination proto.
+  const QueryContext::insert_destination_id insert_destination_index =
+      query_context_proto_->insert_destinations_size();
+  S::InsertDestination *insert_destination_proto = query_context_proto_->add_insert_destinations();
+
+  insert_destination_proto->set_relation_id(input_relation.getID());
+  insert_destination_proto->mutable_layout()->MergeFrom(
+      input_relation.getDefaultStorageBlockLayout().getDescription());
+
+  if (input_relation.hasPartitionScheme()) {
+    insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::PARTITION_AWARE);
+    insert_destination_proto->MutableExtension(S::PartitionAwareInsertDestination::partition_scheme)
+        ->MergeFrom(input_relation.getPartitionScheme()->getProto());
+  } else {
+    insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
+
+    const vector<block_id> blocks(input_relation.getBlocksSnapshot());
+    for (const block_id block : blocks) {
+      insert_destination_proto->AddExtension(S::BlockPoolInsertDestination::blocks, block);
+    }
+  }
+
+  const QueryPlan::DAGNodeIndex insert_operator_index =
+      execution_plan_->addRelationalOperator(
+          new InsertOperator(query_handle_->query_id(),
+                             input_relation,
+                             insert_destination_index,
+                             tuple_indexes));
+  insert_destination_proto->set_relational_op_index(insert_operator_index);
+
+  CatalogRelation *mutable_relation =
+      catalog_database_->getRelationByIdMutable(input_relation.getID());
+  const QueryPlan::DAGNodeIndex save_blocks_index =
+      execution_plan_->addRelationalOperator(
+          new SaveBlocksOperator(query_handle_->query_id(), mutable_relation));
+  if (!input_relation_info->isStoredRelation()) {
+    execution_plan_->addDirectDependency(insert_operator_index,
+                                         input_relation_info->producer_operator_index,
+                                         true /* is_pipeline_breaker */);
+  }
+  execution_plan_->addDirectDependency(save_blocks_index,
+                                       insert_operator_index,
+                                       false /* is_pipeline_breaker */);
 }
 
 void ExecutionGenerator::convertInsertSelection(
@@ -1800,8 +1741,6 @@ void ExecutionGenerator::convertAggregate(
       aggr_state_context_proto->mutable_aggregation_state();
   aggr_state_proto->set_relation_id(input_relation.getID());
 
-  bool use_parallel_initialization = false;
-
   std::vector<const Type*> group_by_types;
   std::vector<attribute_id> group_by_attrs;
   for (const E::NamedExpressionPtr &grouping_expression : physical_plan->grouping_expressions()) {
@@ -1865,27 +1804,30 @@ void ExecutionGenerator::convertAggregate(
     }
   }
 
+  bool use_parallel_initialization = false;
   bool aggr_state_is_partitioned = false;
   std::size_t aggr_state_num_partitions = 1u;
   if (!group_by_types.empty()) {
-    const std::size_t estimated_num_groups =
-        cost_model_for_aggregation_->estimateNumGroupsForAggregate(physical_plan);
-
     std::size_t max_num_groups;
     if (cost_model_for_aggregation_
             ->canUseCollisionFreeAggregation(physical_plan,
-                                             estimated_num_groups,
                                              &max_num_groups)) {
       // First option: use array-based aggregation if applicable.
       aggr_state_proto->set_hash_table_impl_type(
           serialization::HashTableImplType::COLLISION_FREE_VECTOR);
       aggr_state_proto->set_estimated_num_entries(max_num_groups);
       use_parallel_initialization = true;
-      aggr_state_num_partitions = CalculateNumFinalizationPartitionsForCollisionFreeVectorTable(max_num_groups);
-
-      CalculateCollisionFreeAggregationInfo(max_num_groups, group_by_aggrs_info,
-                                            aggr_state_proto->mutable_collision_free_vector_info());
+    } else if (cost_model_for_aggregation_
+                   ->canUseCompactKeySeparateChainingAggregation(physical_plan)) {
+      CHECK(aggregate_expressions.empty());
+      aggr_state_proto->set_hash_table_impl_type(
+          serialization::HashTableImplType::COMPACT_KEY_SEPARATE_CHAINING);
+      aggr_state_proto->set_estimated_num_entries(
+          cost_model_for_aggregation_->estimateCardinality(physical_plan->input()));
+      use_parallel_initialization = true;
     } else {
+      const std::size_t estimated_num_groups =
+          cost_model_for_aggregation_->estimateNumGroupsForAggregate(physical_plan);
       if (cost_model_for_aggregation_->canUseTwoPhaseCompactKeyAggregation(
               physical_plan, estimated_num_groups)) {
         // Second option: use thread-private compact-key aggregation if applicable.
@@ -1895,7 +1837,8 @@ void ExecutionGenerator::convertAggregate(
         // Otherwise, use SeparateChaining.
         aggr_state_proto->set_hash_table_impl_type(
             serialization::HashTableImplType::SEPARATE_CHAINING);
-        if (CheckAggregatePartitioned(aggregate_expressions.size(), is_distincts, group_by_attrs,
+        if (CheckAggregatePartitioned(aggregate_expressions.size(),
+                                      is_distincts, group_by_attrs,
                                       estimated_num_groups)) {
           aggr_state_is_partitioned = true;
           aggr_state_num_partitions = FLAGS_num_aggregation_partitions;
@@ -1930,15 +1873,12 @@ void ExecutionGenerator::convertAggregate(
   }
 
   if (use_parallel_initialization) {
-    DCHECK(aggr_state_proto->has_collision_free_vector_info());
-
     const QueryPlan::DAGNodeIndex initialize_aggregation_operator_index =
         execution_plan_->addRelationalOperator(
             new InitializeAggregationOperator(
                 query_handle_->query_id(),
                 aggr_state_index,
-                num_partitions,
-                aggr_state_proto->collision_free_vector_info().num_init_partitions()));
+                num_partitions));
 
     execution_plan_->addDirectDependency(aggregation_operator_index,
                                          initialize_aggregation_operator_index,
@@ -1960,7 +1900,6 @@ void ExecutionGenerator::convertAggregate(
                                           aggr_state_index,
                                           num_partitions,
                                           physical_plan->hasRepartition(),
-                                          aggr_state_num_partitions,
                                           *output_relation,
                                           insert_destination_index));
 
@@ -2031,10 +1970,7 @@ void ExecutionGenerator::convertCrossReferenceCoalesceAggregate(
 
   const size_t estimated_num_entries = physical_plan->group_by_key_value_range();
   aggr_state_proto->set_estimated_num_entries(estimated_num_entries);
-
-  const size_t aggr_state_num_partitions =
-      CalculateNumFinalizationPartitionsForCollisionFreeVectorTable(estimated_num_entries);
-  aggr_state_proto->set_num_partitions(aggr_state_num_partitions);
+  aggr_state_proto->set_num_partitions(1u);
 
   if (physical_plan->right_filter_predicate() != nullptr) {
     std::unique_ptr<const Predicate> predicate(
@@ -2070,16 +2006,12 @@ void ExecutionGenerator::convertCrossReferenceCoalesceAggregate(
     aggr_proto->set_is_distinct(false);
   }
 
-  CalculateCollisionFreeAggregationInfo(estimated_num_entries, group_by_aggrs_info,
-                                        aggr_state_proto->mutable_collision_free_vector_info());
-
   const QueryPlan::DAGNodeIndex initialize_aggregation_operator_index =
       execution_plan_->addRelationalOperator(
           new InitializeAggregationOperator(
               query_handle_->query_id(),
               aggr_state_index,
-              num_partitions,
-              aggr_state_proto->collision_free_vector_info().num_init_partitions()));
+              num_partitions));
 
   const QueryPlan::DAGNodeIndex build_aggregation_existence_map_operator_index =
       execution_plan_->addRelationalOperator(
@@ -2122,7 +2054,6 @@ void ExecutionGenerator::convertCrossReferenceCoalesceAggregate(
                                        build_aggregation_existence_map_operator_index,
                                        true /* is_pipeline_breaker */);
 
-
   // Create InsertDestination proto.
   const CatalogRelation *output_relation = nullptr;
   const QueryContext::insert_destination_id insert_destination_index =
@@ -2138,7 +2069,6 @@ void ExecutionGenerator::convertCrossReferenceCoalesceAggregate(
                                           aggr_state_index,
                                           num_partitions,
                                           physical_plan->hasRepartition(),
-                                          aggr_state_num_partitions,
                                           *output_relation,
                                           insert_destination_index));
 

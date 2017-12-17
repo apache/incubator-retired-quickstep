@@ -83,14 +83,9 @@ AggregationOperationState::AggregationOperationState(
     const std::size_t num_partitions,
     const HashTableImplType hash_table_impl_type,
     const std::vector<HashTableImplType> &distinctify_hash_table_impl_types,
-    StorageManager *storage_manager,
-    const size_t collision_free_vector_memory_size,
-    const size_t collision_free_vector_num_init_partitions,
-    const vector<size_t> &collision_free_vector_state_offsets)
+    StorageManager *storage_manager)
     : input_relation_(input_relation),
-      is_aggregate_collision_free_(
-          group_by.empty() ? false
-                           : hash_table_impl_type == HashTableImplType::kCollisionFreeVector),
+      hash_table_impl_type_(hash_table_impl_type),
       is_aggregate_partitioned_(is_partitioned),
       predicate_(predicate),
       is_distinct_(std::move(is_distinct)),
@@ -209,18 +204,14 @@ AggregationOperationState::AggregationOperationState(
 
   if (!group_by_key_ids_.empty()) {
     // Aggregation with GROUP BY: create the hash table (pool).
-    if (is_aggregate_collision_free_) {
-      collision_free_hashtable_.reset(
+    if (useCollisionFreeVector() || useCompactKeySeparateChaining()) {
+      shared_hash_table_.reset(
           AggregationStateHashTableFactory::CreateResizable(
               hash_table_impl_type,
               group_by_types_,
               estimated_num_entries,
               group_by_handles,
-              storage_manager,
-              num_partitions,
-              collision_free_vector_memory_size,
-              collision_free_vector_num_init_partitions,
-              collision_free_vector_state_offsets));
+              storage_manager));
     } else if (is_aggregate_partitioned_) {
       if (all_distinct_) {
         DCHECK_EQ(1u, group_by_handles.size());
@@ -300,19 +291,6 @@ AggregationOperationState* AggregationOperationState::ReconstructFromProto(
         PredicateFactory::ReconstructFromProto(proto.predicate(), database));
   }
 
-  size_t collision_free_vector_memory_size = 0;
-  size_t collision_free_vector_num_init_partitions = 0;
-  vector<size_t> collision_free_vector_state_offsets;
-  if (proto.has_collision_free_vector_info()) {
-    const serialization::CollisionFreeVectorInfo &collision_free_vector_info =
-        proto.collision_free_vector_info();
-    collision_free_vector_memory_size = collision_free_vector_info.memory_size();
-    collision_free_vector_num_init_partitions = collision_free_vector_info.num_init_partitions();
-    for (int i = 0; i < collision_free_vector_info.state_offsets_size(); ++i) {
-      collision_free_vector_state_offsets.push_back(collision_free_vector_info.state_offsets(i));
-    }
-  }
-
   return new AggregationOperationState(
       database.getRelationSchemaById(proto.relation_id()),
       aggregate_functions,
@@ -325,10 +303,7 @@ AggregationOperationState* AggregationOperationState::ReconstructFromProto(
       proto.num_partitions(),
       HashTableImplTypeFromProto(proto.hash_table_impl_type()),
       distinctify_hash_table_impl_types,
-      storage_manager,
-      collision_free_vector_memory_size,
-      collision_free_vector_num_init_partitions,
-      collision_free_vector_state_offsets);
+      storage_manager);
 }
 
 bool AggregationOperationState::ProtoIsValid(
@@ -386,17 +361,6 @@ bool AggregationOperationState::ProtoIsValid(
             proto.hash_table_impl_type())) {
       return false;
     }
-
-    if (proto.hash_table_impl_type() == S::HashTableImplType::COLLISION_FREE_VECTOR) {
-      if (!proto.has_collision_free_vector_info()) {
-        return false;
-      }
-
-      const S::CollisionFreeVectorInfo &proto_collision_free_vector_info = proto.collision_free_vector_info();
-      if (!proto_collision_free_vector_info.IsInitialized()) {
-        return false;
-      }
-    }
   }
 
   if (proto.has_predicate()) {
@@ -410,22 +374,25 @@ bool AggregationOperationState::ProtoIsValid(
 
 CollisionFreeVectorTable* AggregationOperationState
     ::getCollisionFreeVectorTable() const {
-  return static_cast<CollisionFreeVectorTable *>(
-      collision_free_hashtable_.get());
+  return static_cast<CollisionFreeVectorTable *>(shared_hash_table_.get());
 }
 
 void AggregationOperationState::initialize(const std::size_t partition_id) {
-  if (is_aggregate_collision_free_) {
-    static_cast<CollisionFreeVectorTable *>(
-        collision_free_hashtable_.get())->initialize(partition_id);
+  if (useCollisionFreeVector()) {
+    static_cast<CollisionFreeVectorTable*>(
+        shared_hash_table_.get())->initialize(partition_id);
+  } else if (useCompactKeySeparateChaining()) {
+    static_cast<CompactKeySeparateChainingHashTable*>(
+        shared_hash_table_.get())->initialize(partition_id);
   } else {
     LOG(FATAL) << "AggregationOperationState::initialize() "
                << "is not supported by this aggregation";
   }
 }
 
-void AggregationOperationState::aggregateBlock(const block_id input_block,
-                                               LIPFilterAdaptiveProber *lip_filter_adaptive_prober) {
+void AggregationOperationState::aggregateBlock(
+    const block_id input_block,
+    LIPFilterAdaptiveProber *lip_filter_adaptive_prober) {
   BlockReference block(
       storage_manager_->getBlock(input_block, input_relation_));
   const auto &tuple_store = block->getTupleStorageSubBlock();
@@ -526,8 +493,8 @@ void AggregationOperationState::mergeGroupByHashTables(
 
 void AggregationOperationState::aggregateBlockHashTable(
     const ValueAccessorMultiplexer &accessor_mux) {
-  if (is_aggregate_collision_free_) {
-    aggregateBlockHashTableImplCollisionFree(accessor_mux);
+  if (useCollisionFreeVector() || useCompactKeySeparateChaining()) {
+    aggregateBlockHashTableImplSharedTable(accessor_mux);
   } else if (is_aggregate_partitioned_) {
     aggregateBlockHashTableImplPartitioned(accessor_mux);
   } else {
@@ -535,13 +502,13 @@ void AggregationOperationState::aggregateBlockHashTable(
   }
 }
 
-void AggregationOperationState::aggregateBlockHashTableImplCollisionFree(
+void AggregationOperationState::aggregateBlockHashTableImplSharedTable(
     const ValueAccessorMultiplexer &accessor_mux) {
-  DCHECK(collision_free_hashtable_ != nullptr);
+  DCHECK(shared_hash_table_ != nullptr);
 
-  collision_free_hashtable_->upsertValueAccessorCompositeKey(argument_ids_,
-                                                             group_by_key_ids_,
-                                                             accessor_mux);
+  shared_hash_table_->upsertValueAccessorCompositeKey(argument_ids_,
+                                                      group_by_key_ids_,
+                                                      accessor_mux);
 }
 
 void AggregationOperationState::aggregateBlockHashTableImplPartitioned(
@@ -671,8 +638,10 @@ void AggregationOperationState::finalizeSingleState(
 void AggregationOperationState::finalizeHashTable(
     const std::size_t partition_id,
     InsertDestination *output_destination) {
-  if (is_aggregate_collision_free_) {
+  if (useCollisionFreeVector()) {
     finalizeHashTableImplCollisionFree(partition_id, output_destination);
+  } else if (useCompactKeySeparateChaining()) {
+    finalizeHashTableImplCompactKeySeparateChaining(partition_id, output_destination);
   } else if (is_aggregate_partitioned_) {
     finalizeHashTableImplPartitioned(partition_id, output_destination);
   } else {
@@ -695,9 +664,8 @@ void AggregationOperationState::finalizeHashTable(
 void AggregationOperationState::finalizeHashTableImplCollisionFree(
     const std::size_t partition_id,
     InsertDestination *output_destination) {
-  std::vector<std::unique_ptr<ColumnVector>> final_values;
   CollisionFreeVectorTable *hash_table =
-      static_cast<CollisionFreeVectorTable *>(collision_free_hashtable_.get());
+      static_cast<CollisionFreeVectorTable *>(shared_hash_table_.get());
 
   const std::size_t max_length =
       hash_table->getNumTuplesInFinalizationPartition(partition_id);
@@ -721,6 +689,19 @@ void AggregationOperationState::finalizeHashTableImplCollisionFree(
     hash_table->finalizeState(partition_id, i, result_cv.get());
     complete_result.addColumn(result_cv.release());
   }
+
+  // Bulk-insert the complete result.
+  output_destination->bulkInsertTuples(&complete_result);
+}
+
+void AggregationOperationState::finalizeHashTableImplCompactKeySeparateChaining(
+    const std::size_t partition_id,
+    InsertDestination *output_destination) {
+  CompactKeySeparateChainingHashTable *hash_table =
+      static_cast<CompactKeySeparateChainingHashTable *>(shared_hash_table_.get());
+
+  ColumnVectorsValueAccessor complete_result;
+  hash_table->finalizeKeys(partition_id, &complete_result);
 
   // Bulk-insert the complete result.
   output_destination->bulkInsertTuples(&complete_result);
@@ -949,8 +930,8 @@ void AggregationOperationState::finalizeHashTableImplThreadPrivateCompactKey(
 std::size_t AggregationOperationState::getMemoryConsumptionBytes() const {
   std::size_t memory = getMemoryConsumptionBytesHelper(distinctify_hashtables_);
   memory += getMemoryConsumptionBytesHelper(group_by_hashtables_);
-  if (collision_free_hashtable_ != nullptr) {
-    memory += collision_free_hashtable_->getMemoryConsumptionBytes();
+  if (shared_hash_table_ != nullptr) {
+    memory += shared_hash_table_->getMemoryConsumptionBytes();
   }
   if (group_by_hashtable_pool_ != nullptr) {
     memory += group_by_hashtable_pool_->getMemoryConsumptionPoolBytes();
@@ -971,6 +952,36 @@ std::size_t AggregationOperationState::getMemoryConsumptionBytesHelper(
     }
   }
   return memory;
+}
+
+std::size_t AggregationOperationState::getNumInitializationPartitions() const {
+  if (useCollisionFreeVector()) {
+    return static_cast<const CollisionFreeVectorTable*>(
+        shared_hash_table_.get())->getNumInitializationPartitions();
+  }
+  if (useCompactKeySeparateChaining()) {
+    return static_cast<const CompactKeySeparateChainingHashTable*>(
+        shared_hash_table_.get())->getNumInitializationPartitions();
+  }
+  return 0u;
+}
+
+std::size_t AggregationOperationState::getNumFinalizationPartitions() const {
+  if (group_by_key_ids_.empty()) {
+    return 1u;
+  }
+  if (useCollisionFreeVector()) {
+    return static_cast<const CollisionFreeVectorTable *>(
+        shared_hash_table_.get())->getNumFinalizationPartitions();
+  }
+  if (useCompactKeySeparateChaining()) {
+    return static_cast<const CompactKeySeparateChainingHashTable *>(
+        shared_hash_table_.get())->getNumFinalizationPartitions();
+  }
+  if (is_aggregate_partitioned_) {
+    return partitioned_group_by_hashtable_pool_->getNumPartitions();
+  }
+  return 1u;
 }
 
 }  // namespace quickstep

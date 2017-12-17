@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "storage/CollisionFreeVectorTable.hpp"
+#include "storage/CompactKeySeparateChainingHashTable.hpp"
 #include "storage/HashTable.hpp"
 #include "storage/HashTableBase.hpp"
 #include "storage/HashTable.pb.h"
@@ -118,6 +119,8 @@ inline HashTableImplType HashTableImplTypeFromProto(
   switch (proto_type) {
     case serialization::HashTableImplType::COLLISION_FREE_VECTOR:
       return HashTableImplType::kCollisionFreeVector;
+    case serialization::HashTableImplType::COMPACT_KEY_SEPARATE_CHAINING:
+      return HashTableImplType::kCompactKeySeparateChaining;
     case serialization::HashTableImplType::LINEAR_OPEN_ADDRESSING:
       return HashTableImplType::kLinearOpenAddressing;
     case serialization::HashTableImplType::SEPARATE_CHAINING:
@@ -356,14 +359,6 @@ class AggregationStateHashTableFactory {
    * @param storage_manager The StorageManager to use (a StorageBlob will be
    *        allocated to hold the hash table's contents). Forwarded as-is to the
    *        hash table constructor.
-   * @param num_partitions The number of partitions of this aggregation state
-   *        hash table.
-   * @param collision_free_vector_memory_size For CollisionFreeVectorTable,
-   *        the memory size.
-   * @param collision_free_vector_num_init_partitions For
-   *        CollisionFreeVectorTable, the number of partitions to initialize.
-   * @param collision_free_vector_state_offsets For CollisionFreeVectorTable,
-   *        the offsets for each state.
    * @return A new aggregation state hash table.
    **/
   static AggregationStateHashTableBase* CreateResizable(
@@ -371,18 +366,15 @@ class AggregationStateHashTableFactory {
       const std::vector<const Type*> &key_types,
       const std::size_t num_entries,
       const std::vector<AggregationHandle *> &handles,
-      StorageManager *storage_manager,
-      const std::size_t num_partitions = 1u,
-      const std::size_t collision_free_vector_memory_size = 0,
-      const std::size_t collision_free_vector_num_init_partitions = 0,
-      const std::vector<std::size_t> &collision_free_vector_state_offsets = std::vector<std::size_t>()) {
+      StorageManager *storage_manager) {
     switch (hash_table_type) {
       case HashTableImplType::kCollisionFreeVector:
         DCHECK_EQ(1u, key_types.size());
         return new CollisionFreeVectorTable(
-            key_types.front(), num_entries, collision_free_vector_memory_size,
-            collision_free_vector_num_init_partitions, num_partitions,
-            collision_free_vector_state_offsets, handles, storage_manager);
+            key_types.front(), num_entries, handles, storage_manager);
+      case HashTableImplType::kCompactKeySeparateChaining:
+        return new CompactKeySeparateChainingHashTable(
+            key_types, num_entries, handles, storage_manager);
       case HashTableImplType::kSeparateChaining:
         return new PackedPayloadHashTable(
             key_types, num_entries, handles, storage_manager);

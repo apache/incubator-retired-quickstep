@@ -194,6 +194,8 @@ add_library(quickstep_utility_PrimeNumber PrimeNumber.cpp PrimeNumber.hpp)
 add_library(quickstep_utility_PtrList ../empty_src.cpp PtrList.hpp)
 add_library(quickstep_utility_PtrMap ../empty_src.cpp PtrMap.hpp)
 add_library(quickstep_utility_PtrVector ../empty_src.cpp PtrVector.hpp)
+add_library(quickstep_utility_Range ../empty_src.cpp Range.hpp)
+add_library(quickstep_utility_ScopedArray ../empty_src.cpp ScopedArray.hpp)
 add_library(quickstep_utility_ScopedBuffer ../empty_src.cpp ScopedBuffer.hpp)
 add_library(quickstep_utility_ScopedDeleter ../empty_src.cpp ScopedDeleter.hpp)
 add_library(quickstep_utility_ScopedReassignment ../empty_src.cpp ScopedReassignment.hpp)
@@ -308,6 +310,12 @@ target_link_libraries(quickstep_utility_PtrMap
 target_link_libraries(quickstep_utility_PtrVector
                       glog
                       quickstep_utility_Macros)
+target_link_libraries(quickstep_utility_Range
+                      glog
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_utility_ScopedArray
+                      quickstep_utility_ScopedBuffer
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_utility_ScopedBuffer
                       glog
                       quickstep_utility_Alignment
@@ -380,6 +388,8 @@ target_link_libraries(quickstep_utility
                       quickstep_utility_PtrList
                       quickstep_utility_PtrMap
                       quickstep_utility_PtrVector
+                      quickstep_utility_Range
+                      quickstep_utility_ScopedArray
                       quickstep_utility_ScopedBuffer
                       quickstep_utility_ScopedDeleter
                       quickstep_utility_ScopedReassignment

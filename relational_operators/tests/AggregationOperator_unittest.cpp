@@ -295,7 +295,6 @@ class AggregationOperatorTest : public ::testing::Test {
                                         aggr_state_index,
                                         kNumPartitions,
                                         kNoRepartition,
-                                        kNumPartitions,
                                         *result_table_,
                                         insert_destination_index));
 
@@ -391,7 +390,6 @@ class AggregationOperatorTest : public ::testing::Test {
                                         aggr_state_index,
                                         kNumPartitions,
                                         kNoRepartition,
-                                        kNumPartitions,
                                         *result_table_,
                                         insert_destination_index));
 

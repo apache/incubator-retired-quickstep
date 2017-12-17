@@ -201,7 +201,7 @@ message InsertWorkOrder {
   extend WorkOrder {
     // All required.
     optional int32 insert_destination_index = 176;
-    optional uint32 tuple_index = 177;
+    repeated uint32 tuple_indexes = 177;
   }
 }
 

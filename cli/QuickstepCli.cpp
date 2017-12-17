@@ -378,7 +378,15 @@ int main(int argc, char* argv[]) {
               query_handle.release(),
               &bus);
         } catch (const quickstep::SqlError &sql_error) {
-          fprintf(io_handle->err(), "%s", sql_error.formatMessage(*command_string).c_str());
+          switch (statement.getStatementType()) {
+            case ParseStatement::kDropTable:
+              // Quick hack for QuickGrail for cleaner log information
+              // since we don't have DROP TABLE IF EXISTS yet.
+              break;
+            default:
+              fprintf(io_handle->err(), "%s",
+                      sql_error.formatMessage(*command_string).c_str());
+          }
           reset_parser = true;
           break;
         }

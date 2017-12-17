@@ -1589,7 +1589,7 @@ L::LogicalPtr Resolver::resolveSetOperations(
     possible_attributes.push_back(possible_attribute);
   }
 
-  for (std::size_t opid = 0; opid < operation_attributes.size(); ++opid) {
+  for (std::size_t opid = 0; opid < attribute_matrix.size(); ++opid) {
     // Generate a cast operation if needed.
     std::vector<E::NamedExpressionPtr> cast_expressions;
     for (std::size_t aid = 0; aid < operation_attributes.size(); ++aid) {
@@ -2107,8 +2107,7 @@ E::WindowInfo Resolver::resolveWindow(const ParseWindow &parse_window,
 const CatalogRelation* Resolver::resolveRelationName(
     const ParseString *relation_name) {
   const CatalogRelation *relation =
-      catalog_database_.getRelationByName(
-          ToLower(relation_name->value()));
+      catalog_database_.getRelationByName(ToLower(relation_name->value()));
   if (relation == nullptr) {
     THROW_SQL_ERROR_AT(relation_name) << "Unrecognized relation "
                                       << relation_name->value();

@@ -41,7 +41,6 @@ DECLARE_bool(use_hdfs);
 DECLARE_string(hdfs_namenode_host);
 DECLARE_int32(hdfs_namenode_port);
 DECLARE_int32(hdfs_num_replications);
-
 #endif
 
 /** @} */

@@ -489,6 +489,22 @@ class QueryContext {
   }
 
   /**
+   * @brief Whether the given vector of Tuple ids is valid.
+   *
+   * @param ids The vector of Tuple ids.
+   *
+   * @return True if valid, otherwise false.
+   **/
+  bool areValidTupleIds(const std::vector<tuple_id> &ids) const {
+    for (const tuple_id id : ids) {
+      if (id >= tuples_.size()) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
    * @brief Release the ownership of the Tuple referenced by the id.
    *
    * @note Each id should use only once.

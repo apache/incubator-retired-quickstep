@@ -109,23 +109,17 @@ P::PhysicalPtr FuseAggregateJoin::applyToNode(
 
   // Collision-free vector aggregation is applicable, and both the left and right
   // join attributes are range-bounded integer values.
-  const std::size_t estimated_num_groups =
-      cost_model_->estimateNumGroupsForAggregate(aggregate);
-
   std::size_t max_num_groups_left;
   if (!cost_model_->canUseCollisionFreeAggregation(aggregate,
-                                                   estimated_num_groups,
                                                    &max_num_groups_left)) {
     return node;
   }
-
   std::size_t max_num_groups_right;
   if (!cost_model_->canUseCollisionFreeAggregation(
            P::Aggregate::Create(hash_join->right(),
                                 E::ToNamedExpressions(hash_join->right_join_attributes()),
                                 aggregate->aggregate_expressions(),
                                 nullptr),
-           estimated_num_groups,
            &max_num_groups_right)) {
     return node;
   }

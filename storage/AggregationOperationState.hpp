@@ -108,12 +108,6 @@ class AggregationOperationState {
    * @param storage_manager The StorageManager to use for allocating hash
    *        tables. Single aggregation state (when GROUP BY list is not
    *        specified) is not allocated using memory from storage manager.
-   * @param collision_free_vector_memory_size For CollisionFreeVectorTable,
-   *        the memory size.
-   * @param collision_free_vector_num_init_partitions For
-   *        CollisionFreeVectorTable, the number of partitions to initialize.
-   * @param collision_free_vector_state_offsets For CollisionFreeVectorTable,
-   *        the offsets for each state.
    */
   AggregationOperationState(
       const CatalogRelationSchema &input_relation,
@@ -127,10 +121,7 @@ class AggregationOperationState {
       const std::size_t num_partitions,
       const HashTableImplType hash_table_impl_type,
       const std::vector<HashTableImplType> &distinctify_hash_table_impl_types,
-      StorageManager *storage_manager,
-      const std::size_t collision_free_vector_memory_size = 0,
-      const std::size_t collision_free_vector_num_init_partitions = 0,
-      const std::vector<std::size_t> &collision_free_vector_state_offsets = std::vector<std::size_t>());
+      StorageManager *storage_manager);
 
   ~AggregationOperationState() {}
 
@@ -173,6 +164,14 @@ class AggregationOperationState {
    * @return The number of partitions to be used for initializing the aggregation.
    **/
   std::size_t getNumInitializationPartitions() const;
+
+  /**
+   * @brief Get the number of partitions to be used for finalizing the
+   *        aggregation.
+   *
+   * @return The number of partitions to be used for finalizing the aggregation.
+   **/
+  std::size_t getNumFinalizationPartitions() const;
 
   /**
    * @brief Initialize the specified partition of this aggregation.
@@ -219,6 +218,14 @@ class AggregationOperationState {
   std::size_t getMemoryConsumptionBytes() const;
 
  private:
+  bool useCollisionFreeVector() const {
+    return hash_table_impl_type_ == HashTableImplType::kCollisionFreeVector;
+  }
+
+  bool useCompactKeySeparateChaining() const {
+    return hash_table_impl_type_ == HashTableImplType::kCompactKeySeparateChaining;
+  }
+
   // Aggregate on input block.
   void aggregateBlockSingleState(const ValueAccessorMultiplexer &accessor_mux);
 
@@ -239,7 +246,7 @@ class AggregationOperationState {
                          InsertDestination *output_destination);
 
   // Specialized implementations for aggregateBlockHashTable.
-  void aggregateBlockHashTableImplCollisionFree(
+  void aggregateBlockHashTableImplSharedTable(
       const ValueAccessorMultiplexer &accessor_mux);
 
   void aggregateBlockHashTableImplPartitioned(
@@ -251,6 +258,9 @@ class AggregationOperationState {
   // Specialized implementations for finalizeHashTable.
   void finalizeHashTableImplCollisionFree(const std::size_t partition_id,
                                           InsertDestination *output_destination);
+
+  void finalizeHashTableImplCompactKeySeparateChaining(const std::size_t partition_id,
+                                                       InsertDestination *output_destination);
 
   void finalizeHashTableImplPartitioned(const std::size_t partition_id,
                                         InsertDestination *output_destination);
@@ -269,8 +279,8 @@ class AggregationOperationState {
   // filter predicate (if any), and the list of GROUP BY expressions (if any).
   const CatalogRelationSchema &input_relation_;
 
-  // Whether the aggregation is collision free or not.
-  const bool is_aggregate_collision_free_;
+  // Hash table implementation type.
+  const HashTableImplType hash_table_impl_type_;
 
   // Whether the aggregation is partitioned or not.
   const bool is_aggregate_partitioned_;
@@ -313,7 +323,7 @@ class AggregationOperationState {
 
   std::unique_ptr<PartitionedHashTablePool> partitioned_group_by_hashtable_pool_;
 
-  std::unique_ptr<AggregationStateHashTableBase> collision_free_hashtable_;
+  std::unique_ptr<AggregationStateHashTableBase> shared_hash_table_;
 
   StorageManager *storage_manager_;
 
