@@ -20,6 +20,7 @@
 #include "query_optimizer/resolver/NameResolver.hpp"
 
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 

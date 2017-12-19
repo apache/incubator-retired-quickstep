@@ -19,6 +19,7 @@
 
 #include "expressions/window_aggregation/WindowAggregateFunctionAvg.hpp"
 
+#include <memory>
 #include <vector>
 
 #include "expressions/window_aggregation/WindowAggregationHandleAvg.hpp"

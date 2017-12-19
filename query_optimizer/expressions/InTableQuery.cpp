@@ -20,6 +20,7 @@
 #include "query_optimizer/expressions/InTableQuery.hpp"
 
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "query_optimizer/OptimizerTree.hpp"

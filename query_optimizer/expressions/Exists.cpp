@@ -19,8 +19,10 @@
 
 #include "query_optimizer/expressions/Exists.hpp"
 
-#include <vector>
 #include <string>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include "query_optimizer/OptimizerTree.hpp"
 #include "query_optimizer/expressions/ExprId.hpp"

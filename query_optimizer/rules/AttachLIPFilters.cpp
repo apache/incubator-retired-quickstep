@@ -22,11 +22,12 @@
 #include <algorithm>
 #include <cstdint>
 #include <map>
+#include <memory>
 #include <set>
-#include <unordered_set>
 #include <unordered_map>
-#include <vector>
+#include <unordered_set>
 #include <utility>
+#include <vector>
 
 #include "query_optimizer/cost_model/StarSchemaSimpleCostModel.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"

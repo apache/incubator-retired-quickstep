@@ -24,6 +24,7 @@
 #include <cstddef>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "catalog/Catalog.pb.h"

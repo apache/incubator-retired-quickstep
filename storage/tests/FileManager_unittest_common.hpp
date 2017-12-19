@@ -32,12 +32,8 @@
 
 namespace quickstep {
 
-namespace {
-
 static const char kSampleString[kSlotSizeBytes] =
   "All animals are equal, but some animals are more equal than others.";
-
-}  // namespace
 
 template <typename FileManagerImpl>
 class FileManagerTest : public ::testing::Test {

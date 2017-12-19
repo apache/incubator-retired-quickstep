@@ -20,6 +20,8 @@
 #include "query_optimizer/rules/UpdateExpression.hpp"
 
 #include <map>
+#include <memory>
+#include <unordered_map>
 
 #include "query_optimizer/expressions/Alias.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"

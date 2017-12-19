@@ -19,7 +19,9 @@
 
 #include "query_optimizer/expressions/InValueList.hpp"
 
+#include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "expressions/predicate/DisjunctionPredicate.hpp"

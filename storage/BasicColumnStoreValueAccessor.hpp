@@ -20,6 +20,7 @@
 #ifndef QUICKSTEP_STORAGE_BASIC_COLUMN_STORE_VALUE_ACCESSOR_HPP_
 #define QUICKSTEP_STORAGE_BASIC_COLUMN_STORE_VALUE_ACCESSOR_HPP_
 
+#include <memory>
 #include <vector>
 
 #include "catalog/CatalogRelationSchema.hpp"
@@ -108,25 +109,25 @@ class BasicColumnStoreValueAccessorHelper {
   }
 
   template <bool check_null>
-  inline const void* getAttributeValue(const tuple_id tuple,
+  inline const void* getAttributeValue(const tuple_id tid,
                                        const attribute_id attr) const {
-    DEBUG_ASSERT(tuple < num_tuples_);
+    DEBUG_ASSERT(tid < num_tuples_);
     DEBUG_ASSERT(relation_.hasAttributeWithId(attr));
     if (check_null
         && (!column_null_bitmaps_.elementIsNull(attr))
-        && column_null_bitmaps_[attr].getBit(tuple)) {
+        && column_null_bitmaps_[attr].getBit(tid)) {
       return nullptr;
     }
 
     // TODO(chasseur): Consider cacheing the byte lengths of attributes.
     return static_cast<const char*>(column_stripes_[attr])
-           + (tuple * relation_.getAttributeById(attr)->getType().maximumByteLength());
+           + (tid * relation_.getAttributeById(attr)->getType().maximumByteLength());
   }
 
-  inline TypedValue getAttributeValueTyped(const tuple_id tuple,
+  inline TypedValue getAttributeValueTyped(const tuple_id tid,
                                            const attribute_id attr) const {
     const Type &attr_type = relation_.getAttributeById(attr)->getType();
-    const void *untyped_value = getAttributeValue<true>(tuple, attr);
+    const void *untyped_value = getAttributeValue<true>(tid, attr);
     return (untyped_value == nullptr)
         ? attr_type.makeNullValue()
         : attr_type.makeValue(untyped_value, attr_type.maximumByteLength());

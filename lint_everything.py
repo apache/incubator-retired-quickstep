@@ -23,9 +23,16 @@ import sys
 
 EXCLUDED_PREFIXES = ['./.', './third_party', './build', './parser/preprocessed']
 
-call_args = ['/usr/bin/env', 'python2', './third_party/src/cpplint/cpplint.py']
+print "Running cpplint on entire source tree. This may take several minutes ..."
 
-print "Running cpplint on entire source tree. This may take a minute or two..."
+call_args = ['/usr/bin/env',
+             'python2',
+             './third_party/src/cpplint/cpplint.py',
+             '--extensions=cpp,hpp',
+             '--linelength=120',
+             '--headers=hpp',
+             '--filter=-build/header_guard',
+             '--quiet']
 
 for (dirpath, dirnames, filenames) in os.walk('.'):
     filtered = False

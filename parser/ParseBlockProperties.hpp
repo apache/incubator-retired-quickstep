@@ -48,10 +48,10 @@ namespace quickstep {
  */
 class ParseBlockProperties : public ParseTreeNode {
   // Valid key names for the BlockProperties.
-  static const std::string kKeyBlockSizeMB;
-  static const std::string kKeyCompress;
-  static const std::string kKeySort;
-  static const std::string kKeyType;
+  static const char kKeyBlockSizeMB[];
+  static const char kKeyCompress[];
+  static const char kKeySort[];
+  static const char kKeyType[];
 
  public:
   /**

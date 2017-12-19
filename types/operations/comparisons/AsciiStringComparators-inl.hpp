@@ -27,6 +27,7 @@
 #define QUICKSTEP_TYPES_OPERATIONS_COMPARISONS_ASCII_STRING_COMPARATORS_INL_HPP_
 
 #include <cstddef>
+#include <memory>
 
 #include "catalog/CatalogTypedefs.hpp"
 #include "storage/TupleIdSequence.hpp"

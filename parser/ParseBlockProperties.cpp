@@ -23,9 +23,9 @@
 
 namespace quickstep {
 
-const std::string ParseBlockProperties::kKeyBlockSizeMB = "blocksizemb";
-const std::string ParseBlockProperties::kKeyCompress = "compress";
-const std::string ParseBlockProperties::kKeySort = "sort";
-const std::string ParseBlockProperties::kKeyType = "type";
+const char ParseBlockProperties::kKeyBlockSizeMB[] = "blocksizemb";
+const char ParseBlockProperties::kKeyCompress[] = "compress";
+const char ParseBlockProperties::kKeySort[] = "sort";
+const char ParseBlockProperties::kKeyType[] = "type";
 
 }  // namespace quickstep

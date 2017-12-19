@@ -21,6 +21,7 @@
 #define QUICKSTEP_RELATIONAL_OPERATORS_WINDOW_AGGREGATION_OPERATOR_HPP_
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "catalog/CatalogRelation.hpp"

@@ -20,6 +20,8 @@
 #ifndef QUICKSTEP_QUERY_OPTIMIZER_STRATEGY_TESTS_STRATEGY_TEST_HPP_
 #define QUICKSTEP_QUERY_OPTIMIZER_STRATEGY_TESTS_STRATEGY_TEST_HPP_
 
+#include <memory>
+
 #include "query_optimizer/logical/Logical.hpp"
 #include "query_optimizer/physical/Physical.hpp"
 #include "query_optimizer/strategy/Strategy.hpp"

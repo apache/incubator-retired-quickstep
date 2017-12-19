@@ -19,6 +19,7 @@
 
 #include "query_optimizer/expressions/LogicalOr.hpp"
 
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>

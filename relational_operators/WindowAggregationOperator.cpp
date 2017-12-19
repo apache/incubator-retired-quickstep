@@ -19,6 +19,7 @@
 
 #include "relational_operators/WindowAggregationOperator.hpp"
 
+#include <utility>
 #include <vector>
 
 #include "catalog/CatalogRelation.hpp"

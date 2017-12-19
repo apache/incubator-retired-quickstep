@@ -22,7 +22,9 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #include "expressions/aggregation/AggregationHandle.hpp"

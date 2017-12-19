@@ -19,6 +19,8 @@
 
 #include "query_optimizer/strategy/Selection.hpp"
 
+#include <memory>
+
 #include "query_optimizer/OptimizerContext.hpp"
 #include "query_optimizer/expressions/Alias.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"

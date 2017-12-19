@@ -43,7 +43,7 @@ class CatalogRelation;
 
 namespace optimizer {
 
-const std::string ExecutionGeneratorTestRunner::kResetOption =
+const char ExecutionGeneratorTestRunner::kResetOption[] =
     "reset_before_execution";
 
 void ExecutionGeneratorTestRunner::runTestCase(

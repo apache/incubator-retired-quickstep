@@ -20,6 +20,7 @@
 #include "storage/SubBlockTypeRegistry.hpp"
 
 #include <cstddef>
+#include <unordered_map>
 
 #include "storage/StorageBlockLayout.pb.h"
 #include "utility/Macros.hpp"

@@ -119,8 +119,8 @@ class CompressedTupleStorageSubBlock : public TupleStorageSubBlock {
     return *static_cast<const tuple_id*>(sub_block_memory_) - 1;
   }
 
-  bool hasTupleWithID(const tuple_id tuple) const override {
-    return tuple < *static_cast<const tuple_id*>(sub_block_memory_);
+  bool hasTupleWithID(const tuple_id tid) const override {
+    return tid < *static_cast<const tuple_id*>(sub_block_memory_);
   }
 
   InsertResult insertTuple(const Tuple &tuple) override {

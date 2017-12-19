@@ -23,6 +23,7 @@
 #include <cstddef>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "expressions/scalar/ScalarBinaryExpression.hpp"

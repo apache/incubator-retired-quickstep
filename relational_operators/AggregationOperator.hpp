@@ -21,6 +21,7 @@
 #define QUICKSTEP_RELATIONAL_OPERATORS_AGGREGATION_OPERATOR_HPP_
 
 #include <cstddef>
+#include <memory>
 #include <string>
 #include <vector>
 

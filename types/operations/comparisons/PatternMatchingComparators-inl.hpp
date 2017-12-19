@@ -23,6 +23,7 @@
 #include "types/operations/comparisons/PatternMatchingComparators.hpp"
 
 #include <cstddef>
+#include <memory>
 #include <string>
 
 #include "catalog/CatalogTypedefs.hpp"

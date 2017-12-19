@@ -19,6 +19,8 @@
 
 #include "utility/ScopedReassignment.hpp"
 
+#include <utility>
+
 #include "utility/Macros.hpp"
 
 #include "gtest/gtest.h"

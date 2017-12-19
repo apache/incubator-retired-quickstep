@@ -27,6 +27,7 @@
 #include <istream>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "utility/textbased_test/TextBasedTest.hpp"

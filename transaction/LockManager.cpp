@@ -20,6 +20,7 @@
 #include "transaction/LockManager.hpp"
 
 #include <cstdint>
+#include <memory>
 #include <stack>
 #include <string>
 #include <utility>

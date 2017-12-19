@@ -19,6 +19,8 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <tuple>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 

@@ -20,7 +20,9 @@
 #include "query_optimizer/expressions/SimpleCase.hpp"
 
 #include <cstddef>
+#include <memory>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 

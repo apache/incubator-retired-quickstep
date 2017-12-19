@@ -27,6 +27,7 @@
 #define QUICKSTEP_TYPES_OPERATIONS_COMPARISONS_LITERAL_COMPARATORS_INL_HPP_
 
 #include <cstddef>
+#include <memory>
 #include <type_traits>
 
 #include "catalog/CatalogTypedefs.hpp"

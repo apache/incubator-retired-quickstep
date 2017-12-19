@@ -19,6 +19,7 @@
 
 #include "expressions/scalar/ScalarAttribute.hpp"
 
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>

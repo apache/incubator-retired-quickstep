@@ -57,6 +57,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "catalog/CatalogTypedefs.hpp"

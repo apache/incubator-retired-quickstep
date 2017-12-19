@@ -23,6 +23,7 @@
 #include <functional>
 #include <memory>
 #include <set>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 

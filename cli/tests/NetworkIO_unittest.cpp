@@ -38,8 +38,8 @@ namespace quickstep {
 
 using networkio_internal::RequestState;
 
-static std::string const kQueryRequest = "O Captain! My Captain!";
-static std::string const kQueryResponse = "Our fearful trip is done,";
+static char const kQueryRequest[] = "O Captain! My Captain!";
+static char const kQueryResponse[] = "Our fearful trip is done,";
 
 /**
  * Contains a server instance for testing.
@@ -123,7 +123,7 @@ TEST(NetworkIOTest, TestNetworkIOCommandInteraction) {
     EXPECT_EQ(command->getCommand(), kQueryRequest);
 
     // Set some output for the main test thread, destruction of the handle will return the request.
-    fprintf(command->out(), "%s", kQueryResponse.c_str());
+    fprintf(command->out(), "%s", kQueryResponse);
   });
   server_handler.start();
 

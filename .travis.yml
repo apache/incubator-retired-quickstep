@@ -79,7 +79,7 @@ before_script:
            -D VECTOR_COPY_ELISION_LEVEL=$VECTOR_COPY_ELISION_LEVEL ..)
 
 script:
-  - ./third_party/src/cpplint/lint_everything.py
+  - ./lint_everything.py
   - ./validate_cmakelists.py
   - ./cyclic_dependency.py
   - (cd build && make)

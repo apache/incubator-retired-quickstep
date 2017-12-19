@@ -19,6 +19,7 @@
 
 #include "query_optimizer/strategy/Aggregate.hpp"
 
+#include <memory>
 #include <vector>
 
 #include "expressions/aggregation/AggregateFunctionFactory.hpp"

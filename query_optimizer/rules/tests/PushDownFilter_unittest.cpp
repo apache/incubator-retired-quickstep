@@ -19,6 +19,8 @@
 
 #include "query_optimizer/rules/PushDownFilter.hpp"
 
+#include <memory>
+
 #include "query_optimizer/expressions/Alias.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"
 #include "query_optimizer/expressions/ComparisonExpression.hpp"

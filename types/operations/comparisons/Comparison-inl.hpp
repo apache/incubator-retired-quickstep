@@ -23,6 +23,7 @@
 #include "types/operations/comparisons/Comparison.hpp"
 
 #include <cstddef>
+#include <memory>
 
 #include "catalog/CatalogTypedefs.hpp"
 #include "storage/TupleIdSequence.hpp"

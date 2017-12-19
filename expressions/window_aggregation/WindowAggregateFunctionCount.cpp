@@ -19,6 +19,7 @@
 
 #include "expressions/window_aggregation/WindowAggregateFunctionCount.hpp"
 
+#include <memory>
 #include <vector>
 
 #include "expressions/window_aggregation/WindowAggregationHandle.hpp"

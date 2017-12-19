@@ -19,6 +19,8 @@
 
 #include "query_optimizer/strategy/OneToOne.hpp"
 
+#include <memory>
+
 #include "query_optimizer/logical/Logical.hpp"
 #include "query_optimizer/logical/TableReference.hpp"
 #include "query_optimizer/logical/TopLevelPlan.hpp"

@@ -19,6 +19,7 @@
 
 #include "query_optimizer/strategy/Join.hpp"
 
+#include <memory>
 #include <vector>
 
 #include "query_optimizer/OptimizerContext.hpp"

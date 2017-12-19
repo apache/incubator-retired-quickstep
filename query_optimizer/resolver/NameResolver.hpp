@@ -21,6 +21,7 @@
 #define QUICKSTEP_QUERY_OPTIMIZER_RESOLVER_NAME_RESOLVER_HPP_
 
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 

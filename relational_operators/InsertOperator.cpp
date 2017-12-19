@@ -20,6 +20,7 @@
 #include "relational_operators/InsertOperator.hpp"
 
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "query_execution/QueryContext.hpp"

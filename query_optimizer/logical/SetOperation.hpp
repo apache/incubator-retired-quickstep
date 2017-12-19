@@ -20,6 +20,7 @@
 #ifndef QUICKSTEP_QUERY_OPTIMIZER_LOGICAL_SET_OPERATION_HPP_
 #define QUICKSTEP_QUERY_OPTIMIZER_LOGICAL_SET_OPERATION_HPP_
 
+#include <memory>
 #include <string>
 #include <type_traits>
 #include <vector>

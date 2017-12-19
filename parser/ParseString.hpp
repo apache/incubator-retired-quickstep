@@ -115,4 +115,4 @@ class ParseString : public ParseTreeNode {
 
 }  // namespace quickstep
 
-#endif /* QUICKSTEP_PARSER_PARSE_STRING_HPP_ */
+#endif  // QUICKSTEP_PARSER_PARSE_STRING_HPP_

@@ -53,7 +53,7 @@ class ExecutionGeneratorTestRunner : public TextBasedTestRunner {
    * @brief If this option is enabled, recreate the entire database and
    * repopulate the data before every test.
    */
-  static const std::string kResetOption;
+  static const char kResetOption[];
 
   /**
    * @brief Constructor.

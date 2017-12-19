@@ -131,8 +131,8 @@ class BasicColumnStoreTupleStorageSubBlock : public TupleStorageSubBlock {
     return header_->num_tuples - 1;
   }
 
-  bool hasTupleWithID(const tuple_id tuple) const override {
-    return ((tuple >=0) && (tuple < header_->num_tuples));
+  bool hasTupleWithID(const tuple_id tid) const override {
+    return ((tid >=0) && (tid < header_->num_tuples));
   }
 
   InsertResult insertTuple(const Tuple &tuple) override;
