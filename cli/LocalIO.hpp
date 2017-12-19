@@ -46,8 +46,8 @@ class LocalIOHandle final : public IOHandle {
 
   ~LocalIOHandle() override {}
 
-  FILE *in() override {
-    return stdin;
+  const std::string* data() const override {
+    return nullptr;
   }
 
   FILE *out() override {

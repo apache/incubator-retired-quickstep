@@ -305,7 +305,6 @@ int main(int argc, char* argv[]) {
   for (;;) {
     string *command_string = new string();
     std::unique_ptr<quickstep::IOHandle> io_handle(io->getNextIOHandle());
-    ScopedReassignment<FILE*> reassign_stdin(&stdin, io_handle->in());
     ScopedReassignment<FILE*> reassign_stdout(&stdout, io_handle->out());
 //    ScopedReassignment<FILE*> reassign_stderr(&stderr, io_handle->err());
 
@@ -361,6 +360,7 @@ int main(int argc, char* argv[]) {
           auto query_handle = std::make_unique<QueryHandle>(query_id,
                                                             main_thread_client_id,
                                                             statement.getPriority());
+          query_handle->setMemData(io_handle->data());
           query_processor->generateQueryHandle(statement, query_handle.get());
           DCHECK(query_handle->getQueryPlanMutable() != nullptr);
 

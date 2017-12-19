@@ -23,6 +23,7 @@
 #include <cctype>
 #include <cstddef>
 #include <exception>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -104,6 +105,11 @@ class TextScanFormatError : public std::exception {
  **/
 class TextScanOperator : public RelationalOperator {
  public:
+  enum FeedbackMessageType : WorkOrder::FeedbackMessageType {
+      kTextScanCompletionMessage,
+      kBulkInsertCompletionMessage
+  };
+
   /**
    * @brief Constructor.
    *
@@ -112,6 +118,7 @@ class TextScanOperator : public RelationalOperator {
    *        pattern could include * (wildcard for multiple chars) and ?
    *        (wildcard for single char). It defaults to single file load, if a
    *        file is specified.
+   * @param mem_data Incoming data that is stored in memory, maybe null.
    * @param options The options that specify the detailed format of the input
             file(s).
    * @param output_relation The output relation.
@@ -120,15 +127,20 @@ class TextScanOperator : public RelationalOperator {
    **/
   TextScanOperator(const std::size_t query_id,
                    const std::string &file_pattern,
+                   const std::string *mem_data,
                    const BulkIoConfigurationPtr &options,
                    const CatalogRelation &output_relation,
                    const QueryContext::insert_destination_id output_destination_index)
       : RelationalOperator(query_id, 1u, output_relation.getNumPartitions() != 1u /* has_repartition */,
                            output_relation.getNumPartitions()),
         file_pattern_(file_pattern),
+        mem_data_(mem_data),
         options_(options),
         output_relation_(output_relation),
         output_destination_index_(output_destination_index),
+        serial_bulk_insert_(mem_data != nullptr),
+        num_remaining_chunks_(0),
+        serial_worker_ready_(true),
         work_generated_(false) {}
 
   ~TextScanOperator() override {}
@@ -157,16 +169,24 @@ class TextScanOperator : public RelationalOperator {
     return output_relation_.getID();
   }
 
+  void receiveFeedbackMessage(const WorkOrder::FeedbackMessage &msg) override;
+
  private:
   serialization::WorkOrder* createWorkOrderProto(const std::string &filename,
                                                  const std::size_t text_offset,
                                                  const std::size_t text_segment_size);
 
   const std::string file_pattern_;
+  const std::string *mem_data_;
   const BulkIoConfigurationPtr options_;
 
   const CatalogRelation &output_relation_;
   const QueryContext::insert_destination_id output_destination_index_;
+
+  const bool serial_bulk_insert_;
+  std::vector<std::unique_ptr<ColumnVectorsValueAccessor>> chunks_;
+  std::size_t num_remaining_chunks_;
+  bool serial_worker_ready_;
 
   bool work_generated_;
 
@@ -195,18 +215,26 @@ class TextScanWorkOrder : public WorkOrder {
   TextScanWorkOrder(
       const std::size_t query_id,
       const std::string &filename,
+      const std::string *mem_data,
       const std::size_t text_offset,
       const std::size_t text_segment_size,
       const char field_terminator,
       const bool process_escape_sequences,
+      const std::size_t operator_index,
+      const tmb::client_id scheduler_client_id,
+      MessageBus *bus,
       InsertDestination *output_destination,
       void *hdfs = nullptr)
       : WorkOrder(query_id),
         filename_(filename),
+        mem_data_(mem_data),
         text_offset_(text_offset),
         text_segment_size_(text_segment_size),
         field_terminator_(field_terminator),
         process_escape_sequences_(process_escape_sequences),
+        operator_index_(operator_index),
+        scheduler_client_id_(scheduler_client_id),
+        bus_(bus),
         output_destination_(DCHECK_NOTNULL(output_destination)),
         hdfs_(hdfs) {}
 
@@ -226,6 +254,7 @@ class TextScanWorkOrder : public WorkOrder {
 
  private:
   void executeInputStream();
+  void executeMemData();
 
   /**
    * @brief Extract a field string starting at \p *field_ptr. This method also
@@ -331,10 +360,15 @@ class TextScanWorkOrder : public WorkOrder {
   }
 
   const std::string filename_;
+  const std::string *mem_data_;
   const std::size_t text_offset_;
   const std::size_t text_segment_size_;
   const char field_terminator_;
   const bool process_escape_sequences_;
+
+  const std::size_t operator_index_;
+  const tmb::client_id scheduler_client_id_;
+  MessageBus *bus_;
 
   InsertDestination *output_destination_;
 
@@ -342,6 +376,36 @@ class TextScanWorkOrder : public WorkOrder {
   void *hdfs_;
 
   DISALLOW_COPY_AND_ASSIGN(TextScanWorkOrder);
+};
+
+class BulkInsertWorkOrder : public WorkOrder {
+ public:
+  BulkInsertWorkOrder(
+      const std::size_t query_id,
+      const std::size_t operator_index,
+      const tmb::client_id scheduler_client_id,
+      MessageBus *bus,
+      std::vector<std::unique_ptr<ColumnVectorsValueAccessor>> &&chunks,
+      InsertDestination *output_destination)
+      : WorkOrder(query_id),
+        operator_index_(operator_index),
+        scheduler_client_id_(scheduler_client_id),
+        bus_(bus),
+        chunks_(std::move(chunks)),
+        output_destination_(output_destination) {
+  }
+
+  void execute() override;
+
+ private:
+  const std::size_t operator_index_;
+  const tmb::client_id scheduler_client_id_;
+  MessageBus *bus_;
+
+  std::vector<std::unique_ptr<ColumnVectorsValueAccessor>> chunks_;
+  InsertDestination *output_destination_;
+
+  DISALLOW_COPY_AND_ASSIGN(BulkInsertWorkOrder);
 };
 
 /** @} */

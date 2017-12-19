@@ -40,9 +40,9 @@ class IOHandle {
   virtual ~IOHandle() {}
 
   /**
-   * @return A file handle for standard input.
+   * @return Input data.
    */
-  virtual FILE* in() = 0;
+  virtual const std::string* data() const = 0;
 
   /**
    * @return A file handle for standard output.

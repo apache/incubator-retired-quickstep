@@ -200,6 +200,7 @@ TEST_F(TextScanOperatorTest, ScanTest) {
   std::unique_ptr<TextScanOperator> text_scan_op(
       new TextScanOperator(kQueryId,
                            input_filename,
+                           nullptr /* mem_data */,
                            BulkIoConfigurationPtr(options.release()),
                            *relation_,
                            output_destination_index));

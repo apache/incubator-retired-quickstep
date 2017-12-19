@@ -215,10 +215,6 @@ class NetworkIOHandle final : public IOHandle {
  public:
   explicit NetworkIOHandle(RequestState* state)
       : request_state_(state) {
-    const std::string &data = request_state_->getRequest().data();
-    if (!data.empty()) {
-      std::fwrite(data.c_str(), 1, data.length(), in_stream_.file());
-    }
   }
 
   ~NetworkIOHandle() override {
@@ -227,8 +223,8 @@ class NetworkIOHandle final : public IOHandle {
     request_state_->responseReady(out_stream_.str(), err_stream_.str());
   }
 
-  FILE* in() override {
-    return in_stream_.file();
+  const std::string* data() const override {
+    return &request_state_->getRequest().data();
   }
 
   FILE* out() override {
@@ -244,7 +240,7 @@ class NetworkIOHandle final : public IOHandle {
   }
 
  private:
-  MemStream in_stream_, out_stream_, err_stream_;
+  MemStream out_stream_, err_stream_;
   RequestState *request_state_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkIOHandle);

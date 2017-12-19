@@ -113,76 +113,117 @@ bool TextScanOperator::getAllWorkOrders(
   DCHECK(query_context != nullptr);
   DCHECK(!file_pattern_.empty());
 
-  if (work_generated_) {
+  if (work_generated_ && (!serial_bulk_insert_ || num_remaining_chunks_ == 0)) {
     return true;
   }
 
   InsertDestination *output_destination =
       query_context->getInsertDestination(output_destination_index_);
 
-  if (file_pattern_ == "$stdin") {
-    container->addNormalWorkOrder(
-        new TextScanWorkOrder(query_id_,
-                              file_pattern_,
-                              0,
-                              -1 /* text_segment_size */,
-                              options_->getDelimiter(),
-                              options_->escapeStrings(),
-                              output_destination),
-        op_index_);
+  if (!work_generated_) {
+    std::vector<std::string> files;
+    std::vector<std::size_t> file_sizes;
+
+    if (file_pattern_ == "$stdin") {
+      if (mem_data_ == nullptr) {
+        container->addNormalWorkOrder(
+            new TextScanWorkOrder(query_id_,
+                                  file_pattern_,
+                                  nullptr /* mem_data */,
+                                  0,
+                                  -1 /* text_segment_size */,
+                                  options_->getDelimiter(),
+                                  options_->escapeStrings(),
+                                  op_index_,
+                                  scheduler_client_id,
+                                  bus,
+                                  output_destination),
+            op_index_);
+        work_generated_ = true;
+        return true;
+      }
+      files.emplace_back(file_pattern_);
+      file_sizes.emplace_back(mem_data_->size());
+    } else {
+      DCHECK_EQ('@', file_pattern_.front());
+      files = utility::file::GlobExpand(file_pattern_.substr(1));
+
+      CHECK_NE(files.size(), 0u)
+          << "No files matched '" << file_pattern_ << "'. Exiting.";
+
+      for (const std::string &file : files) {
+  #ifdef QUICKSTEP_HAVE_UNISTD
+        // Check file permissions before trying to open it.
+        const int access_result = access(file.c_str(), R_OK);
+        CHECK_EQ(0, access_result)
+            << "File " << file << " is not readable due to permission issues.";
+  #endif  // QUICKSTEP_HAVE_UNISTD
+        file_sizes.emplace_back(GetFileSize(file));
+      }
+    }
+
+    for (std::size_t i = 0; i < files.size(); ++i) {
+      const std::string &file = files[i];
+      const std::size_t file_size = file_sizes[i];
+      for (std::size_t text_offset = 0;
+           text_offset < file_size;
+           text_offset += FLAGS_textscan_text_segment_size) {
+        const std::size_t test_size =
+            std::min(static_cast<std::size_t>(FLAGS_textscan_text_segment_size),
+                     file_size - text_offset);
+        container->addNormalWorkOrder(
+            new TextScanWorkOrder(query_id_,
+                                  file,
+                                  mem_data_,
+                                  text_offset,
+                                  test_size,
+                                  options_->getDelimiter(),
+                                  options_->escapeStrings(),
+                                  op_index_,
+                                  scheduler_client_id,
+                                  bus,
+                                  output_destination),
+            op_index_);
+        ++num_remaining_chunks_;
+      }
+    }
     work_generated_ = true;
-    return true;
   }
 
-  DCHECK_EQ('@', file_pattern_.front());
-  const std::vector<std::string> files =
-      utility::file::GlobExpand(file_pattern_.substr(1));
+  // Temporary solution to the problem that there are too many blocks created
+  // for small batch bulk-insert with compressed column store.
+  if (serial_bulk_insert_ && !chunks_.empty() && serial_worker_ready_) {
+    DCHECK_LE(chunks_.size(), num_remaining_chunks_);
+    num_remaining_chunks_ -= chunks_.size();
 
-  CHECK_NE(files.size(), 0u)
-      << "No files matched '" << file_pattern_ << "'. Exiting.";
-
-  for (const std::string &file : files) {
-#ifdef QUICKSTEP_HAVE_UNISTD
-    // Check file permissions before trying to open it.
-    const int access_result = access(file.c_str(), R_OK);
-    CHECK_EQ(0, access_result)
-        << "File " << file << " is not readable due to permission issues.";
-#endif  // QUICKSTEP_HAVE_UNISTD
-
-    const std::size_t file_size = GetFileSize(file);
-
-    std::size_t text_offset = 0;
-    for (size_t num_full_segments = file_size / FLAGS_textscan_text_segment_size;
-         num_full_segments > 0;
-         --num_full_segments, text_offset += FLAGS_textscan_text_segment_size) {
-      container->addNormalWorkOrder(
-          new TextScanWorkOrder(query_id_,
-                                file,
-                                text_offset,
-                                FLAGS_textscan_text_segment_size,
-                                options_->getDelimiter(),
-                                options_->escapeStrings(),
+    container->addNormalWorkOrder(
+        new BulkInsertWorkOrder(query_id_,
+                                op_index_,
+                                scheduler_client_id,
+                                bus,
+                                std::move(chunks_),
                                 output_destination),
-          op_index_);
-    }
+        op_index_);
 
-    // Deal with the residual partial segment whose size is less than
-    // 'FLAGS_textscan_text_segment_size'.
-    if (text_offset < file_size) {
-      container->addNormalWorkOrder(
-          new TextScanWorkOrder(query_id_,
-                                file,
-                                text_offset,
-                                file_size - text_offset,
-                                options_->getDelimiter(),
-                                options_->escapeStrings(),
-                                output_destination),
-          op_index_);
-    }
+    chunks_.clear();
+    serial_worker_ready_ = false;
   }
 
-  work_generated_ = true;
-  return true;
+  return work_generated_ && (!serial_bulk_insert_ || num_remaining_chunks_ == 0);
+}
+
+void TextScanOperator::receiveFeedbackMessage(
+    const WorkOrder::FeedbackMessage &msg) {
+  if (msg.type() == kBulkInsertCompletionMessage) {
+    serial_worker_ready_ = true;
+    return;
+  }
+
+  DCHECK(kTextScanCompletionMessage == msg.type());
+  DCHECK(msg.payload_size() == sizeof(ColumnVectorsValueAccessor*));
+
+  chunks_.emplace_back(
+      *static_cast<ColumnVectorsValueAccessor* const*>(msg.payload()));
 }
 
 bool TextScanOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) {
@@ -241,7 +282,11 @@ serialization::WorkOrder* TextScanOperator::createWorkOrderProto(
 void TextScanWorkOrder::execute() {
   DCHECK(!filename_.empty());
   if (filename_ == "$stdin") {
-    executeInputStream();
+    if (mem_data_ == nullptr) {
+      executeInputStream();
+    } else {
+      executeMemData();
+    }
     return;
   }
 
@@ -460,20 +505,119 @@ void TextScanWorkOrder::execute() {
   output_destination_->bulkInsertTuples(&column_vectors);
 }
 
-void TextScanWorkOrder::executeInputStream() {
-  std::string data;
-  const int len = std::ftell(stdin);
-  if (len >= 0) {
-    ScopedBuffer buffer(len, false);
-    std::rewind(stdin);
-    std::fread(buffer.get(), 1, len, stdin);
-    data = std::string(static_cast<char*>(buffer.get()), len);
+void TextScanWorkOrder::executeMemData() {
+  const CatalogRelationSchema &relation = output_destination_->getRelation();
+  std::vector<Tuple> tuples;
+  std::vector<TypedValue> row_tuple;
+  bool is_faulty;
+
+  // Locate the first newline character.
+  const char *row_ptr = mem_data_->c_str() + text_offset_;
+  const char *segment_end = row_ptr + text_segment_size_;
+  if (text_offset_ != 0) {
+    while (row_ptr < segment_end && *row_ptr != '\n') {
+      ++row_ptr;
+    }
   } else {
-    std::unique_ptr<std::ostringstream> oss = std::make_unique<std::ostringstream>();
-    *oss << std::cin.rdbuf();
-    data = oss->str();
-    oss.reset();
+    --row_ptr;
   }
+  if (row_ptr >= segment_end) {
+    // This block does not even contain a newline character.
+    return;
+  }
+
+  // Locate the last newline character.
+  const char *end_ptr = segment_end - 1;
+  while (end_ptr > row_ptr && *end_ptr != '\n') {
+    --end_ptr;
+  }
+
+  // Advance both row_ptr and end_ptr by 1.
+  ++row_ptr;
+  ++end_ptr;
+  // Now row_ptr is pointing to the first character RIGHT AFTER the FIRST newline
+  // character in this text segment, and end_ptr is pointing to the first character
+  // RIGHT AFTER the LAST newline character in this text segment.
+
+  // Process the tuples which are between the first newline character and the
+  // last newline character. SKIP any row which is corrupt instead of ABORTING the
+  // whole COPY operation.
+  while (row_ptr < end_ptr) {
+    if (*row_ptr == '\r' || *row_ptr == '\n') {
+      // Skip empty lines.
+      ++row_ptr;
+    } else {
+      row_tuple = parseRow(&row_ptr, relation, &is_faulty);
+      if (is_faulty) {
+        // Skip faulty rows
+        LOG(INFO) << "Faulty row found. Hence switching to next row.";
+      } else {
+        // Convert vector returned to tuple only when a valid row is encountered.
+        tuples.emplace_back(Tuple(std::move(row_tuple)));
+      }
+    }
+  }
+  // Process the tuple that is right after the last newline character.
+  const char *data_end = mem_data_->c_str() + mem_data_->size();
+  while (end_ptr < data_end && *end_ptr != '\n') {
+    ++end_ptr;
+  }
+
+  std::string row_string(row_ptr, end_ptr - row_ptr);
+  if (!row_string.empty()) {
+    if (row_string.back() != '\n') {
+      row_string.push_back('\n');
+    }
+    row_ptr = row_string.c_str();
+
+    row_tuple = parseRow(&row_ptr, relation, &is_faulty);
+    if (is_faulty) {
+      // Skip the faulty row.
+      LOG(INFO) << "Faulty row found. Hence switching to next row.";
+    } else {
+      // Convert vector returned to tuple only when a valid row is encountered.
+      tuples.emplace_back(Tuple(std::move(row_tuple)));
+    }
+  }
+
+  // Store the tuples in a ColumnVectorsValueAccessor for bulk insert.
+  std::unique_ptr<ColumnVectorsValueAccessor> column_vectors =
+      std::make_unique<ColumnVectorsValueAccessor>();
+  std::size_t attr_id = 0;
+  for (const auto &attribute : relation) {
+    const Type &attr_type = attribute.getType();
+    if (attr_type.isVariableLength()) {
+      std::unique_ptr<IndirectColumnVector> column(
+          new IndirectColumnVector(attr_type, tuples.size()));
+      for (const auto &tuple : tuples) {
+        column->appendTypedValue(tuple.getAttributeValue(attr_id));
+      }
+      column_vectors->addColumn(column.release());
+    } else {
+      std::unique_ptr<NativeColumnVector> column(
+          new NativeColumnVector(attr_type, tuples.size()));
+      for (const auto &tuple : tuples) {
+        column->appendTypedValue(tuple.getAttributeValue(attr_id));
+      }
+      column_vectors->addColumn(column.release());
+    }
+    ++attr_id;
+  }
+
+  FeedbackMessage msg(TextScanOperator::kTextScanCompletionMessage,
+                      getQueryID(),
+                      operator_index_,
+                      new ColumnVectorsValueAccessor*(column_vectors.release()),
+                      sizeof(ColumnVectorsValueAccessor*));
+  SendFeedbackMessage(
+      bus_, ClientIDMap::Instance()->getValue(), scheduler_client_id_, msg);
+}
+
+void TextScanWorkOrder::executeInputStream() {
+  std::unique_ptr<std::ostringstream> oss = std::make_unique<std::ostringstream>();
+  *oss << std::cin.rdbuf();
+  std::string data = oss->str();
+  oss.reset();
 
   if (data.back() != '\n') {
     data.push_back('\n');
@@ -730,6 +874,20 @@ void TextScanWorkOrder::extractFieldString(const char **field_ptr,
     }
   }
   *field_ptr = cur_ptr + 1;
+}
+
+void BulkInsertWorkOrder::execute() {
+  for (auto &column_vectors : chunks_) {
+    output_destination_->bulkInsertTuples(column_vectors.get());
+  }
+
+  FeedbackMessage msg(TextScanOperator::kBulkInsertCompletionMessage,
+                      getQueryID(),
+                      operator_index_,
+                      new int(0) /* dumb value */,
+                      sizeof(int));
+  SendFeedbackMessage(
+      bus_, ClientIDMap::Instance()->getValue(), scheduler_client_id_, msg);
 }
 
 }  // namespace quickstep

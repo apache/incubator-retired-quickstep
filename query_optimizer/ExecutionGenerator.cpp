@@ -1169,6 +1169,7 @@ void ExecutionGenerator::convertCopyFrom(
           new TextScanOperator(
               query_handle_->query_id(),
               physical_plan->file_name(),
+              query_handle_->getMemData(),
               physical_plan->options(),
               *output_relation,
               insert_destination_index));

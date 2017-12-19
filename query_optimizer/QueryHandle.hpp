@@ -23,6 +23,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <string>
 
 #include "catalog/Catalog.pb.h"
 #include "catalog/CatalogTypedefs.hpp"
@@ -88,7 +89,8 @@ class QueryHandle {
         query_priority_(query_priority),
         analyze_query_info_(analyze_query_info),
         query_plan_(new QueryPlan()),
-        query_result_relation_(nullptr) {}
+        query_result_relation_(nullptr),
+        mem_data_(nullptr) {}
 
   ~QueryHandle() {}
 
@@ -178,6 +180,14 @@ class QueryHandle {
     query_result_relation_ = relation;
   }
 
+  const std::string* getMemData() const {
+    return mem_data_;
+  }
+
+  void setMemData(const std::string *mem_data) {
+    mem_data_ = mem_data;
+  }
+
 #ifdef QUICKSTEP_DISTRIBUTED
   /**
    * @brief Whether the query will be executed in the single node.
@@ -213,6 +223,8 @@ class QueryHandle {
   // NOTE(zuyu): The relation gets created by the optimizer,
   //             and deleted by the Cli shell.
   const CatalogRelation *query_result_relation_;
+
+  const std::string *mem_data_;
 
 #ifdef QUICKSTEP_DISTRIBUTED
   // Indicate whether the query should be executed on the default Shiftboss for

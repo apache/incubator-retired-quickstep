@@ -554,10 +554,14 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
       return new TextScanWorkOrder(
           query_id,
           proto.GetExtension(serialization::TextScanWorkOrder::filename),
+          nullptr /* TODO */,
           proto.GetExtension(serialization::TextScanWorkOrder::text_offset),
           proto.GetExtension(serialization::TextScanWorkOrder::text_segment_size),
           proto.GetExtension(serialization::TextScanWorkOrder::field_terminator),
           proto.GetExtension(serialization::TextScanWorkOrder::process_escape_sequences),
+          0 /* TODO */,
+          0 /* TODO */,
+          nullptr /* TODO */,
           query_context->getInsertDestination(
               proto.GetExtension(serialization::TextScanWorkOrder::insert_destination_index)),
           hdfs);
