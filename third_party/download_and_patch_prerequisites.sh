@@ -52,7 +52,7 @@ third_party_dir_names=("benchmark"
                        "glog"
                        )
 
-third_party_lib_urls=("https://github.com/google/benchmark/archive/v1.1.0.tar.gz"
+third_party_lib_urls=("https://github.com/google/benchmark/archive/v1.3.0.tar.gz"
                       "https://github.com/gflags/gflags/archive/v2.1.2.tar.gz"
                       "https://github.com/google/googletest/archive/release-1.8.0.tar.gz"
                       "https://github.com/antirez/linenoise/archive/1.0.tar.gz"
@@ -61,7 +61,7 @@ third_party_lib_urls=("https://github.com/google/benchmark/archive/v1.1.0.tar.gz
                       "https://github.com/google/glog/archive/v0.3.5.tar.gz"
                       )
 
-downloaded_archive_names=("v1.1.0.tar.gz"
+downloaded_archive_names=("v1.3.0.tar.gz"
                           "v2.1.2.tar.gz"
                           "release-1.8.0.tar.gz"
                           "1.0.tar.gz"
@@ -127,8 +127,7 @@ patch ${THIRD_PARTY_SRC_DIR}/gflags/src/gflags_reporting.cc ${PATCH_DIR}/gflags/
 patch ${THIRD_PARTY_SRC_DIR}/re2/CMakeLists.txt ${PATCH_DIR}/re2/re2CMake.patch
 
 # Apply benchmark patches.
-patch ${THIRD_PARTY_SRC_DIR}/benchmark/CMakeLists.txt ${PATCH_DIR}/benchmark/benchmarkCMake.patch
-patch ${THIRD_PARTY_SRC_DIR}/benchmark/src/CMakeLists.txt ${PATCH_DIR}/benchmark/benchmarkSrcCMakeLists.patch
+patch ${THIRD_PARTY_SRC_DIR}/benchmark/CMakeLists.txt ${PATCH_DIR}/benchmark/CMakeLists.patch
 
 # Apply glog patches.
 patch ${THIRD_PARTY_SRC_DIR}/glog/CMakeLists.txt ${PATCH_DIR}/glog/glogCMakeLists.txt.patch
