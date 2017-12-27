@@ -1,17 +1,17 @@
-#Developing Quickstep with IDEs
+# Developing Quickstep with IDEs
 
-##Who should read this document?
+## Who should read this document?
 Any developer who prefers to work with IDEs instead of a terminal and
 vi, emacs, or the like. In other words, this document aims to make it easier
 for developers of Quickstep to work with IDEs. Over time, there will be
 information about working with other IDEs, but to start out, here are
 instructions for working with XCode on OSX.
 
-##Developing Quickstep with Xcode on OSX
+## Developing Quickstep with Xcode on OSX
 The instructions here were first written and verified on OSX El Capitan,
 v.10.11.2, using Xcode v.7.2.
 
-###1: Install Xcode and command line tools
+### 1: Install Xcode and command line tools
 First, you will need to download and install Xcode and the associated command
 line tools. There are multiple ways to do this, including going to
 https://developer.apple.com/xcode/ and downloading both Xcode and the command
@@ -25,7 +25,7 @@ cc
 This command should trigger a sequence of downloads to get you both Xcode
 and the assocaited command line tools.
 
-###2: Install cmake
+### 2: Install cmake
 Unfortunately, the command line tools do not package `cmake`, which is needed
 to build Quickstep. You can install cmake using brew as follows:
 
@@ -43,7 +43,7 @@ Terminal app by typing:
 brew install cmake
 ```
 
-###3: Build Quicktep
+### 3: Build Quicktep
 Checkout the Quickstep code from git, and also checkout the associated submodules.
 If you have not read it already, this would be good time to read the file
 [BUILDING.md](BUILDING.md), but do not run the cmake command mentioned there. Instead, go
@@ -103,7 +103,7 @@ these and other command line options by typing:
 ```
 
 
-###4: Debug Quickstep
+### 4: Debug Quickstep
 Now you can debug as you would any normal process in Xcode. Note the
 linenoise option in the cmake command above is important if you are going
 to run quickstep from Xcode (by hitting the "play" button). If you are
@@ -134,7 +134,7 @@ when it starts up. It you had set a breakpoint and the program executes that
 code, then Xcode (lldb) will stop at the breakpoint. Or, if there is a crash,
 you can examine the stack in Xcode.
 
-###5: Unit Tests
+### 5: Unit Tests
 Individual unit tests show up as target schemas, so you can simply select them
 and run the unit test of interest.
 
@@ -143,14 +143,14 @@ does not work. So, this is a known limitation at this point. You can, however,
 follow the instructions for a [BUILDING.md](command-line build) with cmake and
 then run `ctest` to run the full suite of unit tests.
 
-###6: Other known issues
+### 6: Other known issues
 
-####Modifying CMake Files
+#### Modifying CMake Files
 If you change any of the cmake files (such as any of the CMakeLists.txt
 files), then you will have to [redo step 3](#3-build-quicktep) above to
 create a new Xcode project file.
 
-####Running Python Validation Scripts
+#### Running Python Validation Scripts
 Quickstep developers have a few python scripts that are used to mechanically
 check code. These scripts are written in Python 2 and are not compatible with
 Python 3, so they use `python2` as the interpreter in their shebangs. While
@@ -167,7 +167,7 @@ sudo ln -s /usr/bin/python2.7 /usr/local/bin/python2
 2.X version is on your machine.)
 
 After putting the symlink in place, you should be able to run
-`./third_party/cpplint/lint_everything.py` (which applies a modified version of
+`./lint_everything.py` (which applies a modified version of
 Google cpplint to all C++ sources) and `./validate_cmakelists.py` (which checks
 that dependencies in CMakeLists.txt files exactly match included headers in C++
 sources) from the root quickstep source directory to check your code. There is
