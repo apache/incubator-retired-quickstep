@@ -46,6 +46,7 @@
 
 namespace quickstep {
 
+#ifdef QUICKSTEP_ENABLE_COMPARISON_INLINE_EXPANSION
 template <template <typename LeftArgument, typename RightArgument> class ComparisonFunctor,
           typename LeftCppType, bool left_nullable,
           typename RightCppType, bool right_nullable>
@@ -662,6 +663,7 @@ TypedValue LiteralUncheckedComparator<ComparisonFunctor,
     return TypedValue(current.getTypeID());
   }
 }
+#endif  // QUICKSTEP_ENABLE_COMPARISON_INLINE_EXPANSION
 
 }  // namespace quickstep
 

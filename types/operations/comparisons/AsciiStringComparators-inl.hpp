@@ -46,6 +46,7 @@
 
 namespace quickstep {
 
+#ifdef QUICKSTEP_ENABLE_COMPARISON_INLINE_EXPANSION
 template <template <typename T> class ComparisonFunctor,
           bool left_nullable, bool left_null_terminated, bool left_longer,
           bool right_nullable, bool right_null_terminated, bool right_longer>
@@ -586,6 +587,7 @@ TypedValue AsciiStringUncheckedComparator<ComparisonFunctor,
 
   return new_value;
 }
+#endif  // QUICKSTEP_ENABLE_COMPARISON_INLINE_EXPANSION
 
 }  // namespace quickstep
 

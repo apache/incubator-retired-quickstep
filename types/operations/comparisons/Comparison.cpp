@@ -33,8 +33,6 @@ TupleIdSequence* UncheckedComparator::compareColumnVectors(
     const ColumnVector &right,
     const TupleIdSequence *filter,
     const TupleIdSequence *existence_bitmap) const {
-  DEV_WARNING("Using fallback non-specialized implementation of "
-              "UncheckedComparator::compareColumnVectors()");
   return compareColumnVectorsDefaultImpl<true, true>(
       left, right, filter, existence_bitmap);
 }
@@ -44,8 +42,6 @@ TupleIdSequence* UncheckedComparator::compareColumnVectorAndStaticValue(
     const TypedValue &right,
     const TupleIdSequence *filter,
     const TupleIdSequence *existence_bitmap) const {
-  DEV_WARNING("Using fallback non-specialized implementation of "
-              "UncheckedComparator::compareColumnVectorAndStaticValue()");
   return compareColumnVectorAndStaticValueDefaultImpl<true, true>(
       left, right, filter, existence_bitmap);
 }
@@ -55,8 +51,6 @@ TupleIdSequence* UncheckedComparator::compareStaticValueAndColumnVector(
     const ColumnVector &right,
     const TupleIdSequence *filter,
     const TupleIdSequence *existence_bitmap) const {
-  DEV_WARNING("Using fallback non-specialized implementation of "
-              "UncheckedComparator::compareStaticValueAndColumnVector()");
   return compareStaticValueAndColumnVectorDefaultImpl<true, true>(
       left, right, filter, existence_bitmap);
 }
@@ -67,8 +61,6 @@ TupleIdSequence* UncheckedComparator::compareSingleValueAccessor(
     const attribute_id left_id,
     const attribute_id right_id,
     const TupleIdSequence *filter) const {
-  DEV_WARNING("Using fallback non-specialized implementation of "
-              "UncheckedComparator::compareSingleValueAccessor()");
   return compareSingleValueAccessorDefaultImpl<true, true>(
       accessor, left_id, right_id, filter);
 }
@@ -78,8 +70,6 @@ TupleIdSequence* UncheckedComparator::compareValueAccessorAndStaticValue(
     const attribute_id left_id,
     const TypedValue &right,
     const TupleIdSequence *filter) const {
-  DEV_WARNING("Using fallback non-specialized implementation of "
-              "UncheckedComparator::compareValueAccessorAndStaticValue()");
   return compareValueAccessorAndStaticValueDefaultImpl<true, true>(
       left_accessor, left_id, right, filter);
 }
@@ -89,8 +79,6 @@ TupleIdSequence* UncheckedComparator::compareStaticValueAndValueAccessor(
     ValueAccessor *right_accessor,
     const attribute_id right_id,
     const TupleIdSequence *filter) const {
-  DEV_WARNING("Using fallback non-specialized implementation of "
-              "UncheckedComparator::compareStaticValueAndValueAccessor()");
   return compareStaticValueAndValueAccessorDefaultImpl<true, true>(
       left, right_accessor, right_id, filter);
 }
@@ -101,8 +89,6 @@ TupleIdSequence* UncheckedComparator::compareColumnVectorAndValueAccessor(
     const attribute_id right_id,
     const TupleIdSequence *filter,
     const TupleIdSequence *existence_bitmap) const {
-  DEV_WARNING("Using fallback non-specialized implementation of "
-              "UncheckedComparator::compareColumnVectorAndValueAccessor()");
   return compareColumnVectorAndValueAccessorDefaultImpl<true, true>(
       left, right_accessor, right_id, filter, existence_bitmap);
 }
@@ -113,8 +99,6 @@ TupleIdSequence* UncheckedComparator::compareValueAccessorAndColumnVector(
     const ColumnVector &right,
     const TupleIdSequence *filter,
     const TupleIdSequence *existence_bitmap) const {
-  DEV_WARNING("Using fallback non-specialized implementation of "
-              "UncheckedComparator::compareValueAccessorAndColumnVector()");
   return compareValueAccessorAndColumnVectorDefaultImpl<true, true>(
       left_accessor, left_id, right, filter, existence_bitmap);
 }
@@ -123,8 +107,6 @@ TypedValue UncheckedComparator::accumulateValueAccessor(
     const TypedValue &current,
     ValueAccessor *accessor,
     const attribute_id value_accessor_id) const {
-  DEV_WARNING("Using fallback non-specialized implementation of "
-              "UncheckedComparator::accumulateValueAccessor()");
   return accumulateValueAccessorDefaultImpl<true>(
       current, accessor, value_accessor_id);
 }
@@ -133,8 +115,6 @@ TypedValue UncheckedComparator::accumulateValueAccessor(
 TypedValue UncheckedComparator::accumulateColumnVector(
     const TypedValue &current,
     const ColumnVector &column_vector) const {
-  DEV_WARNING("Using fallback non-specialized implementation of "
-              "UncheckedComparator::accumulateColumnVector()");
   return accumulateColumnVectorDefaultImpl<true>(current, column_vector);
 }
 

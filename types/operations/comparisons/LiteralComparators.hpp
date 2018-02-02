@@ -143,6 +143,7 @@ class LiteralUncheckedComparator : public UncheckedComparator {
                                right.getLiteral<RightCppType>());
   }
 
+#ifdef QUICKSTEP_ENABLE_COMPARISON_INLINE_EXPANSION
   TupleIdSequence* compareColumnVectors(
       const ColumnVector &left,
       const ColumnVector &right,
@@ -223,8 +224,10 @@ class LiteralUncheckedComparator : public UncheckedComparator {
   TypedValue accumulateColumnVector(
       const TypedValue &current,
       const ColumnVector &column_vector) const override;
+#endif  // QUICKSTEP_ENABLE_COMPARISON_INLINE_EXPANSION
 
  private:
+#ifdef QUICKSTEP_ENABLE_COMPARISON_INLINE_EXPANSION
   template <bool column_vector_on_left>
   TupleIdSequence* compareColumnVectorAndStaticValueHelper(
       const ColumnVector &column_vector,
@@ -248,6 +251,7 @@ class LiteralUncheckedComparator : public UncheckedComparator {
       const TupleIdSequence *filter,
       const TupleIdSequence *existence_bitmap) const;
 #endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
+#endif  // QUICKSTEP_ENABLE_COMPARISON_INLINE_EXPANSION
 
   template <bool arguments_in_order>
   inline bool compareDataPtrsHelper(const void *left, const void *right) const {

@@ -145,6 +145,20 @@ if (ENABLE_VECTOR_PREDICATE_SHORT_CIRCUIT)
   )
 endif()
 
+set(COMPARISON_INLINE_EXPANSION_MSG_LIST
+    "This option controls whether to enable inlined template expansion "
+    "of comparison predicates. WARNING: This option should only be "
+    "turned off for development use. Turning off this option will greatly "
+    "reduce Quickstep compile time but incur drastic performance degradation.")
+string(REPLACE ";" "" COMPARISON_INLINE_EXPANSION_MSG ${COMPARISON_INLINE_EXPANSION_MSG_LIST})
+option(ENABLE_COMPARISON_INLINE_EXPANSION ${COMPARISON_INLINE_EXPANSION_MSG} ON)
+if (ENABLE_COMPARISON_INLINE_EXPANSION)
+  set_property(
+    DIRECTORY
+    APPEND PROPERTY COMPILE_DEFINITIONS QUICKSTEP_ENABLE_COMPARISON_INLINE_EXPANSION
+  )
+endif()
+
 option(ENABLE_NETWORK_CLI "Allows use of the network cli" OFF)
 option(ENABLE_DISTRIBUTED "Use the distributed version of Quickstep" OFF)
 
