@@ -98,6 +98,8 @@ class InjectJoinFilters : public Rule<physical::Physical> {
       std::int64_t *min_cpp_value,
       std::int64_t *max_cpp_value) const;
 
+  physical::PhysicalPtr wrapSelection(const physical::PhysicalPtr &input) const;
+
   std::unique_ptr<cost::StarSchemaSimpleCostModel> cost_model_;
   std::unique_ptr<physical::LIPFilterConfiguration> lip_filter_configuration_;
 
