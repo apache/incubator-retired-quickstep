@@ -62,17 +62,25 @@ P::PhysicalPtr InjectJoinFilters::apply(const P::PhysicalPtr &input) {
   // Step 1. Transform applicable HashJoin nodes to FilterJoin nodes.
   P::PhysicalPtr output = transformHashJoinToFilters(input);
 
-  // Step 2. Push down FilterJoin nodes to be evaluated early.
+  if (output == input) {
+    return input;
+  }
+
+  // Step 2. If the top level plan is a filter join, wrap it with a Selection
+  // to stabilize output columns.
+  output = wrapSelection(output);
+
+  // Step 3. Push down FilterJoin nodes to be evaluated early.
   output = pushDownFilters(output);
 
-  // Step 3. Add Selection nodes for attaching the LIPFilters, if necessary.
+  // Step 4. Add Selection nodes for attaching the LIPFilters, if necessary.
   output = addFilterAnchors(output, false);
 
-  // Step 4. Because of the pushdown of FilterJoin nodes, there are optimization
+  // Step 5. Because of the pushdown of FilterJoin nodes, there are optimization
   // opportunities for projecting columns early.
   output = PruneColumns().apply(output);
 
-  // Step 5. For each FilterJoin node, attach its corresponding LIPFilter to
+  // Step 6. For each FilterJoin node, attach its corresponding LIPFilter to
   // proper nodes.
   concretizeAsLIPFilters(output, nullptr);
 
@@ -146,13 +154,8 @@ bool InjectJoinFilters::isTransformable(
 P::PhysicalPtr InjectJoinFilters::transformHashJoinToFilters(
     const P::PhysicalPtr &input) const {
   std::vector<P::PhysicalPtr> new_children;
-  bool has_changed_children = false;
   for (const P::PhysicalPtr &child : input->children()) {
-    const P::PhysicalPtr new_child = transformHashJoinToFilters(child);
-    if (child != new_child && !has_changed_children) {
-      has_changed_children = true;
-    }
-    new_children.push_back(new_child);
+    new_children.emplace_back(transformHashJoinToFilters(child));
   }
 
   P::HashJoinPtr hash_join;
@@ -182,7 +185,7 @@ P::PhysicalPtr InjectJoinFilters::transformHashJoinToFilters(
                                  hash_join->cloneOutputPartitionSchemeHeader());
   }
 
-  if (has_changed_children) {
+  if (input->children() != new_children) {
     return input->copyWithNewChildren(new_children);
   } else {
     return input;
@@ -436,6 +439,28 @@ bool InjectJoinFilters::findExactMinMaxValuesForAttributeHelper(
       return false;
   }
 }
+
+P::PhysicalPtr InjectJoinFilters::wrapSelection(
+    const P::PhysicalPtr &input) const {
+  DCHECK(input->getPhysicalType() == P::PhysicalType::kTopLevelPlan);
+  const P::TopLevelPlanPtr top_level_plan =
+      std::static_pointer_cast<const P::TopLevelPlan>(input);
+
+  if (top_level_plan->plan()->getPhysicalType() != P::PhysicalType::kFilterJoin) {
+    return input;
+  }
+
+  const P::SelectionPtr selection =
+      P::Selection::Create(
+          top_level_plan->plan(),
+          E::ToNamedExpressions(top_level_plan->plan()->getOutputAttributes()),
+          nullptr /* filter_predicate */);
+
+  return P::TopLevelPlan::Create(selection,
+                                 top_level_plan->shared_subplans(),
+                                 top_level_plan->uncorrelated_subquery_map());
+}
+
 
 }  // namespace optimizer
 }  // namespace quickstep
