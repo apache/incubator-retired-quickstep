@@ -243,9 +243,10 @@ class SeparateChainingHashTable : public HashTable<ValueT,
                                         HashTablePreallocationState *prealloc_state);
 
   // Determine whether it is actually necessary to resize this hash table.
-  // Checks that there is at least one unallocated bucket, and that there is
+  // Checks that there are sufficient unallocated buckets, and that there are
   // at least 'extra_variable_storage' bytes of variable-length storage free.
-  bool isFull(const std::size_t extra_variable_storage) const;
+  bool isFull(const std::size_t extra_buckets,
+              const std::size_t extra_variable_storage) const;
 
   // Helper object to manage key storage.
   HashTableKeyManager<serializable, force_key_copy> key_manager_;
@@ -1131,7 +1132,7 @@ void SeparateChainingHashTable<ValueT, resizable, serializable, force_key_copy, 
   // Recheck whether the hash table is still full. Note that multiple threads
   // might wait to rebuild this hash table simultaneously. Only the first one
   // should do the rebuild.
-  if (!isFull(extra_variable_storage)) {
+  if (!isFull(extra_buckets, extra_variable_storage)) {
     return;
   }
 
@@ -1505,9 +1506,11 @@ template <typename ValueT,
           bool force_key_copy,
           bool allow_duplicate_keys>
 bool SeparateChainingHashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_keys>
-    ::isFull(const std::size_t extra_variable_storage) const {
-  if (header_->buckets_allocated.load(std::memory_order_relaxed) >= header_->num_buckets) {
-    // All buckets are allocated.
+    ::isFull(const std::size_t extra_buckets,
+             const std::size_t extra_variable_storage) const {
+  if (header_->buckets_allocated.load(std::memory_order_relaxed)
+          + extra_buckets >= header_->num_buckets) {
+    // Not enough buckets.
     return true;
   }
 
