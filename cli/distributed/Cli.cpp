@@ -31,6 +31,7 @@
 #include "catalog/CatalogRelation.hpp"
 #include "cli/CliConfig.h"  // For QUICKSTEP_USE_LINENOISE.
 #include "cli/Constants.hpp"
+#include "cli/DefaultsConfigurator.hpp"
 #include "cli/Flags.hpp"
 
 #ifdef QUICKSTEP_USE_LINENOISE
@@ -111,6 +112,8 @@ void Cli::init() {
   // Setup StorageManager.
   bus_.RegisterClientAsSender(cli_id_, kBlockDomainRegistrationMessage);
   bus_.RegisterClientAsReceiver(cli_id_, kBlockDomainRegistrationResponseMessage);
+
+  DefaultsConfigurator::CreateDirectory(FLAGS_storage_path);
 
   client_id locator_client_id;
   storage_manager_ = make_unique<StorageManager>(

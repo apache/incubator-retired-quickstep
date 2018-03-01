@@ -41,10 +41,7 @@ using std::string;
 
 namespace quickstep {
 
-void DefaultsConfigurator::InitializeDefaultDatabase(const string &storage_path, const string &catalog_path) {
-  // TODO(jmp): Refactor the code in this file!
-  LOG(INFO) << "Initializing the database, creating a new catalog file and storage directory";
-
+void DefaultsConfigurator::CreateDirectory(const std::string &storage_path) {
   // Create the directory
   // TODO(jmp): At some point, likely in C++-17, we will just have the
   //            filesystem path, and we can clean this up
@@ -54,11 +51,18 @@ void DefaultsConfigurator::InitializeDefaultDatabase(const string &storage_path,
       << "\nCheck if the directory already exists. If so, delete it or move it before initializing";
 #else
   {
-    const string path_name = "mkdir " + storage_path;
+    const string path_name = "mkdir -p " + storage_path;
     CHECK(!std::system(path_name.c_str()))
          << "Failed when attempting to create the directory: " << storage_path;
   }
 #endif  // QUICKSTEP_OS_WINDOWS
+}
+
+void DefaultsConfigurator::InitializeDefaultDatabase(const string &storage_path, const string &catalog_path) {
+  // TODO(jmp): Refactor the code in this file!
+  LOG(INFO) << "Initializing the database, creating a new catalog file and storage directory";
+
+  CreateDirectory(storage_path);
 
   // Create the default catalog file.
   std::ofstream catalog_file(catalog_path.c_str());

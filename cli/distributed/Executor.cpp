@@ -24,6 +24,7 @@
 #include <vector>
 
 #include "catalog/CatalogTypedefs.hpp"
+#include "cli/DefaultsConfigurator.hpp"
 #include "cli/Flags.hpp"
 #include "cli/InputParserUtil.hpp"
 #include "query_execution/BlockLocatorUtil.hpp"
@@ -75,6 +76,8 @@ void Executor::init() {
 
   worker_directory_ =
       make_unique<WorkerDirectory>(worker_client_ids.size(), worker_client_ids, worker_numa_nodes);
+
+  DefaultsConfigurator::CreateDirectory(FLAGS_storage_path);
 
   client_id locator_client_id;
   storage_manager_ = make_unique<StorageManager>(

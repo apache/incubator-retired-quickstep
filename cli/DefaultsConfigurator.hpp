@@ -116,6 +116,13 @@ class DefaultsConfigurator {
   static void InitializeDefaultDatabase(const std::string &storage_path,
                                         const std::string &catalog_path);
 
+  /**
+   * @brief Create the directory.
+   *
+   * @param storage_path The filesystem directory for StorageManager.
+   **/
+  static void CreateDirectory(const std::string &storage_path);
+
  private:
   /**
    * @brief Private constructor to disable instantiation of the class.

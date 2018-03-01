@@ -792,6 +792,7 @@ if (ENABLE_DISTRIBUTED)
                         glog
                         quickstep_catalog_CatalogRelation
                         quickstep_cli_Constants
+                        quickstep_cli_DefaultsConfigurator
                         quickstep_cli_Flags
                         quickstep_cli_LineReader
                         quickstep_cli_PrintToScreen
