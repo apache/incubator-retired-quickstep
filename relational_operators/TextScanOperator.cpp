@@ -273,6 +273,11 @@ void TextScanWorkOrder::execute() {
 
     // Read text segment into buffer.
     file = std::fopen(filename_.c_str(), "rb");
+    if (file == nullptr) {
+      LOG(ERROR) << "Failed to open file " << filename_
+                 << " with error: " << strerror(errno);
+      return;
+    }
     std::fseek(file, text_offset_, SEEK_SET);
     bytes_read = std::fread(buffer, 1, text_segment_size_, file);
 
