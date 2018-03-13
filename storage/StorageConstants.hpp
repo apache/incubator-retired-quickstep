@@ -53,6 +53,8 @@ const std::size_t kSlotSizeBytes = 0x200000;
 const std::uint64_t kAGigaByte = (1 << 30);
 // A MegaByte.
 const std::uint64_t kAMegaByte = (1 << 20);
+// 4 MegaByte + 9 Bytes
+const std::uint32_t kGrpcChanelSize = (4 << 20) + 9;
 
 // Constants for the minimum and maximum user-specifiable BLOCKSIZEMB in
 // the SQL clause BLOCKPROPERTIES.

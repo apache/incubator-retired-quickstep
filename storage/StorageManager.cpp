@@ -687,8 +687,13 @@ StorageManager::BlockHandle StorageManager::loadBlockOrBlob(
 #ifdef QUICKSTEP_DISTRIBUTED
     const string domain_network_address = getPeerDomainNetworkAddress(BlockIdUtil::Domain(block));
     DLOG(INFO) << "Pulling Block " << BlockIdUtil::ToString(block) << " from " << domain_network_address;
+
+    // Customize the grpc channel
+    grpc::ChannelArguments channelArgs;
+    channelArgs.SetMaxReceiveMessageSize(kGrpcChanelSize);
+
     DataExchangerClientAsync client(
-        grpc::CreateChannel(domain_network_address, grpc::InsecureChannelCredentials()), this);
+        grpc::CreateCustomChannel(domain_network_address, grpc::InsecureChannelCredentials(), channelArgs), this);
     while (!client.Pull(block, numa_node, &loaded_handle)) {
       LOG(INFO) << "Retry pulling Block " << BlockIdUtil::ToString(block) << " from " << domain_network_address;
     }
