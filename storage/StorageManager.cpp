@@ -75,6 +75,10 @@
 #include "storage/DataExchange.pb.h"
 #endif
 
+#ifdef QUICKSTEP_ENABLE_NETWORK_CLI
+#include "storage/BlockWire.pb.h"
+#endif
+
 #include "storage/EvictionPolicy.hpp"
 #include "storage/FileManagerLocal.hpp"
 #include "storage/Flags.hpp"
@@ -662,6 +666,25 @@ void StorageManager::sendBlockLocationMessage(const block_id block,
                                          storage_manager_client_id_,
                                          block_locator_client_id_,
                                          move(message)));
+}
+#endif
+
+#ifdef QUICKSTEP_ENABLE_NETWORK_CLI
+void StorageManager::sendBlockContents(const block_id block,
+                                       BlockResponse *response) const {
+  SpinSharedMutexSharedLock<false> read_lock(blocks_shared_mutex_);
+  std::unordered_map<block_id, BlockHandle>::const_iterator cit = blocks_.find(block);
+  if (cit != blocks_.end()) {
+    response->set_is_valid(true);
+
+    const BlockHandle &block_handle = cit->second;
+    const std::size_t num_slots = block_handle.block_memory_size;
+
+    response->set_block(block_handle.block_memory,
+                        num_slots * kSlotSizeBytes);
+  } else {
+    response->set_is_valid(false);
+  }
 }
 #endif
 

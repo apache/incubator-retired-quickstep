@@ -702,7 +702,9 @@ set(ENABLE_MEMORYMIRROR OFF CACHE BOOL "Enable MemoryMirror TMB")
 set(ENABLE_NATIVELOG OFF CACHE BOOL "Enable NativeLog TMB")
 
 # The distributed version requires to use the NativeNet implementation.
-if (NOT ENABLE_DISTRIBUTED)
+if (ENABLE_DISTRIBUTED OR ENABLE_NETWORK_CLI)
+  set(ENABLE_NATIVENET ON CACHE BOOL "Enable NativeNet TMB")
+else()
   set(ENABLE_NATIVENET OFF CACHE BOOL "Enable NativeNet TMB")
 endif()
 
@@ -713,7 +715,7 @@ set(ENABLE_ZOOKEEPER OFF CACHE BOOL "Enable Zookeeper TMB")
 add_subdirectory("${THIRD_PARTY_SOURCE_DIR}/tmb" "${CMAKE_CURRENT_BINARY_DIR}/third_party/tmb")
 include_directories(${TMB_INCLUDE_DIRS})
 
-if (ENABLE_DISTRIBUTED)
+if (ENABLE_DISTRIBUTED OR ENABLE_NETWORK_CLI)
   include_directories(${CMAKE_CURRENT_BINARY_DIR}/third_party/tmb/include)
 endif()
 

@@ -62,12 +62,15 @@ namespace quickstep {
 DECLARE_int32(block_domain);
 DECLARE_uint64(buffer_pool_slots);
 
-class CatalogRelationSchema;
-
 #ifdef QUICKSTEP_DISTRIBUTED
 class PullResponse;
 #endif
 
+#ifdef QUICKSTEP_ENABLE_NETWORK_CLI
+class BlockResponse;
+#endif
+
+class CatalogRelationSchema;
 class StorageBlockLayout;
 
 /** \addtogroup Storage
@@ -374,6 +377,16 @@ class StorageManager {
    * @return True if it's both loaded and dirty, false otherwise.
    **/
   bool blockOrBlobIsLoadedAndDirty(const block_id block);
+
+#ifdef QUICKSTEP_ENABLE_NETWORK_CLI
+  /**
+   * @brief Send the contents of the given block wrapped in a response message.
+   *
+   * @param block The ID of the requested block.
+   * @param response The message used to send the contents of the block.
+   **/
+  void sendBlockContents(const block_id block, BlockResponse *response) const;
+#endif
 
 #ifdef QUICKSTEP_DISTRIBUTED
   /**

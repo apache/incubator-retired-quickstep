@@ -120,6 +120,11 @@ configure_file (
 QS_PROTOBUF_GENERATE_CPP(storage_AggregationOperationState_proto_srcs
                          storage_AggregationOperationState_proto_hdrs
                          AggregationOperationState.proto)
+if (ENABLE_NETWORK_CLI)
+  QS_PROTOBUF_GENERATE_CPP(storage_BlockWire_proto_srcs
+                           storage_BlockWire_proto_hdrs
+                           BlockWire.proto)
+endif()
 QS_PROTOBUF_GENERATE_CPP(storage_HashTable_proto_srcs
                          storage_HashTable_proto_hdrs
                          HashTable.proto)
@@ -256,7 +261,10 @@ if (ENABLE_DISTRIBUTED)
               ${storage_DataExchange_proto_hdrs})
   add_library(quickstep_storage_DataExchangerAsync DataExchangerAsync.cpp DataExchangerAsync.hpp)
 endif()
-
+if (ENABLE_NETWORK_CLI)
+  add_library(quickstep_storage_BlockWire_proto ${storage_BlockWire_proto_srcs})
+  add_library(quickstep_storage_DataProviderThread DataProviderThread.cpp DataProviderThread.hpp)
+endif()
 if (QUICKSTEP_HAVE_FILE_MANAGER_HDFS)
   add_library(quickstep_storage_FileManagerHdfs FileManagerHdfs.cpp FileManagerHdfs.hpp)
 endif()
@@ -352,6 +360,10 @@ target_link_libraries(quickstep_storage_BasicColumnStoreValueAccessor
                       quickstep_utility_BitVector
                       quickstep_utility_Macros
                       quickstep_utility_PtrVector)
+if (ENABLE_NETWORK_CLI)
+  target_link_libraries(quickstep_storage_BlockWire_proto
+                        ${PROTOBUF_LIBRARY})
+endif()
 target_link_libraries(quickstep_storage_BloomFilterIndexSubBlock
                       glog
                       quickstep_catalog_CatalogAttribute
@@ -1089,6 +1101,29 @@ if (ENABLE_DISTRIBUTED)
                         quickstep_storage_DataExchange_proto)
 endif()
 
+if (ENABLE_NETWORK_CLI)
+  target_link_libraries(quickstep_storage_DataProviderThread
+                        glog
+                        quickstep_catalog_CatalogDatabase
+                        quickstep_catalog_CatalogRelation
+                        quickstep_catalog_CatalogTypedefs
+                        quickstep_cli_DropRelation
+                        quickstep_queryexecution_QueryExecutionTypedefs
+                        quickstep_queryexecution_QueryExecutionUtil
+                        quickstep_queryoptimizer_QueryProcessor
+                        quickstep_storage_BlockWire_proto
+                        quickstep_storage_StorageBlock
+                        quickstep_storage_StorageBlockInfo
+                        quickstep_storage_StorageManager
+                        quickstep_threading_Thread
+                        quickstep_threading_ThreadUtil
+                        quickstep_utility_Macros
+                        tmb
+                        ${GRPCPLUSPLUS_LIBRARIES})
+  target_link_libraries(quickstep_storage_StorageManager
+                        ${GRPCPLUSPLUS_LIBRARIES}
+                        quickstep_storage_BlockWire_proto)
+endif()
 if (QUICKSTEP_HAVE_FILE_MANAGER_HDFS)
   target_link_libraries(quickstep_storage_FileManagerHdfs
                         ${LIBHDFS3_LIBRARIES}
@@ -1213,6 +1248,12 @@ if (ENABLE_DISTRIBUTED)
   target_link_libraries(quickstep_storage
                         quickstep_storage_DataExchange_proto
                         quickstep_storage_DataExchangerAsync)
+endif()
+
+if (ENABLE_NETWORK_CLI)
+  target_link_libraries(quickstep_storage
+                        quickstep_storage_BlockWire_proto
+                        quickstep_storage_DataProviderThread)
 endif()
 
 if (QUICKSTEP_HAVE_FILE_MANAGER_HDFS)
@@ -1521,6 +1562,32 @@ if (ENABLE_DISTRIBUTED)
                         tmb)
   add_test(DataExchange_unittest DataExchange_unittest)
 endif(ENABLE_DISTRIBUTED)
+
+if (ENABLE_NETWORK_CLI)
+  add_executable(DataProviderThread_unittest
+                 "${CMAKE_CURRENT_SOURCE_DIR}/tests/DataProviderThread_unittest.cpp")
+  target_link_libraries(DataProviderThread_unittest
+                        ${GFLAGS_LIB_NAME}
+                        ${LIBS}
+                        glog
+                        gtest
+                        gtest_main
+                        quickstep_catalog_CatalogDatabase
+                        quickstep_catalog_CatalogRelation
+                        quickstep_queryexecution_ForemanSingleNode
+                        quickstep_queryexecution_QueryExecutionTypedefs
+                        quickstep_queryexecution_QueryExecutionUtil
+                        quickstep_queryexecution_Worker
+                        quickstep_queryexecution_WorkerDirectory
+                        quickstep_queryoptimizer_QueryProcessor
+                        quickstep_queryoptimizer_tests_TestDatabaseLoader
+                        quickstep_storage_DataProviderThread
+                        quickstep_storage_StorageConstants
+                        quickstep_storage_BlockWire_proto 
+                        tmb)
+  add_test(DataProviderThread_unittest DataProviderThread_unittest)
+  file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/data_provider_thread_test_data)
+endif()
 
 add_executable(CSBTreeIndexSubBlock_unittest "${CMAKE_CURRENT_SOURCE_DIR}/tests/CSBTreeIndexSubBlock_unittest.cpp")
 target_link_libraries(CSBTreeIndexSubBlock_unittest

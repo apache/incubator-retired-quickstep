@@ -81,6 +81,10 @@ enum QueryExecutionMessageType : message_type_id {
   kRebuildWorkOrderMessage,  // From Foreman to Worker.
   kRebuildWorkOrderCompleteMessage,  // From Worker to Foreman.
   kWorkloadCompletionMessage,  // From Foreman to main thread.
+  kBlockRequestMessage,  // To DataProviderThread.
+  kBlockResponseMessage,  // From DataProviderThread.
+  kFinishReadingRelationMessage,  // To DataProviderThread.
+
   kPoisonMessage,  // From the main thread to Foreman and Workers.
 
 #ifdef QUICKSTEP_DISTRIBUTED
