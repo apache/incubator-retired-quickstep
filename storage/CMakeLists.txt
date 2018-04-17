@@ -997,6 +997,8 @@ target_link_libraries(quickstep_storage_StorageBlockLayout
                       quickstep_storage_SubBlockTypeRegistry
                       quickstep_utility_Macros
                       ${PROTOBUF_LIBRARY})
+target_link_libraries(quickstep_storage_StorageErrors
+                      quickstep_storage_StorageBlockInfo)
 target_link_libraries(quickstep_storage_StorageBlockLayout_proto
                       ${PROTOBUF_LIBRARY})
 target_link_libraries(quickstep_storage_StorageManager

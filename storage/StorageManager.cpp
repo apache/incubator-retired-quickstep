@@ -428,7 +428,7 @@ void StorageManager::evictBlockOrBlob(const block_id block) {
 
     std::unordered_map<block_id, BlockHandle>::iterator block_it = blocks_.find(block);
     if (block_it == blocks_.end()) {
-      throw BlockNotFoundInMemory();
+      throw BlockNotFoundInMemory(block);
     }
     handle = block_it->second;
     blocks_.erase(block_it);

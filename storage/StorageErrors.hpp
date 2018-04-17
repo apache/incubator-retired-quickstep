@@ -24,6 +24,8 @@
 #include <exception>
 #include <string>
 
+#include "storage/StorageBlockInfo.hpp"
+
 namespace quickstep {
 
 /** \addtogroup Storage
@@ -61,9 +63,17 @@ class BlockMemoryTooSmall : public std::exception {
  **/
 class BlockNotFoundInMemory : public std::exception {
  public:
-  virtual const char* what() const throw() {
-    return "BlockNotFoundInMemory: The specified block was not found in memory";
+  explicit BlockNotFoundInMemory(block_id id) {
+      message_ =  "BlockNotFoundInMemory: The block with ID "
+          + BlockIdUtil::ToString(id) + " was not found in memory";
   }
+
+  virtual const char* what() const throw() {
+    return message_.c_str();
+  }
+
+ private:
+  std::string message_;
 };
 
 /**
