@@ -24,15 +24,11 @@
 #include <memory>
 #include <string>
 #include <type_traits>
-
-#ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_JOIN
 #include <utility>
 #include <vector>
 
-#include "storage/StorageBlockInfo.hpp"
-#endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_JOIN
-
 #include "catalog/CatalogTypedefs.hpp"
+#include "storage/StorageBlockInfo.hpp"
 #include "storage/ValueAccessor.hpp"
 #include "storage/ValueAccessorUtil.hpp"
 #include "types/DatetimeLit.hpp"

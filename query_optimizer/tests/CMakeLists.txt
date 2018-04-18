@@ -27,6 +27,7 @@ add_library(quickstep_queryoptimizer_tests_TestDatabaseLoader TestDatabaseLoader
 
 target_link_libraries(quickstep_queryoptimizer_tests_OptimizerTest
                       gtest
+                      gtest_main
                       quickstep_catalog_Catalog
                       quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogDatabase
@@ -103,6 +104,8 @@ add_executable(quickstep_queryoptimizer_tests_OptimizerTextTest
 
 if (ENABLE_DISTRIBUTED)
   target_link_libraries(quickstep_queryoptimizer_tests_DistributedExecutionGeneratorTest
+                        ${GFLAGS_LIB_NAME}
+                        ${LIBS}
                         glog
                         gtest
                         quickstep_catalog_CatalogTypedefs
@@ -128,11 +131,11 @@ if (ENABLE_DISTRIBUTED)
                         quickstep_utility_MemStream
                         quickstep_utility_SqlError
                         quickstep_utility_TextBasedTestDriver
-                        tmb
-                        ${GFLAGS_LIB_NAME}
-                        ${LIBS})
+                        tmb)
 endif(ENABLE_DISTRIBUTED)
 target_link_libraries(quickstep_queryoptimizer_tests_ExecutionGeneratorTest
+                      ${GFLAGS_LIB_NAME}
+                      ${LIBS}
                       glog
                       gtest
                       quickstep_catalog_CatalogDatabase
@@ -154,11 +157,10 @@ target_link_libraries(quickstep_queryoptimizer_tests_ExecutionGeneratorTest
                       quickstep_utility_MemStream
                       quickstep_utility_SqlError
                       quickstep_utility_TextBasedTestDriver
-                      tmb
-                      ${GFLAGS_LIB_NAME}
-                      ${LIBS})
+                      tmb)
 target_link_libraries(quickstep_queryoptimizer_tests_OptimizerTextTest
                       ${GFLAGS_LIB_NAME}
+                      ${LIBS}
                       glog
                       gtest
                       gtest_main
@@ -172,5 +174,4 @@ target_link_libraries(quickstep_queryoptimizer_tests_OptimizerTextTest
                       quickstep_queryoptimizer_tests_TestDatabaseLoader
                       quickstep_utility_Macros
                       quickstep_utility_SqlError
-                      quickstep_utility_TextBasedTestDriver
-                      ${LIBS})
+                      quickstep_utility_TextBasedTestDriver)

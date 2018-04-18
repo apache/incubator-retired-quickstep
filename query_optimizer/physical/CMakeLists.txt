@@ -53,6 +53,7 @@ add_library(quickstep_queryoptimizer_physical_WindowAggregate WindowAggregate.cp
 
 # Link dependencies:
 target_link_libraries(quickstep_queryoptimizer_physical_Aggregate
+                      glog
                       quickstep_queryoptimizer_OptimizerTree
                       quickstep_queryoptimizer_expressions_Alias
                       quickstep_queryoptimizer_expressions_AttributeReference
@@ -66,7 +67,6 @@ target_link_libraries(quickstep_queryoptimizer_physical_Aggregate
                       quickstep_utility_Cast
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_physical_BinaryJoin
-                      glog
                       quickstep_queryoptimizer_OptimizerTree
                       quickstep_queryoptimizer_expressions_NamedExpression
                       quickstep_queryoptimizer_physical_Join
@@ -116,6 +116,7 @@ target_link_libraries(quickstep_queryoptimizer_physical_CreateTable
                       quickstep_utility_Cast
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_physical_CrossReferenceCoalesceAggregate
+                      glog
                       quickstep_queryoptimizer_OptimizerTree
                       quickstep_queryoptimizer_expressions_Alias
                       quickstep_queryoptimizer_expressions_AttributeReference
@@ -304,6 +305,7 @@ target_link_libraries(quickstep_queryoptimizer_physical_TopLevelPlan
                       quickstep_utility_Cast
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_physical_UnionAll
+                      glog
                       quickstep_queryoptimizer_OptimizerTree
                       quickstep_queryoptimizer_expressions_AttributeReference
                       quickstep_queryoptimizer_expressions_ExpressionUtil
@@ -324,6 +326,7 @@ target_link_libraries(quickstep_queryoptimizer_physical_UpdateTable
                       quickstep_utility_Cast
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_physical_WindowAggregate
+                      glog
                       quickstep_queryoptimizer_OptimizerTree
                       quickstep_queryoptimizer_expressions_Alias
                       quickstep_queryoptimizer_expressions_AttributeReference

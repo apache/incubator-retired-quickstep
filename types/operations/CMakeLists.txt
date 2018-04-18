@@ -31,8 +31,8 @@ add_library(quickstep_types_operations_Operation_proto ${types_operations_Operat
 target_link_libraries(quickstep_types_operations_Operation
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_types_operations_Operation_proto
-                      quickstep_types_Type_proto
-                      ${PROTOBUF_LIBRARY})
+                      ${PROTOBUF_LIBRARY}
+                      quickstep_types_Type_proto)
 
 # Module all-in-one library:
 add_library(quickstep_types_operations ../../empty_src.cpp)

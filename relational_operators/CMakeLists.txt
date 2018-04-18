@@ -40,10 +40,10 @@ add_library(quickstep_relationaloperators_BuildHashOperator BuildHashOperator.cp
 add_library(quickstep_relationaloperators_BuildLIPFilterOperator BuildLIPFilterOperator.cpp BuildLIPFilterOperator.hpp)
 add_library(quickstep_relationaloperators_CreateIndexOperator ../empty_src.cpp CreateIndexOperator.hpp)
 add_library(quickstep_relationaloperators_CreateTableOperator ../empty_src.cpp CreateTableOperator.hpp)
+add_library(quickstep_relationaloperators_DeleteOperator DeleteOperator.cpp DeleteOperator.hpp)
 add_library(quickstep_relationaloperators_DestroyAggregationStateOperator
             DestroyAggregationStateOperator.cpp
             DestroyAggregationStateOperator.hpp)
-add_library(quickstep_relationaloperators_DeleteOperator DeleteOperator.cpp DeleteOperator.hpp)
 add_library(quickstep_relationaloperators_DestroyHashOperator DestroyHashOperator.cpp DestroyHashOperator.hpp)
 add_library(quickstep_relationaloperators_DropTableOperator DropTableOperator.cpp DropTableOperator.hpp)
 add_library(quickstep_relationaloperators_FinalizeAggregationOperator
@@ -62,21 +62,26 @@ add_library(quickstep_relationaloperators_RelationalOperator ../empty_src.cpp Re
 add_library(quickstep_relationaloperators_SampleOperator SampleOperator.cpp SampleOperator.hpp)
 add_library(quickstep_relationaloperators_SaveBlocksOperator SaveBlocksOperator.cpp SaveBlocksOperator.hpp)
 add_library(quickstep_relationaloperators_SelectOperator SelectOperator.cpp SelectOperator.hpp)
-add_library(quickstep_relationaloperators_SortMergeRunOperator SortMergeRunOperator.cpp
+add_library(quickstep_relationaloperators_SortMergeRunOperator
+            SortMergeRunOperator.cpp
             SortMergeRunOperator.hpp)
+add_library(quickstep_relationaloperators_SortMergeRunOperatorHelpers
+            SortMergeRunOperatorHelpers.cpp
+            SortMergeRunOperatorHelpers.hpp)
 add_library(quickstep_relationaloperators_SortMergeRunOperator_proto
             ${relationaloperators_SortMergeRunOperator_proto_srcs}
             ${relationaloperators_SortMergeRunOperator_proto_hdrs})
-add_library(quickstep_relationaloperators_SortMergeRunOperatorHelpers SortMergeRunOperatorHelpers.cpp
-            SortMergeRunOperatorHelpers.hpp)
-add_library(quickstep_relationaloperators_SortRunGenerationOperator SortRunGenerationOperator.cpp
+add_library(quickstep_relationaloperators_SortRunGenerationOperator
+            SortRunGenerationOperator.cpp
             SortRunGenerationOperator.hpp)
 add_library(quickstep_relationaloperators_TableExportOperator TableExportOperator.cpp TableExportOperator.hpp)
 add_library(quickstep_relationaloperators_TableGeneratorOperator TableGeneratorOperator.cpp TableGeneratorOperator.hpp)
 add_library(quickstep_relationaloperators_TextScanOperator TextScanOperator.cpp TextScanOperator.hpp)
 add_library(quickstep_relationaloperators_UnionAllOperator UnionAllOperator.cpp UnionAllOperator.hpp)
 add_library(quickstep_relationaloperators_UpdateOperator UpdateOperator.cpp UpdateOperator.hpp)
-add_library(quickstep_relationaloperators_WindowAggregationOperator WindowAggregationOperator.cpp WindowAggregationOperator.hpp)
+add_library(quickstep_relationaloperators_WindowAggregationOperator
+            WindowAggregationOperator.cpp
+            WindowAggregationOperator.hpp)
 add_library(quickstep_relationaloperators_WorkOrder ../empty_src.cpp WorkOrder.hpp)
 add_library(quickstep_relationaloperators_WorkOrderFactory WorkOrderFactory.cpp WorkOrderFactory.hpp)
 add_library(quickstep_relationaloperators_WorkOrder_proto
@@ -412,10 +417,6 @@ target_link_libraries(quickstep_relationaloperators_SelectOperator
                       quickstep_utility_lipfilter_LIPFilterAdaptiveProber
                       quickstep_utility_lipfilter_LIPFilterUtil
                       tmb)
-if(QUICKSTEP_HAVE_LIBNUMA)
-target_link_libraries(quickstep_relationaloperators_SelectOperator
-                      quickstep_catalog_NUMAPlacementScheme)
-endif()
 target_link_libraries(quickstep_relationaloperators_SortMergeRunOperator
                       glog
                       quickstep_catalog_CatalogRelation
@@ -434,8 +435,6 @@ target_link_libraries(quickstep_relationaloperators_SortMergeRunOperator
                       quickstep_utility_Macros
                       quickstep_utility_SortConfiguration
                       tmb)
-target_link_libraries(quickstep_relationaloperators_SortMergeRunOperator_proto
-                      ${PROTOBUF_LIBRARY})
 target_link_libraries(quickstep_relationaloperators_SortMergeRunOperatorHelpers
                       glog
                       quickstep_catalog_CatalogTypedefs
@@ -456,6 +455,8 @@ target_link_libraries(quickstep_relationaloperators_SortMergeRunOperatorHelpers
                       quickstep_utility_Macros
                       quickstep_utility_PtrVector
                       quickstep_utility_SortConfiguration)
+target_link_libraries(quickstep_relationaloperators_SortMergeRunOperator_proto
+                      ${PROTOBUF_LIBRARY})
 target_link_libraries(quickstep_relationaloperators_SortRunGenerationOperator
                       glog
                       quickstep_catalog_CatalogRelation
@@ -493,7 +494,8 @@ target_link_libraries(quickstep_relationaloperators_TableExportOperator
                       quickstep_types_containers_Tuple
                       quickstep_utility_BulkIoConfiguration
                       quickstep_utility_Macros
-                      quickstep_utility_StringUtil)
+                      quickstep_utility_StringUtil
+                      tmb)
 target_link_libraries(quickstep_relationaloperators_TableGeneratorOperator
                       glog
                       quickstep_catalog_CatalogRelation
@@ -533,10 +535,6 @@ target_link_libraries(quickstep_relationaloperators_TextScanOperator
                       quickstep_utility_Glob
                       quickstep_utility_Macros
                       tmb)
-if (QUICKSTEP_HAVE_FILE_MANAGER_HDFS)
-  target_link_libraries(quickstep_relationaloperators_TextScanOperator
-                        ${LIBHDFS3_LIBRARIES})
-endif(QUICKSTEP_HAVE_FILE_MANAGER_HDFS)
 target_link_libraries(quickstep_relationaloperators_UnionAllOperator
                       glog
                       quickstep_catalog_CatalogRelation
@@ -629,16 +627,26 @@ target_link_libraries(quickstep_relationaloperators_WorkOrderFactory
                       quickstep_utility_lipfilter_LIPFilterUtil
                       tmb)
 target_link_libraries(quickstep_relationaloperators_WorkOrder_proto
-                      quickstep_relationaloperators_SortMergeRunOperator_proto
-                      ${PROTOBUF_LIBRARY})
+                      ${PROTOBUF_LIBRARY}
+                      quickstep_relationaloperators_SortMergeRunOperator_proto)
+
+if(QUICKSTEP_HAVE_LIBNUMA)
+  target_link_libraries(quickstep_relationaloperators_SelectOperator
+                        quickstep_catalog_NUMAPlacementScheme)
+endif()
+
+if (QUICKSTEP_HAVE_FILE_MANAGER_HDFS)
+  target_link_libraries(quickstep_relationaloperators_TextScanOperator
+                        ${LIBHDFS3_LIBRARIES})
+endif(QUICKSTEP_HAVE_FILE_MANAGER_HDFS)
 
 # Module all-in-one library:
 add_library(quickstep_relationaloperators ../empty_src.cpp RelationalOperatorsModule.hpp)
 target_link_libraries(quickstep_relationaloperators
                       quickstep_relationaloperators_AggregationOperator
                       quickstep_relationaloperators_BuildAggregationExistenceMapOperator
-                      quickstep_relationaloperators_BuildLIPFilterOperator
                       quickstep_relationaloperators_BuildHashOperator
+                      quickstep_relationaloperators_BuildLIPFilterOperator
                       quickstep_relationaloperators_CreateIndexOperator
                       quickstep_relationaloperators_CreateTableOperator
                       quickstep_relationaloperators_DeleteOperator
@@ -674,6 +682,7 @@ add_executable(AggregationOperator_unittest
                "${CMAKE_CURRENT_SOURCE_DIR}/tests/AggregationOperator_unittest.cpp")
 target_link_libraries(AggregationOperator_unittest
                       ${GFLAGS_LIB_NAME}
+                      ${LIBS}
                       glog
                       gtest
                       quickstep_catalog_CatalogAttribute
@@ -720,14 +729,14 @@ target_link_libraries(AggregationOperator_unittest
                       quickstep_types_operations_comparisons_ComparisonID
                       quickstep_utility_Macros
                       quickstep_utility_PtrList
-                      tmb
-                      ${LIBS})
+                      tmb)
 add_test(AggregationOperator_unittest AggregationOperator_unittest)
 
 add_executable(HashJoinOperator_unittest
                "${CMAKE_CURRENT_SOURCE_DIR}/tests/HashJoinOperator_unittest.cpp")
 target_link_libraries(HashJoinOperator_unittest
                       ${GFLAGS_LIB_NAME}
+                      ${LIBS}
                       glog
                       gtest
                       quickstep_catalog_CatalogAttribute
@@ -750,8 +759,8 @@ target_link_libraries(HashJoinOperator_unittest
                       quickstep_relationaloperators_HashJoinOperator
                       quickstep_relationaloperators_RelationalOperator
                       quickstep_relationaloperators_WorkOrder
-                      quickstep_storage_HashTable_proto
                       quickstep_storage_HashTableBase
+                      quickstep_storage_HashTable_proto
                       quickstep_storage_InsertDestination
                       quickstep_storage_InsertDestination_proto
                       quickstep_storage_StorageBlock
@@ -772,14 +781,14 @@ target_link_libraries(HashJoinOperator_unittest
                       quickstep_types_operations_comparisons_ComparisonFactory
                       quickstep_types_operations_comparisons_ComparisonID
                       quickstep_utility_Macros
-                      tmb
-                      ${LIBS})
+                      tmb)
 add_test(HashJoinOperator_unittest HashJoinOperator_unittest)
 
 add_executable(SortMergeRunOperator_unittest
                "${CMAKE_CURRENT_SOURCE_DIR}/tests/SortMergeRunOperator_unittest.cpp")
 target_link_libraries(SortMergeRunOperator_unittest
                       ${GFLAGS_LIB_NAME}
+                      ${LIBS}
                       glog
                       gtest
                       quickstep_catalog_CatalogAttribute
@@ -822,14 +831,14 @@ target_link_libraries(SortMergeRunOperator_unittest
                       quickstep_utility_PtrVector
                       quickstep_utility_SortConfiguration
                       quickstep_utility_SortConfiguration_proto
-                      tmb
-                      ${LIBS})
+                      tmb)
 add_test(SortMergeRunOperator_unittest SortMergeRunOperator_unittest)
 
 add_executable(SortRunGenerationOperator_unittest
                "${CMAKE_CURRENT_SOURCE_DIR}/tests/SortRunGenerationOperator_unittest.cpp")
 target_link_libraries(SortRunGenerationOperator_unittest
                       ${GFLAGS_LIB_NAME}
+                      ${LIBS}
                       glog
                       gtest
                       quickstep_catalog_CatalogAttribute
@@ -869,8 +878,7 @@ target_link_libraries(SortRunGenerationOperator_unittest
                       quickstep_types_containers_Tuple
                       quickstep_utility_SortConfiguration
                       quickstep_utility_SortConfiguration_proto
-                      tmb
-                      ${LIBS})
+                      tmb)
 add_test(SortRunGenerationOperator_unittest SortRunGenerationOperator_unittest)
 
 add_executable(TextScanOperator_unittest

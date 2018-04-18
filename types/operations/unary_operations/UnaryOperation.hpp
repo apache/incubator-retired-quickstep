@@ -23,15 +23,11 @@
 #include <cstddef>
 #include <string>
 #include <type_traits>
-
-#ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_JOIN
 #include <utility>
 #include <vector>
 
-#include "storage/StorageBlockInfo.hpp"
-#endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_JOIN
-
 #include "catalog/CatalogTypedefs.hpp"
+#include "storage/StorageBlockInfo.hpp"
 #include "types/operations/Operation.hpp"
 #include "types/operations/Operation.pb.h"
 #include "types/TypedValue.hpp"

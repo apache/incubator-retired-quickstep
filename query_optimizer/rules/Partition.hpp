@@ -30,8 +30,6 @@
 #include "query_optimizer/rules/BottomUpRule.hpp"
 #include "utility/Macros.hpp"
 
-#include "gtest/gtest_prod.h"
-
 namespace quickstep {
 namespace optimizer {
 

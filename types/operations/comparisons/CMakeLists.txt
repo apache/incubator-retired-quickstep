@@ -148,6 +148,7 @@ target_link_libraries(quickstep_types_operations_comparisons_LessOrEqualComparis
                       quickstep_types_operations_comparisons_LiteralComparators
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_types_operations_comparisons_LiteralComparators
+                      glog
                       quickstep_catalog_CatalogTypedefs
                       quickstep_storage_TupleIdSequence
                       quickstep_storage_ValueAccessor
@@ -174,13 +175,14 @@ target_link_libraries(quickstep_types_operations_comparisons_PatternMatchingComp
                       quickstep_types_port_strnlen
                       re2)
 target_link_libraries(quickstep_types_operations_comparisons_PatternMatchingComparison
+                      glog
                       quickstep_types_Type
                       quickstep_types_TypeID
-                      quickstep_types_operations_comparisons_PatternMatchingComparators
                       quickstep_types_operations_comparisons_Comparison
                       quickstep_types_operations_comparisons_ComparisonID
-                      quickstep_utility_TemplateUtil
-                      quickstep_utility_Macros)
+                      quickstep_types_operations_comparisons_PatternMatchingComparators
+                      quickstep_utility_Macros
+                      quickstep_utility_TemplateUtil)
 
 # Module all-in-one library:
 add_library(quickstep_types_operations_comparisons ../../../empty_src.cpp)

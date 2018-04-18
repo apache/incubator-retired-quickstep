@@ -17,11 +17,6 @@
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
-if (ENABLE_DISTRIBUTED)
-  add_subdirectory(distributed)
-endif(ENABLE_DISTRIBUTED)
-add_subdirectory(tests)
-
 if (WIN32)
   set(QUICKSTEP_OS_WINDOWS TRUE)
 endif()
@@ -65,6 +60,13 @@ if (ENABLE_NETWORK_CLI)
                     NetworkCli.proto)
 endif()
 
+# Include subdirectories
+add_subdirectory(tests)
+
+if (ENABLE_DISTRIBUTED)
+  add_subdirectory(distributed)
+endif(ENABLE_DISTRIBUTED)
+
 # Declare micro-libs and link dependencies:
 add_library(quickstep_cli_CommandExecutor CommandExecutor.cpp CommandExecutor.hpp)
 add_library(quickstep_cli_CommandExecutorUtil CommandExecutorUtil.cpp CommandExecutorUtil.hpp)
@@ -74,6 +76,9 @@ add_library(quickstep_cli_DropRelation DropRelation.cpp DropRelation.hpp)
 add_library(quickstep_cli_Flags Flags.cpp Flags.hpp)
 add_library(quickstep_cli_IOInterface ../empty_src.cpp IOInterface.hpp)
 add_library(quickstep_cli_InputParserUtil InputParserUtil.cpp InputParserUtil.hpp)
+add_library(quickstep_cli_LineReaderBuffered LineReaderBuffered.cpp LineReaderBuffered.hpp)
+add_library(quickstep_cli_LocalIO ../empty_src.cpp LocalIO.hpp)
+add_library(quickstep_cli_PrintToScreen PrintToScreen.cpp PrintToScreen.hpp)
 
 if(USE_LINENOISE)
   add_library(quickstep_cli_LineReader
@@ -89,13 +94,6 @@ else()
               LineReaderDumb.hpp)
 endif()
 
-add_library(quickstep_cli_LineReaderBuffered
-            LineReaderBuffered.cpp
-            LineReaderBuffered.hpp)
-add_library(quickstep_cli_LocalIO
-            ../empty_src.cpp
-            LocalIO.hpp)
-
 if (ENABLE_NETWORK_CLI)
   add_library(quickstep_cli_NetworkCli_proto
               ${cli_NetworkCli_proto_srcs}
@@ -107,8 +105,6 @@ if (ENABLE_NETWORK_CLI)
               NetworkIO.cpp
               NetworkIO.hpp)
 endif()
-
-add_library(quickstep_cli_PrintToScreen PrintToScreen.cpp PrintToScreen.hpp)
 
 # Link dependencies:
 target_link_libraries(quickstep_cli_CommandExecutor
@@ -160,13 +156,9 @@ target_link_libraries(quickstep_cli_CommandExecutorUtil
 target_link_libraries(quickstep_cli_DefaultsConfigurator
                       glog
                       quickstep_catalog_Catalog
-                      quickstep_catalog_Catalog_proto
                       quickstep_catalog_CatalogDatabase
+                      quickstep_catalog_Catalog_proto
                       quickstep_utility_Macros)
-if(QUICKSTEP_HAVE_LIBNUMA)
-  target_link_libraries(quickstep_cli_DefaultsConfigurator
-                        ${LIBNUMA_LIBRARY})
-endif()
 target_link_libraries(quickstep_cli_DropRelation
                       quickstep_catalog_CatalogDatabase
                       quickstep_catalog_CatalogRelation
@@ -174,19 +166,43 @@ target_link_libraries(quickstep_cli_DropRelation
                       quickstep_storage_StorageManager
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_cli_Flags
+                      ${GFLAGS_LIB_NAME}
                       quickstep_cli_DefaultsConfigurator
-                      quickstep_storage_StorageConstants
-                      ${GFLAGS_LIB_NAME})
+                      quickstep_storage_StorageConstants)
 target_link_libraries(quickstep_cli_IOInterface
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_cli_InputParserUtil
                       glog
                       quickstep_utility_Macros
                       quickstep_utility_StringUtil)
+target_link_libraries(quickstep_cli_LineReaderBuffered
+                      quickstep_cli_LineReader
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_cli_LocalIO
+                      quickstep_cli_IOInterface
+                      quickstep_cli_LineReader
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_cli_PrintToScreen
+                      ${GFLAGS_LIB_NAME}
+                      quickstep_catalog_CatalogAttribute
+                      quickstep_catalog_CatalogRelation
+                      quickstep_storage_StorageBlock
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_storage_StorageManager
+                      quickstep_storage_TupleIdSequence
+                      quickstep_storage_TupleStorageSubBlock
+                      quickstep_types_IntType
+                      quickstep_types_Type
+                      quickstep_types_TypedValue
+                      quickstep_utility_Macros)
+
 if(QUICKSTEP_HAVE_LIBNUMA)
+  target_link_libraries(quickstep_cli_DefaultsConfigurator
+                        ${LIBNUMA_LIBRARY})
   target_link_libraries(quickstep_cli_InputParserUtil
                         ${LIBNUMA_LIBRARY})
 endif()
+
 if(USE_LINENOISE)
   target_link_libraries(quickstep_cli_LineReader
                         glog
@@ -197,13 +213,7 @@ else()
                         glog
                         quickstep_utility_Macros)
 endif()
-target_link_libraries(quickstep_cli_LineReaderBuffered
-                      quickstep_cli_LineReader
-                      quickstep_utility_Macros)
-target_link_libraries(quickstep_cli_LocalIO
-                      quickstep_cli_LineReader
-                      quickstep_cli_IOInterface
-                      quickstep_utility_Macros)
+
 if (ENABLE_NETWORK_CLI)
   target_link_libraries(quickstep_cli_NetworkCli_proto
                         ${GRPCPLUSPLUS_LIBRARIES}
@@ -228,19 +238,6 @@ if (ENABLE_NETWORK_CLI)
                         quickstep_utility_MemStream
                         quickstep_utility_ThreadSafeQueue)
 endif()
-target_link_libraries(quickstep_cli_PrintToScreen
-                      ${GFLAGS_LIB_NAME}
-                      quickstep_catalog_CatalogAttribute
-                      quickstep_catalog_CatalogRelation
-                      quickstep_storage_StorageBlock
-                      quickstep_storage_StorageBlockInfo
-                      quickstep_storage_StorageManager
-                      quickstep_storage_TupleIdSequence
-                      quickstep_storage_TupleStorageSubBlock
-                      quickstep_types_IntType
-                      quickstep_types_Type
-                      quickstep_types_TypedValue
-                      quickstep_utility_Macros)
 
 # Module all-in-one library:
 add_library(quickstep_cli ../empty_src.cpp CliModule.hpp)
@@ -258,9 +255,15 @@ target_link_libraries(quickstep_cli
                       quickstep_cli_LineReaderBuffered
                       quickstep_cli_LocalIO
                       quickstep_cli_PrintToScreen)
+
 if (ENABLE_NETWORK_CLI)
   target_link_libraries(quickstep_cli
-                        quickstep_cli_NetworkCli_proto
                         quickstep_cli_NetworkCliClient
+                        quickstep_cli_NetworkCli_proto
                         quickstep_cli_NetworkIO)
 endif()
+
+if (ENABLE_DISTRIBUTED)
+  target_link_libraries(quickstep_cli
+                        quickstep_cli_distributed)
+endif(ENABLE_DISTRIBUTED)

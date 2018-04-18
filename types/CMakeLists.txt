@@ -70,6 +70,7 @@ target_link_libraries(quickstep_types_CharType
                       quickstep_utility_Macros
                       quickstep_utility_PtrMap)
 target_link_libraries(quickstep_types_DateOperatorOverloads
+                      glog
                       quickstep_types_DatetimeLit
                       quickstep_types_IntervalLit
                       quickstep_types_port_gmtime_r
@@ -107,6 +108,7 @@ target_link_libraries(quickstep_types_DatetimeType
                       quickstep_utility_CheckSnprintf
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_types_DoubleType
+                      glog
                       quickstep_types_NullCoercibilityCheckMacro
                       quickstep_types_NumericSuperType
                       quickstep_types_Type
@@ -115,6 +117,7 @@ target_link_libraries(quickstep_types_DoubleType
                       quickstep_utility_EqualsAnyConstant
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_types_FloatType
+                      glog
                       quickstep_types_NullCoercibilityCheckMacro
                       quickstep_types_NumericSuperType
                       quickstep_types_Type
@@ -161,8 +164,8 @@ target_link_libraries(quickstep_types_NumericSuperType
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_types_Type
                       glog
-                      quickstep_types_Type_proto
                       quickstep_types_TypeID
+                      quickstep_types_Type_proto
                       quickstep_types_TypedValue
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_types_TypeFactory
@@ -182,6 +185,8 @@ target_link_libraries(quickstep_types_TypeFactory
                       quickstep_types_VarCharType
                       quickstep_types_YearMonthIntervalType
                       quickstep_utility_Macros)
+target_link_libraries(quickstep_types_Type_proto
+                      ${PROTOBUF_LIBRARY})
 target_link_libraries(quickstep_types_TypedValue
                       farmhash
                       glog
@@ -194,10 +199,8 @@ target_link_libraries(quickstep_types_TypedValue
                       quickstep_utility_HashPair
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_types_TypedValue_proto
-                      quickstep_types_Type_proto
-                      ${PROTOBUF_LIBRARY})
-target_link_libraries(quickstep_types_Type_proto
-                      ${PROTOBUF_LIBRARY})
+                      ${PROTOBUF_LIBRARY}
+                      quickstep_types_Type_proto)
 target_link_libraries(quickstep_types_VarCharType
                       glog
                       quickstep_types_NullCoercibilityCheckMacro
@@ -209,6 +212,7 @@ target_link_libraries(quickstep_types_VarCharType
                       quickstep_utility_Macros
                       quickstep_utility_PtrMap)
 target_link_libraries(quickstep_types_YearMonthIntervalType
+                      glog
                       quickstep_types_IntervalLit
                       quickstep_types_IntervalParser
                       quickstep_types_NullCoercibilityCheckMacro
@@ -238,10 +242,10 @@ target_link_libraries(quickstep_types
                       quickstep_types_NumericSuperType
                       quickstep_types_NumericTypeUnifier
                       quickstep_types_Type
-                      quickstep_types_Type_proto
                       quickstep_types_TypeErrors
                       quickstep_types_TypeFactory
                       quickstep_types_TypeID
+                      quickstep_types_Type_proto
                       quickstep_types_TypedValue
                       quickstep_types_TypedValue_proto
                       quickstep_types_VarCharType
@@ -256,6 +260,7 @@ add_library(quickstep_types_tests_TypeTest_common
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/TypeTest_common.hpp")
 target_link_libraries(quickstep_types_tests_TypeTest_common
                       gtest
+                      gtest_main
                       quickstep_types_DoubleType
                       quickstep_types_FloatType
                       quickstep_types_IntType
@@ -282,8 +287,8 @@ add_executable(DateType_unittest "${CMAKE_CURRENT_SOURCE_DIR}/tests/DateType_uni
 target_link_libraries(DateType_unittest
                       gtest
                       gtest_main
-                      quickstep_types_DatetimeLit
                       quickstep_types_DateType
+                      quickstep_types_DatetimeLit
                       quickstep_types_NullType
                       quickstep_types_Type
                       quickstep_types_TypeFactory
@@ -384,9 +389,9 @@ target_link_libraries(Type_unittest
                       gtest_main
                       quickstep_types_CharType
                       quickstep_types_Type
-                      quickstep_types_Type_proto
                       quickstep_types_TypeFactory
                       quickstep_types_TypeID
+                      quickstep_types_Type_proto
                       quickstep_types_VarCharType
                       quickstep_utility_Macros)
 add_test(Type_unittest Type_unittest)

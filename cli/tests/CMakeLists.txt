@@ -45,6 +45,7 @@ if (ENABLE_NETWORK_CLI)
 endif()
 
 target_link_libraries(quickstep_cli_tests_CommandExecutorTest
+                      ${LIBS}
                       glog
                       gtest
                       quickstep_catalog_CatalogDatabase
@@ -67,10 +68,11 @@ target_link_libraries(quickstep_cli_tests_CommandExecutorTest
                       quickstep_utility_MemStream
                       quickstep_utility_SqlError
                       quickstep_utility_TextBasedTestDriver
-                      tmb
-                      ${LIBS})
+                      tmb)
 if (ENABLE_DISTRIBUTED)
   target_link_libraries(quickstep_cli_tests_DistributedCommandExecutorTest
+                        ${GFLAGS_LIB_NAME}
+                        ${LIBS}
                         glog
                         gtest
                         quickstep_catalog_CatalogTypedefs
@@ -98,9 +100,7 @@ if (ENABLE_DISTRIBUTED)
                         quickstep_utility_MemStream
                         quickstep_utility_SqlError
                         quickstep_utility_TextBasedTestDriver
-                        tmb
-                        ${GFLAGS_LIB_NAME}
-                        ${LIBS})
+                        tmb)
 endif(ENABLE_DISTRIBUTED)
 
 target_link_libraries(LineReaderBuffered_unittest

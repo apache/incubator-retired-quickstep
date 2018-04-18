@@ -16,13 +16,23 @@
 # under the License.
 
 # Declare micro-libs:
-add_library(quickstep_types_operations_unaryoperations_ArithmeticUnaryOperations ArithmeticUnaryOperations.cpp ArithmeticUnaryOperations.hpp)
-add_library(quickstep_types_operations_unaryoperations_ArithmeticUnaryOperators ../../../empty_src.cpp ArithmeticUnaryOperators.hpp)
-add_library(quickstep_types_operations_unaryoperations_DateExtractOperation DateExtractOperation.cpp DateExtractOperation.hpp)
-add_library(quickstep_types_operations_unaryoperations_NumericCastOperation ../../../empty_src.cpp NumericCastOperation.hpp)
+add_library(quickstep_types_operations_unaryoperations_ArithmeticUnaryOperations
+            ArithmeticUnaryOperations.cpp
+            ArithmeticUnaryOperations.hpp)
+add_library(quickstep_types_operations_unaryoperations_ArithmeticUnaryOperators
+            ../../../empty_src.cpp
+            ArithmeticUnaryOperators.hpp)
+add_library(quickstep_types_operations_unaryoperations_DateExtractOperation
+            DateExtractOperation.cpp
+            DateExtractOperation.hpp)
+add_library(quickstep_types_operations_unaryoperations_NumericCastOperation
+            ../../../empty_src.cpp
+            NumericCastOperation.hpp)
 add_library(quickstep_types_operations_unaryoperations_SubstringOperation SubstringOperation.cpp SubstringOperation.hpp)
 add_library(quickstep_types_operations_unaryoperations_UnaryOperation UnaryOperation.cpp UnaryOperation.hpp)
-add_library(quickstep_types_operations_unaryoperations_UnaryOperationFactory UnaryOperationFactory.cpp UnaryOperationFactory.hpp)
+add_library(quickstep_types_operations_unaryoperations_UnaryOperationFactory
+            UnaryOperationFactory.cpp
+            UnaryOperationFactory.hpp)
 add_library(quickstep_types_operations_unaryoperations_UnaryOperationID UnaryOperationID.cpp UnaryOperationID.hpp)
 
 # Link dependencies:
@@ -90,6 +100,7 @@ target_link_libraries(quickstep_types_operations_unaryoperations_NumericCastOper
                       quickstep_utility_Macros
                       quickstep_utility_PtrMap)
 target_link_libraries(quickstep_types_operations_unaryoperations_SubstringOperation
+                      glog
                       quickstep_catalog_CatalogTypedefs
                       quickstep_storage_ValueAccessor
                       quickstep_storage_ValueAccessorUtil

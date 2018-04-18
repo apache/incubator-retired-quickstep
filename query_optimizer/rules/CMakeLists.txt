@@ -54,12 +54,12 @@ add_library(quickstep_queryoptimizer_rules_StarSchemaHashJoinOrderOptimization
             StarSchemaHashJoinOrderOptimization.hpp)
 add_library(quickstep_queryoptimizer_rules_SwapProbeBuild SwapProbeBuild.cpp SwapProbeBuild.hpp)
 add_library(quickstep_queryoptimizer_rules_TopDownRule ../../empty_src.cpp TopDownRule.hpp)
-add_library(quickstep_queryoptimizer_rules_UpdateExpression UpdateExpression.cpp UpdateExpression.hpp)
 add_library(quickstep_queryoptimizer_rules_UnnestSubqueries UnnestSubqueries.cpp UnnestSubqueries.hpp)
-
+add_library(quickstep_queryoptimizer_rules_UpdateExpression UpdateExpression.cpp UpdateExpression.hpp)
 
 # Link dependencies:
 target_link_libraries(quickstep_queryoptimizer_rules_AttachLIPFilters
+                      glog
                       quickstep_queryoptimizer_costmodel_StarSchemaSimpleCostModel
                       quickstep_queryoptimizer_expressions_AttributeReference
                       quickstep_queryoptimizer_expressions_ExprId
@@ -103,6 +103,7 @@ target_link_libraries(quickstep_queryoptimizer_rules_CollapseSelection
                       quickstep_queryoptimizer_rules_RuleHelper
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_rules_EliminateEmptyNode
+                      glog
                       quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogDatabase
                       quickstep_catalog_CatalogRelation
@@ -145,6 +146,7 @@ target_link_libraries(quickstep_queryoptimizer_rules_ExtractCommonSubexpression
                       quickstep_utility_HashError
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_rules_FuseAggregateJoin
+                      glog
                       quickstep_queryoptimizer_costmodel_StarSchemaSimpleCostModel
                       quickstep_queryoptimizer_expressions_AggregateFunction
                       quickstep_queryoptimizer_expressions_Alias
@@ -166,6 +168,7 @@ target_link_libraries(quickstep_queryoptimizer_rules_FuseAggregateJoin
                       quickstep_queryoptimizer_rules_BottomUpRule
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_rules_FuseHashSelect
+                      glog
                       quickstep_queryoptimizer_expressions_Predicate
                       quickstep_queryoptimizer_physical_HashJoin
                       quickstep_queryoptimizer_physical_PatternMatcher
@@ -195,9 +198,30 @@ target_link_libraries(quickstep_queryoptimizer_rules_GenerateJoins
                       quickstep_utility_Macros
                       quickstep_utility_SqlError
                       quickstep_utility_VectorUtil)
-target_link_libraries(quickstep_queryoptimizer_rules_Partition
+target_link_libraries(quickstep_queryoptimizer_rules_InjectJoinFilters
                       glog
-                      gtest
+                      quickstep_queryoptimizer_costmodel_StarSchemaSimpleCostModel
+                      quickstep_queryoptimizer_expressions_AttributeReference
+                      quickstep_queryoptimizer_expressions_ExpressionUtil
+                      quickstep_queryoptimizer_expressions_Predicate
+                      quickstep_queryoptimizer_physical_Aggregate
+                      quickstep_queryoptimizer_physical_FilterJoin
+                      quickstep_queryoptimizer_physical_HashJoin
+                      quickstep_queryoptimizer_physical_LIPFilterConfiguration
+                      quickstep_queryoptimizer_physical_PatternMatcher
+                      quickstep_queryoptimizer_physical_Physical
+                      quickstep_queryoptimizer_physical_PhysicalType
+                      quickstep_queryoptimizer_physical_Selection
+                      quickstep_queryoptimizer_physical_TopLevelPlan
+                      quickstep_queryoptimizer_rules_PruneColumns
+                      quickstep_queryoptimizer_rules_Rule
+                      quickstep_types_TypeID
+                      quickstep_types_TypedValue
+                      quickstep_utility_Macros
+                      quickstep_utility_lipfilter_LIPFilter)
+target_link_libraries(quickstep_queryoptimizer_rules_Partition
+                      ${GFLAGS_LIB_NAME}
+                      glog
                       quickstep_expressions_aggregation_AggregateFunction
                       quickstep_expressions_aggregation_AggregateFunctionFactory
                       quickstep_expressions_aggregation_AggregationID
@@ -226,9 +250,9 @@ target_link_libraries(quickstep_queryoptimizer_rules_Partition
                       quickstep_types_operations_binaryoperations_BinaryOperationID
                       quickstep_utility_Cast
                       quickstep_utility_EqualsAnyConstant
-                      quickstep_utility_Macros
-                      ${GFLAGS_LIB_NAME})
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_rules_PruneColumns
+                      glog
                       quickstep_queryoptimizer_expressions_AttributeReference
                       quickstep_queryoptimizer_expressions_ExpressionUtil
                       quickstep_queryoptimizer_expressions_NamedExpression
@@ -251,6 +275,7 @@ target_link_libraries(quickstep_queryoptimizer_rules_PushDownFilter
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_rules_PushDownLowCostDisjunctivePredicate
                       ${GFLAGS_LIB_NAME}
+                      glog
                       quickstep_queryoptimizer_costmodel_StarSchemaSimpleCostModel
                       quickstep_queryoptimizer_expressions_AttributeReference
                       quickstep_queryoptimizer_expressions_ExpressionUtil
@@ -279,6 +304,7 @@ target_link_libraries(quickstep_queryoptimizer_rules_PushDownSemiAntiJoin
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_rules_ReduceGroupByAttributes
                       ${GFLAGS_LIB_NAME}
+                      glog
                       quickstep_catalog_CatalogRelation
                       quickstep_queryoptimizer_OptimizerContext
                       quickstep_queryoptimizer_costmodel_StarSchemaSimpleCostModel
@@ -306,6 +332,7 @@ target_link_libraries(quickstep_queryoptimizer_rules_ReferencedBaseRelations
                       quickstep_queryoptimizer_rules_UnnestSubqueries
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_rules_ReorderColumns
+                      glog
                       quickstep_queryoptimizer_expressions_AttributeReference
                       quickstep_queryoptimizer_expressions_ExprId
                       quickstep_queryoptimizer_expressions_NamedExpression
@@ -359,6 +386,7 @@ target_link_libraries(quickstep_queryoptimizer_rules_RuleHelper
                       quickstep_queryoptimizer_expressions_Predicate
                       quickstep_queryoptimizer_rules_UpdateExpression)
 target_link_libraries(quickstep_queryoptimizer_rules_StarSchemaHashJoinOrderOptimization
+                      glog
                       quickstep_queryoptimizer_costmodel_StarSchemaSimpleCostModel
                       quickstep_queryoptimizer_expressions_AttributeReference
                       quickstep_queryoptimizer_expressions_ExprId
@@ -385,29 +413,11 @@ target_link_libraries(quickstep_queryoptimizer_rules_SwapProbeBuild
                       quickstep_queryoptimizer_rules_Rule
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_rules_TopDownRule
+                      glog
                       quickstep_queryoptimizer_rules_Rule
                       quickstep_utility_Macros)
-target_link_libraries(quickstep_queryoptimizer_rules_InjectJoinFilters
-                      quickstep_queryoptimizer_costmodel_StarSchemaSimpleCostModel
-                      quickstep_queryoptimizer_expressions_AttributeReference
-                      quickstep_queryoptimizer_expressions_ExpressionUtil
-                      quickstep_queryoptimizer_expressions_Predicate
-                      quickstep_queryoptimizer_physical_Aggregate
-                      quickstep_queryoptimizer_physical_FilterJoin
-                      quickstep_queryoptimizer_physical_HashJoin
-                      quickstep_queryoptimizer_physical_LIPFilterConfiguration
-                      quickstep_queryoptimizer_physical_PatternMatcher
-                      quickstep_queryoptimizer_physical_Physical
-                      quickstep_queryoptimizer_physical_PhysicalType
-                      quickstep_queryoptimizer_physical_Selection
-                      quickstep_queryoptimizer_physical_TopLevelPlan
-                      quickstep_queryoptimizer_rules_Rule
-                      quickstep_queryoptimizer_rules_PruneColumns
-                      quickstep_types_TypeID
-                      quickstep_types_TypedValue
-                      quickstep_utility_Macros
-                      quickstep_utility_lipfilter_LIPFilter)
 target_link_libraries(quickstep_queryoptimizer_rules_UnnestSubqueries
+                      glog
                       quickstep_queryoptimizer_OptimizerContext
                       quickstep_queryoptimizer_expressions_AttributeReference
                       quickstep_queryoptimizer_expressions_ComparisonExpression

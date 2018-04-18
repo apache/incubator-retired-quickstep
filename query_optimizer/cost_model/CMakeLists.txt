@@ -49,6 +49,7 @@ target_link_libraries(quickstep_queryoptimizer_costmodel_SimpleCostModel
                       quickstep_queryoptimizer_physical_WindowAggregate
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_costmodel_StarSchemaSimpleCostModel
+                      ${GFLAGS_LIB_NAME}
                       glog
                       quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogRelationStatistics

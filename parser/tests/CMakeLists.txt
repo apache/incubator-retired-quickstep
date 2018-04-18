@@ -16,15 +16,16 @@
 # under the License.
 
 add_executable(quickstep_parser_tests_ParserTest
-              "${CMAKE_CURRENT_SOURCE_DIR}/ParserTest.cpp"
-              "${PROJECT_SOURCE_DIR}/utility/textbased_test/TextBasedTest.cpp"
-              "${PROJECT_SOURCE_DIR}/utility/textbased_test/TextBasedTest.hpp")
+               "${CMAKE_CURRENT_SOURCE_DIR}/ParserTest.cpp"
+               "${PROJECT_SOURCE_DIR}/utility/textbased_test/TextBasedTest.cpp"
+               "${PROJECT_SOURCE_DIR}/utility/textbased_test/TextBasedTest.hpp")
 
 target_link_libraries(quickstep_parser_tests_ParserTest
                       glog
                       gtest
                       gtest_main
-                      quickstep_parser
+                      quickstep_parser_ParseStatement
+                      quickstep_parser_SqlParserWrapper
                       quickstep_utility_Macros
                       quickstep_utility_TextBasedTestDriver)
 

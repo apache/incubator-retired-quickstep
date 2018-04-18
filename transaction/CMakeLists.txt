@@ -25,7 +25,7 @@ add_library(quickstep_transaction_CycleDetector
             CycleDetector.hpp)
 add_library(quickstep_transaction_DeadLockDetector
             DeadLockDetector.cpp
-            DeadLockDetector.cpp)
+            DeadLockDetector.hpp)
 add_library(quickstep_transaction_DirectedGraph
             ../empty_src.cpp
             DirectedGraph.hpp)
@@ -33,8 +33,8 @@ add_library(quickstep_transaction_Lock
             ../empty_src.cpp
             Lock.hpp)
 add_library(quickstep_transaction_LockManager
-            LockManager.hpp
-            LockManager.cpp)
+            LockManager.cpp
+            LockManager.hpp)
 add_library(quickstep_transaction_LockRequest
             ../empty_src.cpp
             LockRequest.hpp)
@@ -60,6 +60,7 @@ target_link_libraries(quickstep_transaction_CycleDetector
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_transaction_DeadLockDetector
                       glog
+                      quickstep_threading_Thread
                       quickstep_transaction_CycleDetector
                       quickstep_transaction_DirectedGraph
                       quickstep_transaction_LockTable
@@ -74,7 +75,6 @@ target_link_libraries(quickstep_transaction_Lock
 target_link_libraries(quickstep_transaction_LockManager
                       ${GFLAGS_LIB_NAME}
                       glog
-                      quickstep_utility_ThreadSafeQueue
                       quickstep_threading_Thread
                       quickstep_transaction_AccessMode
                       quickstep_transaction_DeadLockDetector
@@ -82,7 +82,8 @@ target_link_libraries(quickstep_transaction_LockManager
                       quickstep_transaction_LockTable
                       quickstep_transaction_ResourceId
                       quickstep_transaction_Transaction
-                      quickstep_transaction_TransactionTable)
+                      quickstep_transaction_TransactionTable
+                      quickstep_utility_ThreadSafeQueue)
 target_link_libraries(quickstep_transaction_LockRequest
                       quickstep_transaction_AccessMode
                       quickstep_transaction_ResourceId
@@ -95,11 +96,15 @@ target_link_libraries(quickstep_transaction_LockTable
                       quickstep_transaction_Transaction
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_transaction_ResourceId
+                      glog
                       quickstep_catalog_CatalogTypedefs
                       quickstep_storage_StorageBlockInfo
                       quickstep_utility_HashPair)
 target_link_libraries(quickstep_transaction_ResourceId
-                      glog)
+                      glog
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_utility_HashPair)
 target_link_libraries(quickstep_transaction_StronglyConnectedComponents
                       quickstep_transaction_DirectedGraph
                       quickstep_utility_Macros)
@@ -146,7 +151,7 @@ target_link_libraries(CycleDetector_unittest
 add_test(CycleDetector_unittest CycleDetector_unittest)
 
 add_executable(DeadLockDetector_unittest
-  "${CMAKE_CURRENT_SOURCE_DIR}/tests/DeadLockDetector_unittest.cpp")
+               "${CMAKE_CURRENT_SOURCE_DIR}/tests/DeadLockDetector_unittest.cpp")
 target_link_libraries(DeadLockDetector_unittest
                       gtest
                       gtest_main

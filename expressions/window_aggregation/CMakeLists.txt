@@ -23,8 +23,6 @@ QS_PROTOBUF_GENERATE_CPP(expressions_windowaggregation_WindowAggregateFunction_p
 add_library(quickstep_expressions_windowaggregation_WindowAggregateFunction
             WindowAggregateFunction.cpp
             WindowAggregateFunction.hpp)
-add_library(quickstep_expressions_windowaggregation_WindowAggregateFunction_proto
-            ${expressions_windowaggregation_WindowAggregateFunction_proto_srcs})
 add_library(quickstep_expressions_windowaggregation_WindowAggregateFunctionAvg
             WindowAggregateFunctionAvg.cpp
             WindowAggregateFunctionAvg.hpp)
@@ -43,6 +41,8 @@ add_library(quickstep_expressions_windowaggregation_WindowAggregateFunctionMin
 add_library(quickstep_expressions_windowaggregation_WindowAggregateFunctionSum
             WindowAggregateFunctionSum.cpp
             WindowAggregateFunctionSum.hpp)
+add_library(quickstep_expressions_windowaggregation_WindowAggregateFunction_proto
+            ${expressions_windowaggregation_WindowAggregateFunction_proto_srcs})
 add_library(quickstep_expressions_windowaggregation_WindowAggregationHandle
             WindowAggregationHandle.cpp
             WindowAggregationHandle.hpp)
@@ -61,8 +61,6 @@ target_link_libraries(quickstep_expressions_windowaggregation_WindowAggregateFun
                       quickstep_expressions_windowaggregation_WindowAggregationID
                       quickstep_storage_StorageBlockInfo
                       quickstep_utility_Macros)
-target_link_libraries(quickstep_expressions_windowaggregation_WindowAggregateFunction_proto
-                      ${PROTOBUF_LIBRARY})
 target_link_libraries(quickstep_expressions_windowaggregation_WindowAggregateFunctionAvg
                       glog
                       quickstep_expressions_windowaggregation_WindowAggregateFunction
@@ -126,6 +124,8 @@ target_link_libraries(quickstep_expressions_windowaggregation_WindowAggregateFun
                       quickstep_types_operations_binaryoperations_BinaryOperationFactory
                       quickstep_types_operations_binaryoperations_BinaryOperationID
                       quickstep_utility_Macros)
+target_link_libraries(quickstep_expressions_windowaggregation_WindowAggregateFunction_proto
+                      ${PROTOBUF_LIBRARY})
 target_link_libraries(quickstep_expressions_windowaggregation_WindowAggregationHandle
                       glog
                       quickstep_catalog_CatalogRelationSchema
@@ -165,13 +165,13 @@ target_link_libraries(quickstep_expressions_windowaggregation_WindowAggregationH
 add_library(quickstep_expressions_windowaggregation ../../empty_src.cpp)
 target_link_libraries(quickstep_expressions_windowaggregation
                       quickstep_expressions_windowaggregation_WindowAggregateFunction
-                      quickstep_expressions_windowaggregation_WindowAggregateFunction_proto
                       quickstep_expressions_windowaggregation_WindowAggregateFunctionAvg
                       quickstep_expressions_windowaggregation_WindowAggregateFunctionCount
                       quickstep_expressions_windowaggregation_WindowAggregateFunctionFactory
                       quickstep_expressions_windowaggregation_WindowAggregateFunctionMax
                       quickstep_expressions_windowaggregation_WindowAggregateFunctionMin
                       quickstep_expressions_windowaggregation_WindowAggregateFunctionSum
+                      quickstep_expressions_windowaggregation_WindowAggregateFunction_proto
                       quickstep_expressions_windowaggregation_WindowAggregationHandle
                       quickstep_expressions_windowaggregation_WindowAggregationHandleAvg
                       quickstep_expressions_windowaggregation_WindowAggregationID)

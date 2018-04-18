@@ -46,6 +46,7 @@ target_link_libraries(quickstep_expressions_scalar_Scalar
                       quickstep_types_containers_ColumnVector
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_expressions_scalar_ScalarAttribute
+                      glog
                       quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogRelationSchema
                       quickstep_catalog_CatalogTypedefs
@@ -59,6 +60,7 @@ target_link_libraries(quickstep_expressions_scalar_ScalarAttribute
                       quickstep_types_containers_ColumnVector
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_expressions_scalar_ScalarBinaryExpression
+                      glog
                       quickstep_catalog_CatalogTypedefs
                       quickstep_expressions_Expressions_proto
                       quickstep_expressions_scalar_Scalar
@@ -73,6 +75,7 @@ target_link_libraries(quickstep_expressions_scalar_ScalarBinaryExpression
                       quickstep_types_operations_binaryoperations_BinaryOperationID
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_expressions_scalar_ScalarCaseExpression
+                      glog
                       quickstep_catalog_CatalogTypedefs
                       quickstep_expressions_Expressions_proto
                       quickstep_expressions_predicate_Predicate
@@ -109,6 +112,7 @@ target_link_libraries(quickstep_expressions_scalar_ScalarSharedExpression
                       quickstep_utility_ColumnVectorCache
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_expressions_scalar_ScalarUnaryExpression
+                      glog
                       quickstep_catalog_CatalogTypedefs
                       quickstep_expressions_Expressions_proto
                       quickstep_expressions_scalar_Scalar

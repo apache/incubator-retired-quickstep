@@ -46,6 +46,8 @@ add_executable(quickstep_queryoptimizer_rules_tests
                "${CMAKE_CURRENT_SOURCE_DIR}/UpdateExpression_unittest.cpp")
 
 target_link_libraries(quickstep_queryoptimizer_rules_tests
+                      ${GFLAGS_LIB_NAME}
+                      ${LIBS}
                       glog
                       gtest
                       gtest_main
@@ -93,7 +95,5 @@ target_link_libraries(quickstep_queryoptimizer_rules_tests
                       quickstep_types_operations_comparisons_ComparisonFactory
                       quickstep_types_operations_comparisons_ComparisonID
                       quickstep_utility_Cast
-                      quickstep_utility_Macros
-                      ${GFLAGS_LIB_NAME}
-                      ${LIBS})
+                      quickstep_utility_Macros)
 add_test(quickstep_queryoptimizer_rules_tests quickstep_queryoptimizer_rules_tests)

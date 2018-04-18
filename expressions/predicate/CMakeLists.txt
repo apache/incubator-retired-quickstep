@@ -43,6 +43,7 @@ add_library(quickstep_expressions_predicate_TrivialPredicates
 
 # Link dependencies:
 target_link_libraries(quickstep_expressions_predicate_ComparisonPredicate
+                      glog
                       quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogTypedefs
                       quickstep_expressions_Expressions_proto

@@ -33,6 +33,7 @@ add_library(quickstep_utility_lipfilter_SingleIdentityHashFilter ../../empty_src
 
 # Link dependencies:
 target_link_libraries(quickstep_utility_lipfilter_BitVectorExactFilter
+                      glog
                       quickstep_catalog_CatalogTypedefs
                       quickstep_storage_StorageBlockInfo
                       quickstep_storage_ValueAccessor
@@ -46,6 +47,7 @@ target_link_libraries(quickstep_utility_lipfilter_LIPFilter
                       quickstep_storage_StorageBlockInfo
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_utility_lipfilter_LIPFilterAdaptiveProber
+                      glog
                       quickstep_catalog_CatalogTypedefs
                       quickstep_storage_StorageBlockInfo
                       quickstep_storage_TupleIdSequence
@@ -54,6 +56,7 @@ target_link_libraries(quickstep_utility_lipfilter_LIPFilterAdaptiveProber
                       quickstep_utility_Macros
                       quickstep_utility_lipfilter_LIPFilter)
 target_link_libraries(quickstep_utility_lipfilter_LIPFilterBuilder
+                      glog
                       quickstep_catalog_CatalogTypedefs
                       quickstep_utility_Macros
                       quickstep_utility_lipfilter_LIPFilter)
@@ -66,10 +69,11 @@ target_link_libraries(quickstep_utility_lipfilter_LIPFilterDeployment
                       quickstep_utility_lipfilter_LIPFilterBuilder
                       quickstep_utility_lipfilter_LIPFilter_proto)
 target_link_libraries(quickstep_utility_lipfilter_LIPFilterFactory
+                      glog
+                      quickstep_utility_Macros
                       quickstep_utility_lipfilter_BitVectorExactFilter
                       quickstep_utility_lipfilter_LIPFilter_proto
-                      quickstep_utility_lipfilter_SingleIdentityHashFilter
-                      quickstep_utility_Macros)
+                      quickstep_utility_lipfilter_SingleIdentityHashFilter)
 target_link_libraries(quickstep_utility_lipfilter_LIPFilterUtil
                       quickstep_queryexecution_QueryContext
                       quickstep_utility_lipfilter_LIPFilterDeployment)
@@ -77,6 +81,7 @@ target_link_libraries(quickstep_utility_lipfilter_LIPFilter_proto
                       ${PROTOBUF_LIBRARY}
                       quickstep_types_Type_proto)
 target_link_libraries(quickstep_utility_lipfilter_SingleIdentityHashFilter
+                      glog
                       quickstep_catalog_CatalogTypedefs
                       quickstep_storage_StorageBlockInfo
                       quickstep_storage_ValueAccessor

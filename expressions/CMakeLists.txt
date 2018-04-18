@@ -61,10 +61,10 @@ target_link_libraries(quickstep_expressions_ExpressionFactories
                       quickstep_types_operations_unaryoperations_UnaryOperationFactory
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_expressions_Expressions_proto
+                      ${PROTOBUF_LIBRARY}
                       quickstep_types_Type_proto
                       quickstep_types_TypedValue_proto
-                      quickstep_types_operations_Operation_proto
-                      ${PROTOBUF_LIBRARY})
+                      quickstep_types_operations_Operation_proto)
 
 # Module all-in-one library:
 add_library(quickstep_expressions ../empty_src.cpp ExpressionsModule.hpp)
@@ -74,4 +74,5 @@ target_link_libraries(quickstep_expressions
                       quickstep_expressions_Expressions_proto
                       quickstep_expressions_aggregation
                       quickstep_expressions_predicate
-                      quickstep_expressions_scalar)
+                      quickstep_expressions_scalar
+                      quickstep_expressions_windowaggregation)

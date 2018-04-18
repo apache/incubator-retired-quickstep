@@ -114,7 +114,6 @@ if(NOT FOUND_THREADS)
   message(FATAL_ERROR "No viable threading library found.")
 endif()
 
-
 # Try to find some yield function we can use.
 set(FOUND_YIELD FALSE)
 
@@ -269,7 +268,12 @@ if (QUICKSTEP_HAVE_CPP11_THREADS)
               Mutex.cpp
               Mutex.hpp
               cpp11/Mutex.hpp)
-  if (QUICKSTEP_HAVE_CPP14_SHARED_MUTEX)
+  if (QUICKSTEP_HAVE_CPP17_SHARED_MUTEX)
+    add_library(quickstep_threading_SharedMutex
+                ../empty_src.cpp
+                SharedMutex.hpp
+                cpp11/cpp17/SharedMutex.hpp)
+  elseif (QUICKSTEP_HAVE_CPP14_SHARED_MUTEX)
     add_library(quickstep_threading_SharedMutex
                 ../empty_src.cpp
                 SharedMutex.hpp
@@ -324,6 +328,7 @@ add_library(quickstep_threading_SpinMutex ../empty_src.cpp SpinMutex.hpp)
 add_library(quickstep_threading_SpinSharedMutex ../empty_src.cpp SpinSharedMutex.hpp)
 add_library(quickstep_threading_ThreadIDBasedMap ../empty_src.cpp ThreadIDBasedMap.hpp)
 add_library(quickstep_threading_ThreadUtil ../empty_src.cpp ThreadUtil.hpp)
+add_library(quickstep_threading_WinThreadsAPI ../empty_src.cpp WinThreadsAPI.hpp)
 
 # Link dependencies:
 target_link_libraries(quickstep_threading_ConditionVariable
@@ -334,17 +339,6 @@ target_link_libraries(quickstep_threading_Mutex
                       quickstep_threading_ConditionVariable
                       quickstep_utility_Macros
                       quickstep_utility_PtrVector)
-if (QUICKSTEP_HAVE_CPP11_THREADS AND NOT QUICKSTEP_HAVE_CPP14_SHARED_MUTEX)
-  target_link_libraries(quickstep_threading_SharedMutex
-                        glog
-                        quickstep_threading_ConditionVariable
-                        quickstep_threading_Mutex
-                        quickstep_utility_Macros)
-else()
-  target_link_libraries(quickstep_threading_SharedMutex
-                        quickstep_threading_Mutex
-                        quickstep_utility_Macros)
-endif()
 target_link_libraries(quickstep_threading_SpinMutex
                       quickstep_threading_Mutex
                       quickstep_utility_Macros)
@@ -363,7 +357,20 @@ target_link_libraries(quickstep_threading_ThreadIDBasedMap
                       quickstep_threading_SpinSharedMutex
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_threading_ThreadUtil
+                      quickstep_threading_WinThreadsAPI
                       quickstep_utility_Macros)
+
+if (QUICKSTEP_HAVE_CPP11_THREADS AND NOT QUICKSTEP_HAVE_CPP14_SHARED_MUTEX)
+  target_link_libraries(quickstep_threading_SharedMutex
+                        glog
+                        quickstep_threading_ConditionVariable
+                        quickstep_threading_Mutex
+                        quickstep_utility_Macros)
+else()
+  target_link_libraries(quickstep_threading_SharedMutex
+                        quickstep_threading_Mutex
+                        quickstep_utility_Macros)
+endif()
 
 # Module all-in-one library:
 add_library(quickstep_threading ../empty_src.cpp ThreadingModule.hpp)
@@ -375,28 +382,29 @@ target_link_libraries(quickstep_threading
                       quickstep_threading_SpinSharedMutex
                       quickstep_threading_Thread
                       quickstep_threading_ThreadIDBasedMap
-                      quickstep_threading_ThreadUtil)
+                      quickstep_threading_ThreadUtil
+                      quickstep_threading_WinThreadsAPI)
 
 # Tests:
 add_executable(Mutex_unittest "${CMAKE_CURRENT_SOURCE_DIR}/tests/Mutex_unittest.cpp")
 target_link_libraries(Mutex_unittest
+                      ${CMAKE_THREAD_LIBS_INIT}
                       gtest
                       gtest_main
                       quickstep_threading_Mutex
                       quickstep_threading_SpinMutex
                       quickstep_threading_Thread
-                      quickstep_utility_Macros
-                      ${CMAKE_THREAD_LIBS_INIT})
+                      quickstep_utility_Macros)
 add_test(Mutex_unittest Mutex_unittest)
 
 add_executable(SharedMutex_unittest "${CMAKE_CURRENT_SOURCE_DIR}/tests/SharedMutex_unittest.cpp")
 target_link_libraries(SharedMutex_unittest
+                      ${CMAKE_THREAD_LIBS_INIT}
                       gtest
                       gtest_main
                       quickstep_threading_Mutex
                       quickstep_threading_SharedMutex
                       quickstep_threading_SpinSharedMutex
                       quickstep_threading_Thread
-                      quickstep_utility_Macros
-                      ${CMAKE_THREAD_LIBS_INIT})
+                      quickstep_utility_Macros)
 add_test(SharedMutex_unittest SharedMutex_unittest)

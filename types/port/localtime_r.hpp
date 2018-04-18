@@ -23,10 +23,7 @@
 #include <ctime>
 
 #include "types/port/TypesPortConfig.h"
-
-#if defined(QUICKSTEP_HAVE_LOCALTIME_S)
 #include "utility/Macros.hpp"
-#endif  // QUICKSTEP_HAVE_LOCALTIME_S
 
 namespace quickstep {
 

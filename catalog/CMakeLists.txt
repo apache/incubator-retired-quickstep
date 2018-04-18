@@ -28,7 +28,6 @@ QS_PROTOBUF_GENERATE_CPP(catalog_Catalog_proto_srcs catalog_Catalog_proto_hdrs C
 
 # Declare micro-libs:
 add_library(quickstep_catalog_Catalog Catalog.cpp Catalog.hpp)
-add_library(quickstep_catalog_Catalog_proto ${catalog_Catalog_proto_srcs})
 add_library(quickstep_catalog_CatalogAttribute CatalogAttribute.cpp CatalogAttribute.hpp)
 add_library(quickstep_catalog_CatalogDatabase CatalogDatabase.cpp CatalogDatabase.hpp)
 add_library(quickstep_catalog_CatalogDatabaseCache CatalogDatabaseCache.cpp CatalogDatabaseCache.hpp)
@@ -42,12 +41,14 @@ add_library(quickstep_catalog_CatalogRelationStatistics
             CatalogRelationStatistics.cpp
             CatalogRelationStatistics.hpp)
 add_library(quickstep_catalog_CatalogTypedefs ../empty_src.cpp CatalogTypedefs.hpp)
+add_library(quickstep_catalog_Catalog_proto ${catalog_Catalog_proto_srcs})
 add_library(quickstep_catalog_IndexScheme IndexScheme.cpp IndexScheme.hpp)
+add_library(quickstep_catalog_PartitionScheme PartitionScheme.cpp PartitionScheme.hpp)
+add_library(quickstep_catalog_PartitionSchemeHeader PartitionSchemeHeader.cpp PartitionSchemeHeader.hpp)
+
 if(QUICKSTEP_HAVE_LIBNUMA)
   add_library(quickstep_catalog_NUMAPlacementScheme NUMAPlacementScheme.cpp NUMAPlacementScheme.hpp)
 endif()
-add_library(quickstep_catalog_PartitionScheme PartitionScheme.cpp PartitionScheme.hpp)
-add_library(quickstep_catalog_PartitionSchemeHeader PartitionSchemeHeader.cpp PartitionSchemeHeader.hpp)
 
 # Link dependencies:
 target_link_libraries(quickstep_catalog_Catalog
@@ -58,11 +59,6 @@ target_link_libraries(quickstep_catalog_Catalog
                       quickstep_catalog_Catalog_proto
                       quickstep_utility_Macros
                       quickstep_utility_PtrVector)
-target_link_libraries(quickstep_catalog_Catalog_proto
-                      quickstep_storage_StorageBlockLayout_proto
-                      quickstep_types_Type_proto
-                      quickstep_types_TypedValue_proto
-                      ${PROTOBUF_LIBRARY})
 target_link_libraries(quickstep_catalog_CatalogAttribute
                       glog
                       quickstep_catalog_CatalogTypedefs
@@ -118,24 +114,6 @@ target_link_libraries(quickstep_catalog_CatalogRelation
                       quickstep_threading_SpinSharedMutex
                       quickstep_utility_Macros
                       quickstep_utility_PtrVector)
-target_link_libraries(quickstep_catalog_CatalogRelationStatistics
-                      quickstep_catalog_CatalogTypedefs
-                      quickstep_catalog_Catalog_proto
-                      quickstep_types_LongType
-                      quickstep_types_NullType
-                      quickstep_types_TypedValue
-                      quickstep_utility_Macros)
-target_link_libraries(quickstep_catalog_IndexScheme
-                      glog
-                      quickstep_catalog_Catalog_proto
-                      quickstep_storage_IndexSubBlockDescriptionFactory
-                      quickstep_storage_StorageBlockLayout_proto
-                      quickstep_utility_Macros)
-
-if(QUICKSTEP_HAVE_LIBNUMA)
-target_link_libraries(quickstep_catalog_CatalogRelation
-                      quickstep_catalog_NUMAPlacementScheme)
-endif()
 target_link_libraries(quickstep_catalog_CatalogRelationSchema
                       glog
                       quickstep_catalog_CatalogAttribute
@@ -146,15 +124,24 @@ target_link_libraries(quickstep_catalog_CatalogRelationSchema
                       quickstep_utility_Macros
                       quickstep_utility_PtrVector
                       quickstep_utility_StringUtil)
-if(QUICKSTEP_HAVE_LIBNUMA)
-target_link_libraries(quickstep_catalog_NUMAPlacementScheme
-                      glog
+target_link_libraries(quickstep_catalog_CatalogRelationStatistics
                       quickstep_catalog_CatalogTypedefs
                       quickstep_catalog_Catalog_proto
-                      quickstep_storage_StorageBlockInfo
-                      quickstep_utility_Macros
-                      ${LIBNUMA_LIBRARY})
-endif()
+                      quickstep_types_LongType
+                      quickstep_types_NullType
+                      quickstep_types_TypedValue
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_catalog_Catalog_proto
+                      ${PROTOBUF_LIBRARY}
+                      quickstep_storage_StorageBlockLayout_proto
+                      quickstep_types_Type_proto
+                      quickstep_types_TypedValue_proto)
+target_link_libraries(quickstep_catalog_IndexScheme
+                      glog
+                      quickstep_catalog_Catalog_proto
+                      quickstep_storage_IndexSubBlockDescriptionFactory
+                      quickstep_storage_StorageBlockLayout_proto
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_catalog_PartitionScheme
                       glog
                       quickstep_catalog_CatalogTypedefs
@@ -184,11 +171,22 @@ target_link_libraries(quickstep_catalog_PartitionSchemeHeader
                       quickstep_utility_CompositeHash
                       quickstep_utility_Macros)
 
+if(QUICKSTEP_HAVE_LIBNUMA)
+  target_link_libraries(quickstep_catalog_CatalogRelation
+                        quickstep_catalog_NUMAPlacementScheme)
+  target_link_libraries(quickstep_catalog_NUMAPlacementScheme
+                        ${LIBNUMA_LIBRARY}
+                        glog
+                        quickstep_catalog_CatalogTypedefs
+                        quickstep_catalog_Catalog_proto
+                        quickstep_storage_StorageBlockInfo
+                        quickstep_utility_Macros)
+endif()
+
 # Module all-in-one library:
 add_library(quickstep_catalog ../empty_src.cpp CatalogModule.hpp)
 target_link_libraries(quickstep_catalog
                       quickstep_catalog_Catalog
-                      quickstep_catalog_Catalog_proto
                       quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogDatabase
                       quickstep_catalog_CatalogDatabaseCache
@@ -198,12 +196,14 @@ target_link_libraries(quickstep_catalog
                       quickstep_catalog_CatalogRelationSchema
                       quickstep_catalog_CatalogRelationStatistics
                       quickstep_catalog_CatalogTypedefs
+                      quickstep_catalog_Catalog_proto
                       quickstep_catalog_IndexScheme
                       quickstep_catalog_PartitionScheme
                       quickstep_catalog_PartitionSchemeHeader)
+
 if(QUICKSTEP_HAVE_LIBNUMA)
-target_link_libraries(quickstep_catalog
-                      quickstep_catalog_NUMAPlacementScheme)
+  target_link_libraries(quickstep_catalog
+                        quickstep_catalog_NUMAPlacementScheme)
 endif()
 
 # Tests:
@@ -261,12 +261,12 @@ if(QUICKSTEP_HAVE_LIBNUMA)
 add_executable(NUMAPlacementScheme_unittest
                "${CMAKE_CURRENT_SOURCE_DIR}/tests/NUMAPlacementScheme_unittest.cpp")
 target_link_libraries(NUMAPlacementScheme_unittest
+                      ${LIBS}
                       gtest
                       gtest_main
                       quickstep_catalog_NUMAPlacementScheme
                       quickstep_catalog_PartitionSchemeHeader
-                      quickstep_storage_StorageBlockInfo
-                      ${LIBS})
+                      quickstep_storage_StorageBlockInfo)
 add_test(NUMAPlacementScheme_unittest NUMAPlacementScheme_unittest)
 endif()
 

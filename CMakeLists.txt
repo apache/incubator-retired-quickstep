@@ -625,8 +625,8 @@ include_directories(SYSTEM ${PROTOBUF_INCLUDE_DIR})
 
 # Add gtest unit-testing framework.
 set(gtest_force_shared_crt ON CACHE BOOL "Link gtest against shared DLLs on Windows")
-add_subdirectory ("${THIRD_PARTY_SOURCE_DIR}/googletest/googletest"
-                  "${CMAKE_CURRENT_BINARY_DIR}/third_party/googletest/googletest")
+add_subdirectory("${THIRD_PARTY_SOURCE_DIR}/googletest/googletest"
+                 "${CMAKE_CURRENT_BINARY_DIR}/third_party/googletest/googletest")
 include_directories(SYSTEM "${THIRD_PARTY_SOURCE_DIR}/googletest/googletest/include")
 enable_testing()
 
@@ -644,18 +644,18 @@ if (UNIX)
                     "itself, as well as unit tests and other utilities are "
                     "not affected.")
   endif()
-  add_subdirectory ("${THIRD_PARTY_SOURCE_DIR}/benchmark" "${CMAKE_CURRENT_BINARY_DIR}/third_party/benchmark")
+  add_subdirectory("${THIRD_PARTY_SOURCE_DIR}/benchmark" "${CMAKE_CURRENT_BINARY_DIR}/third_party/benchmark")
   include_directories("${THIRD_PARTY_SOURCE_DIR}/benchmark/include")
 endif()
 
 # Add required cmake-controlled third-party libraries (farmhash, gflags, glog, and re2).
-add_subdirectory ("${THIRD_PARTY_SOURCE_DIR}/farmhash" "${CMAKE_CURRENT_BINARY_DIR}/third_party/farmhash")
+add_subdirectory("${THIRD_PARTY_SOURCE_DIR}/farmhash" "${CMAKE_CURRENT_BINARY_DIR}/third_party/farmhash")
 include_directories("${THIRD_PARTY_SOURCE_DIR}")
 
-add_subdirectory ("${THIRD_PARTY_SOURCE_DIR}/gflags" "${CMAKE_CURRENT_BINARY_DIR}/third_party/gflags")
+add_subdirectory("${THIRD_PARTY_SOURCE_DIR}/gflags" "${CMAKE_CURRENT_BINARY_DIR}/third_party/gflags")
 include_directories("${CMAKE_CURRENT_BINARY_DIR}/third_party/gflags/include")
 
-add_subdirectory ("${THIRD_PARTY_SOURCE_DIR}/glog" "${CMAKE_CURRENT_BINARY_DIR}/third_party/glog")
+add_subdirectory("${THIRD_PARTY_SOURCE_DIR}/glog" "${CMAKE_CURRENT_BINARY_DIR}/third_party/glog")
 if (WIN32)
   set_property(
     DIRECTORY
@@ -668,7 +668,7 @@ else()
 endif()
 
 include_directories("${THIRD_PARTY_SOURCE_DIR}/re2")
-add_subdirectory ("${THIRD_PARTY_SOURCE_DIR}/re2" "${CMAKE_CURRENT_BINARY_DIR}/third_party/re2")
+add_subdirectory("${THIRD_PARTY_SOURCE_DIR}/re2" "${CMAKE_CURRENT_BINARY_DIR}/third_party/re2")
 
 # Add optional linenoise command-line editing library.
 if (USE_LINENOISE)
@@ -679,7 +679,7 @@ if (USE_LINENOISE)
                     "to fail, in which case you should try again with "
                     "-D USE_LINENOISE=0")
   endif()
-  add_subdirectory ("${THIRD_PARTY_SOURCE_DIR}/linenoise" "${CMAKE_CURRENT_BINARY_DIR}/third_party/linenoise")
+  add_subdirectory("${THIRD_PARTY_SOURCE_DIR}/linenoise" "${CMAKE_CURRENT_BINARY_DIR}/third_party/linenoise")
 endif()
 
 # Add optional libhdfs3 library
@@ -735,7 +735,8 @@ add_subdirectory(utility)
 add_subdirectory(yarn)
 
 # Build the quickstep_cli_shell executable.
-add_executable (quickstep_cli_shell cli/QuickstepCli.cpp)
+add_executable(quickstep_cli_shell cli/QuickstepCli.cpp)
+
 # Link against direct deps (will transitively pull in everything needed).
 target_link_libraries(quickstep_cli_shell
                       ${GFLAGS_LIB_NAME}
@@ -783,12 +784,14 @@ target_link_libraries(quickstep_cli_shell ${LIBS})
 
 if (ENABLE_DISTRIBUTED)
   # Build the quickstep_distributed_cli_shell executable.
-  add_executable (quickstep_distributed_cli_shell
-                  cli/distributed/Cli.hpp
-                  cli/distributed/Cli.cpp
-                  cli/distributed/QuickstepDistributedCli.cpp)
+  add_executable(quickstep_distributed_cli_shell
+                 cli/distributed/Cli.hpp
+                 cli/distributed/Cli.cpp
+                 cli/distributed/QuickstepDistributedCli.cpp)
   # Link against direct deps (will transitively pull in everything needed).
   target_link_libraries(quickstep_distributed_cli_shell
+                        ${GFLAGS_LIB_NAME}
+                        ${GRPCPLUSPLUS_LIBRARIES}
                         glog
                         quickstep_catalog_CatalogRelation
                         quickstep_cli_Constants
@@ -811,13 +814,11 @@ if (ENABLE_DISTRIBUTED)
                         quickstep_utility_Macros
                         quickstep_utility_SqlError
                         quickstep_utility_StringUtil
-                        tmb
-                        ${GFLAGS_LIB_NAME}
-                        ${GRPCPLUSPLUS_LIBRARIES})
+                        tmb)
 endif(ENABLE_DISTRIBUTED)
 
 if (ENABLE_NETWORK_CLI)
-  add_executable (quickstep_client cli/NetworkCliClientMain.cpp)
+  add_executable(quickstep_client cli/NetworkCliClientMain.cpp)
   target_link_libraries(quickstep_client
                         ${GFLAGS_LIB_NAME}
                         ${GRPCPLUSPLUS_LIBRARIES}

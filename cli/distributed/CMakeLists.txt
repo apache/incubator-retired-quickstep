@@ -69,9 +69,9 @@ target_link_libraries(quickstep_cli_distributed_Executor
                       quickstep_utility_Macros
                       tmb)
 target_link_libraries(quickstep_cli_distributed_Role
+                      ${GFLAGS_LIB_NAME}
                       quickstep_utility_Macros
-                      tmb
-                      ${GFLAGS_LIB_NAME})
+                      tmb)
 
 # Module all-in-one library:
 add_library(quickstep_cli_distributed ../../empty_src.cpp CliDistributedModule.hpp)

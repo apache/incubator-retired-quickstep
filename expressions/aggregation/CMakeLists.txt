@@ -23,8 +23,6 @@ QS_PROTOBUF_GENERATE_CPP(expressions_aggregation_AggregateFunction_proto_srcs
 add_library(quickstep_expressions_aggregation_AggregateFunction
             AggregateFunction.cpp
             AggregateFunction.hpp)
-add_library(quickstep_expressions_aggregation_AggregateFunction_proto
-            ${expressions_aggregation_AggregateFunction_proto_srcs})
 add_library(quickstep_expressions_aggregation_AggregateFunctionAvg
             AggregateFunctionAvg.cpp
             AggregateFunctionAvg.hpp)
@@ -43,6 +41,8 @@ add_library(quickstep_expressions_aggregation_AggregateFunctionMin
 add_library(quickstep_expressions_aggregation_AggregateFunctionSum
             AggregateFunctionSum.cpp
             AggregateFunctionSum.hpp)
+add_library(quickstep_expressions_aggregation_AggregateFunction_proto
+            ${expressions_aggregation_AggregateFunction_proto_srcs})
 add_library(quickstep_expressions_aggregation_AggregationConcreteHandle
             AggregationConcreteHandle.cpp
             AggregationConcreteHandle.hpp)
@@ -74,8 +74,6 @@ target_link_libraries(quickstep_expressions_aggregation_AggregateFunction
                       quickstep_expressions_aggregation_AggregateFunction_proto
                       quickstep_expressions_aggregation_AggregationID
                       quickstep_utility_Macros)
-target_link_libraries(quickstep_expressions_aggregation_AggregateFunction_proto
-                      ${PROTOBUF_LIBRARY})
 target_link_libraries(quickstep_expressions_aggregation_AggregateFunctionAvg
                       glog
                       quickstep_expressions_aggregation_AggregateFunction
@@ -99,12 +97,12 @@ target_link_libraries(quickstep_expressions_aggregation_AggregateFunctionCount
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_expressions_aggregation_AggregateFunctionFactory
                       glog
-                      quickstep_expressions_aggregation_AggregateFunction_proto
                       quickstep_expressions_aggregation_AggregateFunctionAvg
                       quickstep_expressions_aggregation_AggregateFunctionCount
                       quickstep_expressions_aggregation_AggregateFunctionMax
                       quickstep_expressions_aggregation_AggregateFunctionMin
                       quickstep_expressions_aggregation_AggregateFunctionSum
+                      quickstep_expressions_aggregation_AggregateFunction_proto
                       quickstep_expressions_aggregation_AggregationID
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_expressions_aggregation_AggregateFunctionMax
@@ -139,6 +137,8 @@ target_link_libraries(quickstep_expressions_aggregation_AggregateFunctionSum
                       quickstep_types_operations_binaryoperations_BinaryOperationFactory
                       quickstep_types_operations_binaryoperations_BinaryOperationID
                       quickstep_utility_Macros)
+target_link_libraries(quickstep_expressions_aggregation_AggregateFunction_proto
+                      ${PROTOBUF_LIBRARY})
 target_link_libraries(quickstep_expressions_aggregation_AggregationConcreteHandle
                       glog
                       quickstep_expressions_aggregation_AggregationHandle
@@ -237,13 +237,13 @@ target_link_libraries(quickstep_expressions_aggregation_AggregationHandleSum
 add_library(quickstep_expressions_aggregation ../../empty_src.cpp)
 target_link_libraries(quickstep_expressions_aggregation
                       quickstep_expressions_aggregation_AggregateFunction
-                      quickstep_expressions_aggregation_AggregateFunction_proto
                       quickstep_expressions_aggregation_AggregateFunctionAvg
                       quickstep_expressions_aggregation_AggregateFunctionCount
                       quickstep_expressions_aggregation_AggregateFunctionFactory
                       quickstep_expressions_aggregation_AggregateFunctionMax
                       quickstep_expressions_aggregation_AggregateFunctionMin
                       quickstep_expressions_aggregation_AggregateFunctionSum
+                      quickstep_expressions_aggregation_AggregateFunction_proto
                       quickstep_expressions_aggregation_AggregationConcreteHandle
                       quickstep_expressions_aggregation_AggregationHandle
                       quickstep_expressions_aggregation_AggregationHandleAvg

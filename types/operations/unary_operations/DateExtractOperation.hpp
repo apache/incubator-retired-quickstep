@@ -22,15 +22,11 @@
 
 #include <cstdint>
 #include <string>
-
-#ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_JOIN
 #include <utility>
 #include <vector>
 
-#include "storage/StorageBlockInfo.hpp"
-#endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_JOIN
-
 #include "catalog/CatalogTypedefs.hpp"
+#include "storage/StorageBlockInfo.hpp"
 #include "types/LongType.hpp"
 #include "types/Type.hpp"
 #include "types/TypeID.hpp"

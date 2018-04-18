@@ -19,21 +19,16 @@
 
 #include "storage/TupleStorageSubBlock.hpp"
 
-#ifdef QUICKSTEP_DEBUG
 #include <cassert>
-#endif
 
-#include "storage/TupleIdSequence.hpp"
-#include "storage/ValueAccessor.hpp"
-#include "utility/Macros.hpp"
-
-#ifdef QUICKSTEP_DEBUG
 #include "catalog/CatalogAttribute.hpp"
 #include "catalog/CatalogRelationSchema.hpp"
+#include "storage/TupleIdSequence.hpp"
+#include "storage/ValueAccessor.hpp"
 #include "types/Type.hpp"
 #include "types/TypedValue.hpp"
 #include "types/containers/Tuple.hpp"
-#endif
+#include "utility/Macros.hpp"
 
 namespace quickstep {
 

@@ -28,9 +28,9 @@ add_library(quickstep_queryoptimizer_expressions_ComparisonExpression
             ComparisonExpression.cpp
             ComparisonExpression.hpp)
 add_library(quickstep_queryoptimizer_expressions_Exists Exists.cpp Exists.hpp)
+add_library(quickstep_queryoptimizer_expressions_ExprId ../../empty_src.cpp ExprId.hpp)
 add_library(quickstep_queryoptimizer_expressions_Expression ../../empty_src.cpp Expression.hpp)
 add_library(quickstep_queryoptimizer_expressions_ExpressionType ../../empty_src.cpp ExpressionType.hpp)
-add_library(quickstep_queryoptimizer_expressions_ExprId ../../empty_src.cpp ExprId.hpp)
 add_library(quickstep_queryoptimizer_expressions_ExpressionUtil ExpressionUtil.cpp ExpressionUtil.hpp)
 add_library(quickstep_queryoptimizer_expressions_InTableQuery InTableQuery.cpp InTableQuery.hpp)
 add_library(quickstep_queryoptimizer_expressions_InValueList InValueList.cpp InValueList.hpp)
@@ -142,6 +142,7 @@ target_link_libraries(quickstep_queryoptimizer_expressions_ComparisonExpression
                       quickstep_types_operations_comparisons_ComparisonID
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_expressions_Exists
+                      glog
                       quickstep_queryoptimizer_OptimizerTree
                       quickstep_queryoptimizer_expressions_AttributeReference
                       quickstep_queryoptimizer_expressions_ExprId
@@ -149,9 +150,9 @@ target_link_libraries(quickstep_queryoptimizer_expressions_Exists
                       quickstep_queryoptimizer_expressions_ExpressionType
                       quickstep_queryoptimizer_expressions_Predicate
                       quickstep_queryoptimizer_expressions_SubqueryExpression
-                      quickstep_utility_Macros
-                      glog)
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_expressions_Expression
+                      glog
                       quickstep_queryoptimizer_OptimizerTree
                       quickstep_queryoptimizer_expressions_ExpressionType
                       quickstep_types_Type
@@ -163,6 +164,7 @@ target_link_libraries(quickstep_queryoptimizer_expressions_ExpressionUtil
                       quickstep_queryoptimizer_expressions_NamedExpression
                       quickstep_queryoptimizer_expressions_PatternMatcher)
 target_link_libraries(quickstep_queryoptimizer_expressions_InTableQuery
+                      glog
                       quickstep_queryoptimizer_OptimizerTree
                       quickstep_queryoptimizer_expressions_AttributeReference
                       quickstep_queryoptimizer_expressions_ExprId
@@ -173,9 +175,10 @@ target_link_libraries(quickstep_queryoptimizer_expressions_InTableQuery
                       quickstep_queryoptimizer_expressions_SubqueryExpression
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_expressions_InValueList
-                      quickstep_queryoptimizer_OptimizerTree
+                      glog
                       quickstep_expressions_predicate_DisjunctionPredicate
                       quickstep_expressions_predicate_Predicate
+                      quickstep_queryoptimizer_OptimizerTree
                       quickstep_queryoptimizer_expressions_AttributeReference
                       quickstep_queryoptimizer_expressions_ComparisonExpression
                       quickstep_queryoptimizer_expressions_ExprId
@@ -251,7 +254,6 @@ target_link_libraries(quickstep_queryoptimizer_expressions_PredicateLiteral
                       quickstep_queryoptimizer_expressions_Predicate
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_expressions_Scalar
-                      glog
                       quickstep_queryoptimizer_expressions_ExprId
                       quickstep_queryoptimizer_expressions_Expression
                       quickstep_utility_HashError
@@ -271,6 +273,7 @@ target_link_libraries(quickstep_queryoptimizer_expressions_ScalarLiteral
                       quickstep_utility_HashPair
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_expressions_SearchedCase
+                      glog
                       quickstep_expressions_predicate_Predicate
                       quickstep_expressions_scalar_Scalar
                       quickstep_expressions_scalar_ScalarCaseExpression
@@ -286,6 +289,7 @@ target_link_libraries(quickstep_queryoptimizer_expressions_SearchedCase
                       quickstep_utility_Cast
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_expressions_SimpleCase
+                      glog
                       quickstep_expressions_predicate_Predicate
                       quickstep_expressions_scalar_Scalar
                       quickstep_expressions_scalar_ScalarCaseExpression
@@ -342,7 +346,6 @@ target_link_libraries(quickstep_queryoptimizer_expressions_WindowAggregateFuncti
                       quickstep_utility_Cast
                       quickstep_utility_Macros)
 
-
 # Module all-in-one library:
 add_library(quickstep_queryoptimizer_expressions ../../empty_src.cpp OptimizerExpressionsModule.hpp)
 target_link_libraries(quickstep_queryoptimizer_expressions
@@ -354,9 +357,9 @@ target_link_libraries(quickstep_queryoptimizer_expressions
                       quickstep_queryoptimizer_expressions_CommonSubexpression
                       quickstep_queryoptimizer_expressions_ComparisonExpression
                       quickstep_queryoptimizer_expressions_Exists
+                      quickstep_queryoptimizer_expressions_ExprId
                       quickstep_queryoptimizer_expressions_Expression
                       quickstep_queryoptimizer_expressions_ExpressionType
-                      quickstep_queryoptimizer_expressions_ExprId
                       quickstep_queryoptimizer_expressions_ExpressionUtil
                       quickstep_queryoptimizer_expressions_InTableQuery
                       quickstep_queryoptimizer_expressions_InValueList

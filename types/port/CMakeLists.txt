@@ -48,17 +48,18 @@ endif()
 CHECK_CXX_SYMBOL_EXISTS(setenv "stdlib.h" QUICKSTEP_HAVE_SETENV)
 CHECK_CXX_SYMBOL_EXISTS(tzset "time.h" QUICKSTEP_HAVE_TZSET)
 
-
 configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/TypesPortConfig.h.in"
   "${CMAKE_CURRENT_BINARY_DIR}/TypesPortConfig.h"
 )
 
+# Declare micro-libs:
 add_library(quickstep_types_port_gmtime_r ../../empty_src.cpp gmtime_r.hpp)
 add_library(quickstep_types_port_localtime_r ../../empty_src.cpp localtime_r.hpp)
 add_library(quickstep_types_port_strnlen ../../empty_src.cpp strnlen.hpp)
 add_library(quickstep_types_port_timegm timegm.cpp timegm.hpp)
 
+# Link dependencies:
 target_link_libraries(quickstep_types_port_gmtime_r
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_types_port_localtime_r
@@ -67,6 +68,7 @@ target_link_libraries(quickstep_types_port_timegm
                       quickstep_types_port_gmtime_r
                       quickstep_utility_Macros)
 
+# Module all-in-one library:
 add_library(quickstep_types_port ../../empty_src.cpp)
 target_link_libraries(quickstep_types_port
                       quickstep_types_port_gmtime_r
@@ -87,7 +89,7 @@ add_test(timegm_unittest timegm_unittest)
 if (UNIX)
   add_executable(timegm_benchmark "${CMAKE_CURRENT_SOURCE_DIR}/tests/timegm_benchmark.cpp")
   target_link_libraries(timegm_benchmark
+                        ${LIBS}
                         benchmark
-                        quickstep_types_port_timegm
-                        ${LIBS})
+                        quickstep_types_port_timegm)
 endif()

@@ -202,6 +202,7 @@ add_library(quickstep_types_operations_binaryoperations_tests_BinaryOperationTes
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/BinaryOperationTestUtil.hpp")
 target_link_libraries(quickstep_types_operations_binaryoperations_tests_BinaryOperationTestUtil
                       gtest
+                      gtest_main
                       quickstep_types_Type
                       quickstep_types_TypeFactory
                       quickstep_types_TypeID

@@ -53,6 +53,7 @@ add_library(quickstep_queryoptimizer_Validator ../empty_src.cpp Validator.hpp)
 
 # Link dependencies:
 target_link_libraries(quickstep_queryoptimizer_ExecutionGenerator
+                      ${GFLAGS_LIB_NAME}
                       glog
                       quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogDatabase
@@ -163,10 +164,6 @@ target_link_libraries(quickstep_queryoptimizer_ExecutionGenerator
                       quickstep_utility_BarrieredReadWriteConcurrentBitVector
                       quickstep_utility_Macros
                       quickstep_utility_SqlError)
-if (ENABLE_DISTRIBUTED)
-  target_link_libraries(quickstep_queryoptimizer_ExecutionGenerator
-                        quickstep_catalog_Catalog_proto)
-endif()
 target_link_libraries(quickstep_queryoptimizer_LIPFilterGenerator
                       glog
                       quickstep_catalog_CatalogAttribute
@@ -189,6 +186,7 @@ target_link_libraries(quickstep_queryoptimizer_LogicalGenerator
                       glog
                       quickstep_parser_ParseStatement
                       quickstep_queryoptimizer_OptimizerContext
+                      quickstep_queryoptimizer_Validator
                       quickstep_queryoptimizer_logical_Logical
                       quickstep_queryoptimizer_resolver_Resolver
                       quickstep_queryoptimizer_rules_CollapseProject
@@ -197,7 +195,6 @@ target_link_libraries(quickstep_queryoptimizer_LogicalGenerator
                       quickstep_queryoptimizer_rules_PushDownSemiAntiJoin
                       quickstep_queryoptimizer_rules_Rule
                       quickstep_queryoptimizer_rules_UnnestSubqueries
-                      quickstep_queryoptimizer_Validator
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_LogicalToPhysicalMapper
                       quickstep_queryoptimizer_logical_Logical
@@ -214,12 +211,14 @@ target_link_libraries(quickstep_queryoptimizer_OptimizerContext
                       quickstep_queryoptimizer_expressions_ExprId
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_OptimizerTree
+                      glog
                       quickstep_catalog_Catalog_proto
                       quickstep_storage_StorageBlockLayout_proto
                       quickstep_utility_Macros
                       quickstep_utility_TreeStringSerializable)
 target_link_libraries(quickstep_queryoptimizer_PhysicalGenerator
                       ${GFLAGS_LIB_NAME}
+                      glog
                       quickstep_queryoptimizer_LogicalToPhysicalMapper
                       quickstep_queryoptimizer_Validator
                       quickstep_queryoptimizer_logical_Logical
@@ -268,6 +267,11 @@ target_link_libraries(quickstep_queryoptimizer_Validator
                       quickstep_queryoptimizer_expressions_AttributeReference
                       quickstep_queryoptimizer_expressions_ExpressionUtil)
 
+if (ENABLE_DISTRIBUTED)
+  target_link_libraries(quickstep_queryoptimizer_ExecutionGenerator
+                        quickstep_catalog_Catalog_proto)
+endif()
+
 # Module all-in-one library:
 add_library(quickstep_queryoptimizer ../empty_src.cpp QueryOptimizerModule.hpp)
 target_link_libraries(quickstep_queryoptimizer
@@ -288,4 +292,5 @@ target_link_libraries(quickstep_queryoptimizer
                       quickstep_queryoptimizer_logical
                       quickstep_queryoptimizer_physical
                       quickstep_queryoptimizer_resolver
-                      quickstep_queryoptimizer_rules)
+                      quickstep_queryoptimizer_rules
+                      quickstep_queryoptimizer_strategy)

@@ -16,4 +16,3 @@
 # under the License.
 
 option(ENABLE_YARN "Enable optional support for Quickstep on YARN" OFF)
-

@@ -21,9 +21,7 @@
 
 #include "types/TypedValue.hpp"
 #include "types/operations/Operation.pb.h"
-
 #include "types/operations/comparisons/Comparison-inl.hpp"
-
 #include "utility/Macros.hpp"
 
 namespace quickstep {
