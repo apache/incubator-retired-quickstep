@@ -22,6 +22,7 @@ add_library(quickstep_queryoptimizer_rules_AttachLIPFilters AttachLIPFilters.cpp
 add_library(quickstep_queryoptimizer_rules_BottomUpRule ../../empty_src.cpp BottomUpRule.hpp)
 add_library(quickstep_queryoptimizer_rules_CollapseProject CollapseProject.cpp CollapseProject.hpp)
 add_library(quickstep_queryoptimizer_rules_CollapseSelection CollapseSelection.cpp CollapseSelection.hpp)
+add_library(quickstep_queryoptimizer_rules_EliminateEmptyNode EliminateEmptyNode.cpp EliminateEmptyNode.hpp)
 add_library(quickstep_queryoptimizer_rules_ExtractCommonSubexpression
             ExtractCommonSubexpression.cpp
             ExtractCommonSubexpression.hpp)
@@ -100,6 +101,28 @@ target_link_libraries(quickstep_queryoptimizer_rules_CollapseSelection
                       quickstep_queryoptimizer_physical_Selection
                       quickstep_queryoptimizer_rules_BottomUpRule
                       quickstep_queryoptimizer_rules_RuleHelper
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_queryoptimizer_rules_EliminateEmptyNode
+                      quickstep_catalog_CatalogAttribute
+                      quickstep_catalog_CatalogDatabase
+                      quickstep_catalog_CatalogRelation
+                      quickstep_catalog_CatalogRelationStatistics
+                      quickstep_queryoptimizer_OptimizerContext
+                      quickstep_queryoptimizer_expressions_Alias
+                      quickstep_queryoptimizer_expressions_AttributeReference
+                      quickstep_queryoptimizer_expressions_ExpressionUtil
+                      quickstep_queryoptimizer_expressions_NamedExpression
+                      quickstep_queryoptimizer_expressions_PatternMatcher
+                      quickstep_queryoptimizer_physical_Aggregate
+                      quickstep_queryoptimizer_physical_HashJoin
+                      quickstep_queryoptimizer_physical_PatternMatcher
+                      quickstep_queryoptimizer_physical_Physical
+                      quickstep_queryoptimizer_physical_PhysicalType
+                      quickstep_queryoptimizer_physical_Selection
+                      quickstep_queryoptimizer_physical_TableReference
+                      quickstep_queryoptimizer_physical_TopLevelPlan
+                      quickstep_queryoptimizer_physical_UnionAll
+                      quickstep_queryoptimizer_rules_Rule
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_rules_ExtractCommonSubexpression
                       glog
@@ -434,6 +457,7 @@ target_link_libraries(quickstep_queryoptimizer_rules
                       quickstep_queryoptimizer_rules_BottomUpRule
                       quickstep_queryoptimizer_rules_CollapseProject
                       quickstep_queryoptimizer_rules_CollapseSelection
+                      quickstep_queryoptimizer_rules_EliminateEmptyNode
                       quickstep_queryoptimizer_rules_ExtractCommonSubexpression
                       quickstep_queryoptimizer_rules_FuseAggregateJoin
                       quickstep_queryoptimizer_rules_FuseHashSelect

@@ -32,9 +32,8 @@
 #include "query_execution/AdmitRequestMessage.hpp"
 #include "query_execution/ForemanSingleNode.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"
-#include "query_optimizer/Optimizer.hpp"
-#include "query_optimizer/OptimizerContext.hpp"
 #include "query_optimizer/QueryHandle.hpp"
+#include "query_optimizer/QueryProcessor.hpp"
 #include "utility/MemStream.hpp"
 #include "utility/SqlError.hpp"
 
@@ -48,21 +47,12 @@ class CatalogRelation;
 
 namespace O = ::quickstep::optimizer;
 
-const char CommandExecutorTestRunner::kResetOption[] =
-    "reset_before_execution";
-
 void CommandExecutorTestRunner::runTestCase(
     const std::string &input, const std::set<std::string> &options,
     std::string *output) {
   // TODO(qzeng): Test multi-threaded query execution when we have a Sort operator.
 
   VLOG(4) << "Test SQL(s): " << input;
-
-  if (options.find(kResetOption) != options.end()) {
-    test_database_loader_.clear();
-    test_database_loader_.createTestRelation(false /* allow_vchar */);
-    test_database_loader_.loadTestRelation();
-  }
 
   MemStream output_stream;
   sql_parser_.feedNextBuffer(new std::string(input));
@@ -81,23 +71,18 @@ void CommandExecutorTestRunner::runTestCase(
         if (parse_statement.getStatementType() == ParseStatement::kCommand) {
           quickstep::cli::executeCommand(
               *result.parsed_statement,
-              *(test_database_loader_.catalog_database()),
+              *query_processor_->getDefaultDatabase(),
               main_thread_client_id_,
               foreman_->getBusClientID(),
               &bus_,
-              test_database_loader_.storage_manager(),
-              nullptr,
+              &storage_manager_,
+              query_processor_.get(),
               output_stream.file());
         } else {
           const CatalogRelation *query_result_relation = nullptr;
           {
             auto query_handle = std::make_unique<QueryHandle>(0 /* query_id */, main_thread_client_id_);
-            O::OptimizerContext optimizer_context;
-
-            optimizer_.generateQueryHandle(parse_statement,
-                                           test_database_loader_.catalog_database(),
-                                           &optimizer_context,
-                                           query_handle.get());
+            query_processor_->generateQueryHandle(parse_statement, query_handle.get());
             query_result_relation = query_handle->getQueryResultRelation();
 
             QueryExecutionUtil::ConstructAndSendAdmitRequestMessage(
@@ -111,11 +96,11 @@ void CommandExecutorTestRunner::runTestCase(
           DCHECK_EQ(kWorkloadCompletionMessage, tagged_message.message_type());
           if (query_result_relation) {
             PrintToScreen::PrintRelation(*query_result_relation,
-                                         test_database_loader_.storage_manager(),
+                                         &storage_manager_,
                                          output_stream.file());
             DropRelation::Drop(*query_result_relation,
-                               test_database_loader_.catalog_database(),
-                               test_database_loader_.storage_manager());
+                               query_processor_->getDefaultDatabase(),
+                               &storage_manager_);
           }
         }
       } catch (const SqlError &error) {

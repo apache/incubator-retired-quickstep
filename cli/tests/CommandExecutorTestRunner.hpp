@@ -20,12 +20,14 @@
 #ifndef QUICKSTEP_CLI_TESTS_COMMAND_EXECUTOR_TEST_RUNNER_HPP_
 #define QUICKSTEP_CLI_TESTS_COMMAND_EXECUTOR_TEST_RUNNER_HPP_
 
+#include <cstdlib>
 #include <memory>
 #include <set>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "cli/DefaultsConfigurator.hpp"
 #include "parser/SqlParserWrapper.hpp"
 #include "query_execution/ForemanSingleNode.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"
@@ -33,13 +35,15 @@
 #include "query_execution/Worker.hpp"
 #include "query_execution/WorkerDirectory.hpp"
 #include "query_execution/WorkerMessage.hpp"
-#include "query_optimizer/Optimizer.hpp"
-#include "query_optimizer/tests/TestDatabaseLoader.hpp"
+#include "query_optimizer/QueryProcessor.hpp"
+#include "storage/StorageConstants.hpp"
 #include "utility/Macros.hpp"
 #include "utility/textbased_test/TextBasedTestDriver.hpp"
 
 #include "tmb/id_typedefs.h"
 #include "tmb/message_bus.h"
+
+#include "glog/logging.h"
 
 namespace quickstep {
 
@@ -49,18 +53,13 @@ namespace quickstep {
 class CommandExecutorTestRunner : public TextBasedTestRunner {
  public:
   /**
-   * @brief If this option is enabled, recreate the entire database and
-   * repopulate the data before every test.
-   */
-  static const char kResetOption[];
-
-  /**
    * @brief Constructor.
    */
   explicit CommandExecutorTestRunner(const std::string &storage_path)
-      : test_database_loader_(storage_path) {
-    test_database_loader_.createTestRelation(false /* allow_vchar */);
-    test_database_loader_.loadTestRelation();
+      : catalog_path_(storage_path + kCatalogFilename),
+        storage_manager_(storage_path) {
+    DefaultsConfigurator::InitializeDefaultDatabase(storage_path, catalog_path_);
+    query_processor_ = std::make_unique<QueryProcessor>(std::string(catalog_path_));
 
     bus_.Initialize();
 
@@ -84,8 +83,8 @@ class CommandExecutorTestRunner : public TextBasedTestRunner {
         new ForemanSingleNode(main_thread_client_id_,
                               workers_.get(),
                               &bus_,
-                              test_database_loader_.catalog_database(),
-                              test_database_loader_.storage_manager()));
+                              query_processor_->getDefaultDatabase(),
+                              &storage_manager_));
 
     foreman_->start();
     worker_->start();
@@ -95,6 +94,10 @@ class CommandExecutorTestRunner : public TextBasedTestRunner {
     QueryExecutionUtil::BroadcastPoisonMessage(main_thread_client_id_, &bus_);
     worker_->join();
     foreman_->join();
+
+    const std::string command = "rm -f " + catalog_path_;
+    CHECK(!std::system(command.c_str()))
+         << "Failed when attempting to remove catalog proto file: " << catalog_path_;
   }
 
   void runTestCase(const std::string &input,
@@ -102,9 +105,11 @@ class CommandExecutorTestRunner : public TextBasedTestRunner {
                    std::string *output) override;
 
  private:
+  const std::string catalog_path_;
+
   SqlParserWrapper sql_parser_;
-  optimizer::TestDatabaseLoader test_database_loader_;
-  optimizer::Optimizer optimizer_;
+  StorageManager storage_manager_;
+  std::unique_ptr<QueryProcessor> query_processor_;
 
   tmb::client_id main_thread_client_id_;
 

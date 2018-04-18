@@ -45,8 +45,6 @@ int main(int argc, char** argv) {
           new quickstep::CommandExecutorTestRunner(argv[3]));
   test_driver.reset(
       new quickstep::TextBasedTestDriver(&input_file, test_runner.get()));
-  test_driver->registerOption(
-      quickstep::CommandExecutorTestRunner::kResetOption);
 
   ::testing::InitGoogleTest(&argc, argv);
   const int success = RUN_ALL_TESTS();

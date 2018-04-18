@@ -129,7 +129,8 @@ physical::PhysicalPtr OptimizerTextTestRunner::generatePhysicalPlan(
     const logical::LogicalPtr &logical_plan,
     OptimizerContext *optimizer_context) {
   PhysicalGenerator physical_generator(optimizer_context);
-  return physical_generator.generatePlan(logical_plan);
+  return physical_generator.generatePlan(logical_plan,
+                                         test_database_loader_.catalog_database());
 }
 
 }  // namespace optimizer

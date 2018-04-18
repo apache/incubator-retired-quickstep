@@ -28,6 +28,7 @@
 #include "query_optimizer/physical/Physical.hpp"
 #include "query_optimizer/rules/AttachLIPFilters.hpp"
 #include "query_optimizer/rules/CollapseSelection.hpp"
+#include "query_optimizer/rules/EliminateEmptyNode.hpp"
 #include "query_optimizer/rules/ExtractCommonSubexpression.hpp"
 #include "query_optimizer/rules/FuseAggregateJoin.hpp"
 #include "query_optimizer/rules/FuseHashSelect.hpp"
@@ -64,6 +65,9 @@ DEFINE_bool(reorder_hash_joins, true,
             "cardinality and selective tables to be joined first, which is suitable "
             "for queries on star-schema tables.");
 
+DEFINE_bool(use_eliminate_empty_node, true,
+            "If true, apply an optimization to eliminate joins if at least "
+            "one side is empty.");
 DEFINE_bool(use_partition_rule, true,
             "If true, apply an optimization to support partitioned inputs. The "
             "optimization may add additional Selection for repartitioning.");
@@ -105,9 +109,9 @@ void PhysicalGenerator::createStrategies() {
 }
 
 P::PhysicalPtr PhysicalGenerator::generatePlan(
-    const L::LogicalPtr &logical_plan) {
+    const L::LogicalPtr &logical_plan, CatalogDatabase *catalog_database) {
   physical_plan_ = generateInitialPlan(logical_plan);
-  return optimizePlan();
+  return optimizePlan(catalog_database);
 }
 
 P::PhysicalPtr PhysicalGenerator::generateInitialPlan(
@@ -130,9 +134,14 @@ P::PhysicalPtr PhysicalGenerator::generateInitialPlan(
   return physical_plan;
 }
 
-P::PhysicalPtr PhysicalGenerator::optimizePlan() {
+P::PhysicalPtr PhysicalGenerator::optimizePlan(
+    CatalogDatabase *catalog_database) {
   std::vector<std::unique_ptr<Rule<P::Physical>>> rules;
   rules.emplace_back(new PruneColumns());
+
+  if (FLAGS_use_eliminate_empty_node) {
+    rules.emplace_back(new EliminateEmptyNode(catalog_database));
+  }
 
   rules.emplace_back(new PushDownLowCostDisjunctivePredicate());
 

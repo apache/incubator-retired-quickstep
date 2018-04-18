@@ -37,7 +37,8 @@ void Optimizer::generateQueryHandle(const ParseStatement &parse_statement,
 
   execution_generator.generatePlan(
       physical_generator.generatePlan(
-          logical_generator.generatePlan(*catalog_database, parse_statement)));
+          logical_generator.generatePlan(*catalog_database, parse_statement),
+          catalog_database));
 }
 
 void Optimizer::findReferencedBaseRelations(const ParseStatement &parse_statement,

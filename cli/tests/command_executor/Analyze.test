@@ -1,0 +1,136 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+CREATE TABLE r (src INT, dst INT);
+CREATE TABLE s (src INT, dst INT);
+CREATE TABLE t (src INT, dst INT);
+
+INSERT INTO s VALUES(0, 0);
+INSERT INTO s VALUES(1, 5);
+
+INSERT INTO t VALUES(0, 0);
+INSERT INTO t VALUES(0, 0);
+--
+==
+
+\analyze
+--
+Analyzing r ... done
+Analyzing s ... done
+Analyzing t ... done
+==
+
+SELECT r.src, r.dst FROM r;
+--
++-----------+-----------+
+|src        |dst        |
++-----------+-----------+
++-----------+-----------+
+==
+
+# One side of InnerJoin is empty.
+SELECT r.src, r.dst
+FROM r, t
+WHERE r.src = t.src AND r.dst = t.dst;
+--
++-----------+-----------+
+|src        |dst        |
++-----------+-----------+
++-----------+-----------+
+==
+
+# One side of LeftSemiJoin is empty.
+SELECT s.src, s.dst
+FROM s
+WHERE EXISTS(
+    SELECT r.src, r.dst FROM r WHERE s.src=r.src AND s.dst=r.dst);
+--
++-----------+-----------+
+|src        |dst        |
++-----------+-----------+
++-----------+-----------+
+==
+
+# One side of LeftAntiJoin is empty.
+SELECT s.src, s.dst
+FROM s
+WHERE NOT EXISTS(
+    SELECT r.src, r.dst FROM r WHERE s.src=r.src AND s.dst=r.dst);
+--
++-----------+-----------+
+|src        |dst        |
++-----------+-----------+
+|          0|          0|
+|          1|          5|
++-----------+-----------+
+==
+
+# Union between an empty relation and a non-empty.
+SELECT r.src, r.dst FROM r
+UNION
+SELECT t.src, t.dst FROM t;
+--
++-----------+-----------+
+|src        |dst        |
++-----------+-----------+
+|          0|          0|
++-----------+-----------+
+==
+
+# Union All between an empty relation and a non-empty.
+SELECT r.src, r.dst FROM r
+UNION ALL
+SELECT t.src, t.dst FROM t;
+--
++-----------+-----------+
+|src        |dst        |
++-----------+-----------+
+|          0|          0|
+|          0|          0|
++-----------+-----------+
+==
+
+# Union on two InnerJoins, one of which involves an empty relation.
+SELECT r.src, r.dst FROM r, s WHERE r.src=s.src AND r.dst=s.dst
+UNION
+SELECT s.src, s.dst FROM s, t WHERE s.src=t.src AND s.dst=t.dst;
+--
++-----------+-----------+
+|src        |dst        |
++-----------+-----------+
+|          0|          0|
++-----------+-----------+
+==
+
+# Union All on two InnerJoins, one of which involves an empty relation.
+SELECT r.src, r.dst FROM r, s WHERE r.src=s.src AND r.dst=s.dst
+UNION ALL
+SELECT s.src, s.dst FROM s, t WHERE s.src=t.src AND s.dst=t.dst;
+--
++-----------+-----------+
+|src        |dst        |
++-----------+-----------+
+|          0|          0|
+|          0|          0|
++-----------+-----------+
+==
+
+DROP TABLE r;
+DROP TABLE s;
+DROP TABLE t;
+--
+==

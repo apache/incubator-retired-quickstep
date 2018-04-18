@@ -15,6 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
+add_test(quickstep_cli_tests_commandexecutor_analyze
+         "../quickstep_cli_tests_CommandExecutorTest"
+         "${CMAKE_CURRENT_SOURCE_DIR}/Analyze.test"
+         "${CMAKE_CURRENT_BINARY_DIR}/Analyze.test"
+         "${CMAKE_CURRENT_BINARY_DIR}/Analyze/")
 add_test(quickstep_cli_tests_commandexecutor_d
          "../quickstep_cli_tests_CommandExecutorTest"
          "${CMAKE_CURRENT_SOURCE_DIR}/D.test"
@@ -41,6 +46,7 @@ endif(ENABLE_DISTRIBUTED)
 
 # Create the folders where the unit tests will store their data blocks for the
 # duration of their test.
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Analyze)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/D)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Dt)
 

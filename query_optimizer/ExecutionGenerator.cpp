@@ -25,6 +25,7 @@
 #include <functional>
 #include <memory>
 #include <numeric>
+#include <sstream>
 #include <string>
 #include <type_traits>
 #include <unordered_map>
@@ -347,6 +348,14 @@ void ExecutionGenerator::generatePlan(const P::PhysicalPtr &physical_plan) {
     if (it != physical_to_output_relation_map_.end()) {
       result_relation = it->second.relation;
     }
+
+#ifdef QUICKSTEP_DEBUG
+  std::unordered_set<relation_id> temp_relations;
+  for (const CatalogRelationInfo &temporary_relation_info : temporary_relation_info_vec_) {
+    temp_relations.insert(temporary_relation_info.relation->getID());
+  }
+  DCHECK_EQ(temporary_relation_info_vec_.size(), temp_relations.size());
+#endif
   } catch (...) {
     // Drop all temporary relations.
     dropAllTemporaryRelations();
@@ -784,6 +793,9 @@ void ExecutionGenerator::convertSelection(
     execution_plan_->addDirectDependency(select_index,
                                          input_relation_info->producer_operator_index,
                                          false /* is_pipeline_breaker */);
+  } else if (input_relation.isTemporary()) {
+    // NOTE(zuyu): drop the temp relation created by EliminateEmptyNode rule.
+    temporary_relation_info_vec_.emplace_back(select_index, &input_relation);
   }
   physical_to_output_relation_map_.emplace(
       std::piecewise_construct,
@@ -1285,6 +1297,9 @@ void ExecutionGenerator::convertCopyTo(const P::CopyToPtr &physical_plan) {
     execution_plan_->addDirectDependency(table_export_operator_index,
                                          input_relation_info->producer_operator_index,
                                          false /* is_pipeline_breaker */);
+  } else if (input_relation->isTemporary()) {
+    // NOTE(zuyu): drop the temp relation created by EliminateEmptyNode rule.
+    temporary_relation_info_vec_.emplace_back(table_export_operator_index, input_relation);
   }
 }
 
@@ -1639,6 +1654,9 @@ void ExecutionGenerator::convertInsertSelection(
     execution_plan_->addDirectDependency(insert_selection_index,
                                          selection_relation_info->producer_operator_index,
                                          false /* is_pipeline_breaker */);
+  } else if (selection_relation.isTemporary()) {
+    // NOTE(zuyu): drop the temp relation created by EliminateEmptyNode rule.
+    temporary_relation_info_vec_.emplace_back(insert_selection_index, &selection_relation);
   }
   execution_plan_->addDirectDependency(save_blocks_index,
                                        insert_selection_index,

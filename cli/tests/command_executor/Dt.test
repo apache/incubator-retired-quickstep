@@ -35,7 +35,6 @@ CREATE TABLE foo4 (col1 INT,
                    col3 DOUBLE,
                    col4 FLOAT,
                    col5 CHAR(5));
-DROP TABLE TEST;
 CREATE TABLE averylongtablenamethatseemstoneverend (col1 INT);
 INSERT INTO averylongtablenamethatseemstoneverend VALUES (1);
 INSERT INTO averylongtablenamethatseemstoneverend VALUES (2);

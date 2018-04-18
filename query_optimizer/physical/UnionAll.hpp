@@ -132,6 +132,10 @@ class UnionAll : public Physical {
     return true;
   }
 
+  const std::vector<expressions::AttributeReferencePtr>& project_attributes() const {
+    return project_attributes_;
+  }
+
   /**
    * @brief Creates the physical node of UnionAll.
    *

@@ -34,6 +34,8 @@ namespace quickstep {
 namespace optimizer {
 namespace physical {
 
+namespace E = ::quickstep::optimizer::expressions;
+
 std::vector<expressions::AttributeReferencePtr> HashJoin::getReferencedAttributes() const {
   std::vector<expressions::AttributeReferencePtr> referenced_attributes;
   for (const expressions::NamedExpressionPtr &project_expression :
@@ -65,6 +67,14 @@ std::vector<expressions::AttributeReferencePtr> HashJoin::getReferencedAttribute
                                  referenced_attributes_in_build.end());
   }
   return referenced_attributes;
+}
+
+PhysicalPtr HashJoin::copyWithNewProjectExpressions(
+    const std::vector<E::NamedExpressionPtr> &output_expressions) const {
+  DCHECK_EQ(project_expressions().size(), output_expressions.size());
+
+  return Create(left(), right(), left_join_attributes_, right_join_attributes_,
+                residual_predicate_, build_predicate_, output_expressions, join_type_);
 }
 
 bool HashJoin::maybeCopyWithPrunedExpressions(

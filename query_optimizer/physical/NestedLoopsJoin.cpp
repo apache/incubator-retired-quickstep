@@ -31,6 +31,8 @@ namespace quickstep {
 namespace optimizer {
 namespace physical {
 
+namespace E = ::quickstep::optimizer::expressions;
+
 std::vector<expressions::AttributeReferencePtr> NestedLoopsJoin::getReferencedAttributes() const {
   std::vector<expressions::AttributeReferencePtr> referenced_attributes;
   for (const expressions::NamedExpressionPtr &project_expression :
@@ -47,6 +49,13 @@ std::vector<expressions::AttributeReferencePtr> NestedLoopsJoin::getReferencedAt
                                referenced_attributes_in_predicate.begin(),
                                referenced_attributes_in_predicate.end());
   return referenced_attributes;
+}
+
+PhysicalPtr NestedLoopsJoin::copyWithNewProjectExpressions(
+    const std::vector<E::NamedExpressionPtr> &output_expressions) const {
+  DCHECK_EQ(project_expressions().size(), output_expressions.size());
+
+  return Create(left(), right(), join_predicate_, output_expressions);
 }
 
 bool NestedLoopsJoin::maybeCopyWithPrunedExpressions(

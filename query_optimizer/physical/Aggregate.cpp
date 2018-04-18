@@ -23,13 +23,17 @@
 #include <vector>
 
 #include "query_optimizer/OptimizerTree.hpp"
+#include "query_optimizer/expressions/Alias.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"
 #include "query_optimizer/expressions/ExpressionUtil.hpp"
 #include "query_optimizer/expressions/NamedExpression.hpp"
+#include "query_optimizer/expressions/PatternMatcher.hpp"
 #include "query_optimizer/expressions/Predicate.hpp"
 #include "query_optimizer/physical/PartitionSchemeHeader.hpp"
 #include "query_optimizer/physical/Physical.hpp"
 #include "utility/Cast.hpp"
+
+#include "glog/logging.h"
 
 namespace quickstep {
 namespace optimizer {
@@ -87,6 +91,22 @@ std::vector<E::AttributeReferencePtr> Aggregate::getReferencedAttributes()
   }
 
   return referenced_attributes;
+}
+
+PhysicalPtr Aggregate::copyWithNewProjectExpressions(
+    const std::vector<E::NamedExpressionPtr> &output_expressions) const {
+  DCHECK_EQ(aggregate_expressions_.size(), output_expressions.size());
+
+  std::vector<E::AliasPtr> new_aggregate_expressions;
+  new_aggregate_expressions.reserve(aggregate_expressions_.size());
+  for (const auto &output_expression : output_expressions) {
+    DCHECK(E::SomeAlias::Matches(output_expression));
+
+    new_aggregate_expressions.push_back(
+        std::static_pointer_cast<const E::Alias>(output_expression));
+  }
+
+  return Create(input_, grouping_expressions_, new_aggregate_expressions, filter_predicate_);
 }
 
 void Aggregate::getFieldStringItems(

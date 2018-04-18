@@ -26,6 +26,7 @@
 #include "query_optimizer/OptimizerTree.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"
 #include "query_optimizer/expressions/ExpressionUtil.hpp"
+#include "query_optimizer/expressions/NamedExpression.hpp"
 #include "query_optimizer/physical/PartitionSchemeHeader.hpp"
 #include "query_optimizer/physical/PhysicalType.hpp"
 #include "utility/Macros.hpp"
@@ -105,6 +106,11 @@ class Physical : public OptimizerTree<Physical> {
       const bool has_repartition = true) const {
     std::unique_ptr<PartitionSchemeHeader> new_partition_scheme_header(partition_scheme_header);
     LOG(FATAL) << "copyWithNewOutputPartitionSchemeHeader is not implemented for " << getName();
+  }
+
+  virtual PhysicalPtr copyWithNewProjectExpressions(
+      const std::vector<expressions::NamedExpressionPtr> &output_expressions) const {
+    LOG(FATAL) << "copyWithNewProjectExpressions is not implemented for " << getName();
   }
 
   /**

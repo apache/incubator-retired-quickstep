@@ -141,6 +141,9 @@ class HashJoin : public BinaryJoin {
                   has_repartition, partition_scheme_header);
   }
 
+  PhysicalPtr copyWithNewProjectExpressions(
+      const std::vector<expressions::NamedExpressionPtr> &output_expressions) const override;
+
   bool maybeCopyWithPrunedExpressions(
       const expressions::UnorderedNamedExpressionSet &referenced_expressions,
       PhysicalPtr *output) const override;

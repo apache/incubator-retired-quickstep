@@ -44,7 +44,6 @@ PARTITION BY HASH(col1) PARTITIONS 4;
 INSERT INTO foo_hash_part
 SELECT i, i * 3.0 FROM generate_series(1, 100) AS gs(i);
 CREATE TABLE averylongtablenamethatseemstoneverend (col1 INT);
-DROP TABLE TEST;
 INSERT INTO averylongtablenamethatseemstoneverend VALUES (1);
 INSERT INTO averylongtablenamethatseemstoneverend VALUES (2);
 INSERT INTO averylongtablenamethatseemstoneverend VALUES (3);

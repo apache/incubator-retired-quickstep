@@ -51,7 +51,7 @@ CatalogRelation *TestDatabaseLoader::createTestRelation(bool allow_vchar) {
   catalog_relation.reset(new CatalogRelation(&catalog_database_,
                                              "Test" /* name */,
                                              0 /* id */,
-                                             true /* temporary */));
+                                             false /* temporary */));
   int attr_id = -1;
   catalog_relation->addAttribute(new CatalogAttribute(catalog_relation.get(),
                                                       "int_col" /* name */,

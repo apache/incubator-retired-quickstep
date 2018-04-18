@@ -72,6 +72,13 @@ std::vector<E::AttributeReferencePtr> Selection::getReferencedAttributes() const
   return referenced_attributes;
 }
 
+PhysicalPtr Selection::copyWithNewProjectExpressions(
+    const std::vector<E::NamedExpressionPtr> &output_expressions) const {
+  DCHECK_EQ(project_expressions_.size(), output_expressions.size());
+
+  return Create(input(), output_expressions, filter_predicate_);
+}
+
 bool Selection::maybeCopyWithPrunedExpressions(
     const E::UnorderedNamedExpressionSet &referenced_attributes,
     PhysicalPtr *output) const {

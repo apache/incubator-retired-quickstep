@@ -49,6 +49,7 @@ target_link_libraries(quickstep_cli_tests_CommandExecutorTest
                       gtest
                       quickstep_catalog_CatalogDatabase
                       quickstep_cli_CommandExecutor
+                      quickstep_cli_DefaultsConfigurator
                       quickstep_cli_DropRelation
                       quickstep_cli_PrintToScreen
                       quickstep_parser_ParseStatement
@@ -59,10 +60,9 @@ target_link_libraries(quickstep_cli_tests_CommandExecutorTest
                       quickstep_queryexecution_QueryExecutionUtil
                       quickstep_queryexecution_Worker
                       quickstep_queryexecution_WorkerDirectory
-                      quickstep_queryoptimizer_Optimizer
-                      quickstep_queryoptimizer_OptimizerContext
                       quickstep_queryoptimizer_QueryHandle
-                      quickstep_queryoptimizer_tests_TestDatabaseLoader
+                      quickstep_queryoptimizer_QueryProcessor
+                      quickstep_storage_StorageConstants
                       quickstep_utility_Macros
                       quickstep_utility_MemStream
                       quickstep_utility_SqlError

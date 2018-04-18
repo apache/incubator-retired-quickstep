@@ -31,6 +31,9 @@
 #include "utility/Macros.hpp"
 
 namespace quickstep {
+
+class CatalogDatabase;
+
 namespace optimizer {
 
 class OptimizerContext;
@@ -68,9 +71,11 @@ class PhysicalGenerator : public LogicalToPhysicalMapper {
    * @brief Generates and optimizes a physical plan for \p logical_plan.
    *
    * @param logical_plan The logical plan to be converted to a physical plan.
+   * @param catalog_database The catalog database where this query is executed.
    * @return The physical plan.
    */
-  physical::PhysicalPtr generatePlan(const logical::LogicalPtr &logical_plan);
+  physical::PhysicalPtr generatePlan(const logical::LogicalPtr &logical_plan,
+                                     CatalogDatabase *catalog_database);
 
   /**
    * @brief Sets the best physical plan for \p logical_plan is \p physical_plan.
@@ -106,9 +111,10 @@ class PhysicalGenerator : public LogicalToPhysicalMapper {
   /**
    * @brief Applies physical rules to the initial physical plan.
    *
+   * @param catalog_database The catalog database where this query is executed.
    * @return The optimized physical plan.
    */
-  physical::PhysicalPtr optimizePlan();
+  physical::PhysicalPtr optimizePlan(CatalogDatabase *catalog_database);
 
   std::vector<std::unique_ptr<strategy::Strategy>> strategies_;
 
