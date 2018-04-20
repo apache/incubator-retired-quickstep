@@ -579,7 +579,7 @@ void ExecutionGenerator::convertNamedExpressions(
       execution_scalar.reset(project_expression->concretize(attribute_substitution_map_));
     }
 
-    scalar_group_proto->add_scalars()->CopyFrom(execution_scalar->getProto());
+    scalar_group_proto->add_scalars()->MergeFrom(execution_scalar->getProto());
   }
 }
 
@@ -738,7 +738,7 @@ void ExecutionGenerator::convertSelection(
     execution_predicate_index = query_context_proto_->predicates_size();
 
     unique_ptr<const Predicate> execution_predicate(convertPredicate(physical_selection->filter_predicate()));
-    query_context_proto_->add_predicates()->CopyFrom(execution_predicate->getProto());
+    query_context_proto_->add_predicates()->MergeFrom(execution_predicate->getProto());
   }
 
   // Create InsertDestination proto.
@@ -837,7 +837,7 @@ void ExecutionGenerator::convertFilterJoin(const P::FilterJoinPtr &physical_plan
 
     std::unique_ptr<const Predicate> build_side_predicate(
         convertPredicate(physical_plan->build_side_filter_predicate()));
-    query_context_proto_->add_predicates()->CopyFrom(build_side_predicate->getProto());
+    query_context_proto_->add_predicates()->MergeFrom(build_side_predicate->getProto());
   }
 
   const CatalogRelationInfo *probe_relation_info =
@@ -935,7 +935,7 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
     residual_predicate_index = query_context_proto_->predicates_size();
 
     unique_ptr<const Predicate> residual_predicate(convertPredicate(physical_plan->residual_predicate()));
-    query_context_proto_->add_predicates()->CopyFrom(residual_predicate->getProto());
+    query_context_proto_->add_predicates()->MergeFrom(residual_predicate->getProto());
   }
 
   // Convert the build predicate proto.
@@ -1000,7 +1000,7 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
           key_types));
 
   for (const attribute_id build_attribute : build_attribute_ids) {
-    hash_table_proto->add_key_types()->CopyFrom(
+    hash_table_proto->add_key_types()->MergeFrom(
         build_relation->getAttributeById(build_attribute)->getType().getProto());
   }
 
@@ -1121,7 +1121,7 @@ void ExecutionGenerator::convertNestedLoopsJoin(
   const QueryContext::predicate_id execution_join_predicate_index = query_context_proto_->predicates_size();
   if (physical_plan->join_predicate()) {
     unique_ptr<const Predicate> execution_join_predicate(convertPredicate(physical_plan->join_predicate()));
-    query_context_proto_->add_predicates()->CopyFrom(execution_join_predicate->getProto());
+    query_context_proto_->add_predicates()->MergeFrom(execution_join_predicate->getProto());
   } else {
     query_context_proto_->add_predicates()->set_predicate_type(S::Predicate::TRUE);
   }
@@ -1418,7 +1418,7 @@ void ExecutionGenerator::convertDeleteTuples(
     }
   } else if (!execution_predicate->hasStaticResult()) {
     const QueryContext::predicate_id execution_predicate_index = query_context_proto_->predicates_size();
-    query_context_proto_->add_predicates()->CopyFrom(execution_predicate->getProto());
+    query_context_proto_->add_predicates()->MergeFrom(execution_predicate->getProto());
 
     const QueryPlan::DAGNodeIndex delete_tuples_index =
         execution_plan_->addRelationalOperator(
@@ -1480,7 +1480,7 @@ void ExecutionGenerator::convertInsertTuple(
     const QueryContext::tuple_id tuple_index = query_context_proto_->tuples_size();
     S::Tuple *tuple_proto = query_context_proto_->add_tuples();
     for (const E::ScalarLiteralPtr &literal : tuple) {
-      tuple_proto->add_attribute_values()->CopyFrom(literal->value().getProto());
+      tuple_proto->add_attribute_values()->MergeFrom(literal->value().getProto());
     }
     tuple_indexes.push_back(tuple_index);
   }
@@ -1739,7 +1739,7 @@ void ExecutionGenerator::convertUpdateTable(
     execution_predicate_index = query_context_proto_->predicates_size();
 
     unique_ptr<const Predicate> execution_predicate(convertPredicate(physical_plan->predicate()));
-    query_context_proto_->add_predicates()->CopyFrom(execution_predicate->getProto());
+    query_context_proto_->add_predicates()->MergeFrom(execution_predicate->getProto());
   }
 
   // Convert assignment expressions as a UpdateGroup proto.
@@ -1767,7 +1767,7 @@ void ExecutionGenerator::convertUpdateTable(
 
     unique_ptr<const Scalar> value(
         assignment_expressions[i]->concretize(attribute_substitution_map_));
-    update_assignment_proto->mutable_scalar()->CopyFrom(value->getProto());
+    update_assignment_proto->mutable_scalar()->MergeFrom(value->getProto());
   }
 
   const QueryPlan::DAGNodeIndex update_operator_index =
@@ -2195,7 +2195,7 @@ void ExecutionGenerator::convertSort(const P::SortPtr &physical_sort) {
       query_context_proto_->sort_configs_size();
   S::SortConfiguration *sort_run_gen_config_proto =
       query_context_proto_->add_sort_configs();
-  sort_run_gen_config_proto->CopyFrom(sort_run_gen_config.getProto());
+  sort_run_gen_config_proto->MergeFrom(sort_run_gen_config.getProto());
 
   // Create SortRunGenerationOperator.
   const CatalogRelation *initial_runs_relation;
@@ -2239,9 +2239,8 @@ void ExecutionGenerator::convertSort(const P::SortPtr &physical_sort) {
                                                 std::move(sort_null_ordering));
   const QueryContext::sort_config_id sort_merge_run_config_id =
       query_context_proto_->sort_configs_size();
-  S::SortConfiguration *sort_merge_run_config_proto =
-      query_context_proto_->add_sort_configs();
-  sort_merge_run_config_proto->CopyFrom(sort_merge_run_config.getProto());
+  query_context_proto_->add_sort_configs()->MergeFrom(
+      sort_merge_run_config.getProto());
 
   // Create SortMergeRunOperator.
   const CatalogRelation *merged_runs_relation;
@@ -2320,7 +2319,7 @@ void ExecutionGenerator::convertTableGenerator(
   // Create GeneratorFunctionHandle proto
   const QueryContext::generator_function_id generator_function_index =
       query_context_proto_->generator_functions_size();
-  query_context_proto_->add_generator_functions()->CopyFrom(
+  query_context_proto_->add_generator_functions()->MergeFrom(
       physical_tablegen->generator_function_handle()->getProto());
 
   TableGeneratorOperator *op =
