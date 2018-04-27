@@ -183,6 +183,7 @@ P::PhysicalPtr InjectJoinFilters::transformHashJoinToFilters(
                                  hash_join->project_expressions(),
                                  build_side_filter_predicate,
                                  is_anti_join,
+                                 hash_join->hasRepartition(),
                                  hash_join->cloneOutputPartitionSchemeHeader());
   }
 
@@ -256,6 +257,7 @@ physical::PhysicalPtr InjectJoinFilters::pushDownFiltersInternal(
                                  E::ToNamedExpressions(probe_child->getOutputAttributes()),
                                  filter_join->build_side_filter_predicate(),
                                  filter_join->is_anti_join(),
+                                 filter_join->hasRepartition(),
                                  filter_join->cloneOutputPartitionSchemeHeader());
   } else {
     return filter_join;
@@ -332,6 +334,7 @@ physical::PhysicalPtr InjectJoinFilters::addFilterAnchors(
     return P::Selection::Create(filter_join,
                                 filter_join->project_expressions(),
                                 nullptr,
+                                filter_join->hasRepartition(),
                                 filter_join->cloneOutputPartitionSchemeHeader());
   } else {
     return output_with_new_children;

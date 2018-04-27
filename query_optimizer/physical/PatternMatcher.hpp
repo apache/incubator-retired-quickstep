@@ -111,7 +111,9 @@ constexpr PhysicalType SomePhysicalNode<PhysicalClass, physical_types...>::kPhys
 // Specializations for all Physical classes.
 
 using SomeAggregate = SomePhysicalNode<Aggregate, PhysicalType::kAggregate>;
-using SomeBinaryJoin = SomePhysicalNode<BinaryJoin, PhysicalType::kHashJoin, PhysicalType::kNestedLoopsJoin>;
+using SomeBinaryJoin = SomePhysicalNode<BinaryJoin, PhysicalType::kFilterJoin,
+                                                    PhysicalType::kHashJoin,
+                                                    PhysicalType::kNestedLoopsJoin>;
 using SomeCopyFrom = SomePhysicalNode<CopyFrom, PhysicalType::kCopyFrom>;
 using SomeCreateTable = SomePhysicalNode<CreateTable, PhysicalType::kCreateTable>;
 using SomeCrossReferenceCoalesceAggregate = SomePhysicalNode<CrossReferenceCoalesceAggregate,

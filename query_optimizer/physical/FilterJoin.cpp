@@ -78,6 +78,7 @@ bool FilterJoin::maybeCopyWithPrunedExpressions(
                      new_project_expressions,
                      build_side_filter_predicate_,
                      is_anti_join_,
+                     has_repartition_,
                      cloneOutputPartitionSchemeHeader());
     return true;
   }

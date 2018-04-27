@@ -109,6 +109,7 @@ class FilterJoin : public BinaryJoin {
                   project_expressions(),
                   build_side_filter_predicate_,
                   is_anti_join_,
+                  has_repartition_,
                   cloneOutputPartitionSchemeHeader());
   }
 
@@ -128,6 +129,7 @@ class FilterJoin : public BinaryJoin {
    * @param build_side_filter_predicate Optional filtering predicate to be
    *        applied to the build side child BEFORE join.
    * @param is_anti_join Whether this is an anti-join.
+   * @param has_repartition Whether this node does repartition.
    * @param partition_scheme_header The optional output partition scheme header.
    *
    * @return An immutable physical FilterJoin.
@@ -140,6 +142,7 @@ class FilterJoin : public BinaryJoin {
       const std::vector<expressions::NamedExpressionPtr> &project_expressions,
       const expressions::PredicatePtr &build_side_filter_predicate,
       const bool is_anti_join,
+      const bool has_repartition = false,
       PartitionSchemeHeader *partition_scheme_header = nullptr) {
     return FilterJoinPtr(
         new FilterJoin(probe_child,
@@ -149,6 +152,7 @@ class FilterJoin : public BinaryJoin {
                        project_expressions,
                        build_side_filter_predicate,
                        is_anti_join,
+                       has_repartition,
                        partition_scheme_header));
   }
 
@@ -170,8 +174,10 @@ class FilterJoin : public BinaryJoin {
       const std::vector<expressions::NamedExpressionPtr> &project_expressions,
       const expressions::PredicatePtr &build_side_filter_predicate,
       const bool is_anti_join,
+      const bool has_repartition,
       PartitionSchemeHeader *partition_scheme_header)
-      : BinaryJoin(probe_child, build_child, project_expressions, partition_scheme_header),
+      : BinaryJoin(probe_child, build_child, project_expressions,
+                   has_repartition, partition_scheme_header),
         probe_attributes_(probe_attributes),
         build_attributes_(build_attributes),
         build_side_filter_predicate_(build_side_filter_predicate),
