@@ -21,6 +21,7 @@
 #define QUICKSTEP_QUERY_EXECUTION_WORKORDERS_CONTAINER_HPP_
 
 #include <cstddef>
+#include <iostream>
 #include <list>
 #include <memory>
 #include <queue>
@@ -360,6 +361,8 @@ class WorkOrdersContainer {
       if (workorders_.empty()) {
         return nullptr;
       }
+
+      std::cerr << "# work orders: " << workorders_.size() << "        \r";
 
       WorkOrder *work_order = workorders_.front().release();
       workorders_.pop();

@@ -1484,6 +1484,7 @@ void ExecutionGenerator::convertInsertSelection(
 
   // FIXME(qzeng): A better way is using a traits struct to look up whether a storage
   //               block supports ad-hoc insertion instead of hard-coding the block types.
+/*
   const StorageBlockLayout &storage_block_layout =
       destination_relation.getDefaultStorageBlockLayout();
   if (storage_block_layout.getDescription().tuple_store_description().sub_block_type() ==
@@ -1494,6 +1495,7 @@ void ExecutionGenerator::convertInsertSelection(
                       << destination_relation.getName()
                       << ", because its storage blocks do not support ad-hoc insertion";
   }
+*/
 
   // Create InsertDestination proto.
   const QueryContext::insert_destination_id insert_destination_index =
