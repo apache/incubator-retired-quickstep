@@ -116,6 +116,7 @@ class LogicalAnd : public Predicate {
   explicit LogicalAnd(const std::vector<PredicatePtr> &operands);
 
   std::vector<PredicatePtr> operands_;
+
   DISALLOW_COPY_AND_ASSIGN(LogicalAnd);
 };
 

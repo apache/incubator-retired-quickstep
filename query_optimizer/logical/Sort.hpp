@@ -166,12 +166,12 @@ class Sort : public Logical {
     addChild(input_);
   }
 
-  LogicalPtr input_;
-  std::vector<expressions::AttributeReferencePtr> sort_attributes_;
+  const LogicalPtr input_;
+  const std::vector<expressions::AttributeReferencePtr> sort_attributes_;
   // Has 1:1 matching with <sort_expressions_>.
-  std::vector<bool> sort_ascending_;
-  std::vector<bool> nulls_first_flags_;
-  int limit_;
+  const std::vector<bool> sort_ascending_;
+  const std::vector<bool> nulls_first_flags_;
+  const int limit_;
 
   DISALLOW_COPY_AND_ASSIGN(Sort);
 };

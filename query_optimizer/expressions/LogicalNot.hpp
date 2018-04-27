@@ -100,7 +100,7 @@ class LogicalNot : public Predicate {
     addChild(operand_);
   }
 
-  PredicatePtr operand_;
+  const PredicatePtr operand_;
 
   DISALLOW_COPY_AND_ASSIGN(LogicalNot);
 };

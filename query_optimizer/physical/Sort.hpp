@@ -169,17 +169,17 @@ class Sort : public Physical {
     addChild(input);
   }
 
-  PhysicalPtr input_;
-  std::vector<expressions::AttributeReferencePtr> sort_attributes_;
+  const PhysicalPtr input_;
+  const std::vector<expressions::AttributeReferencePtr> sort_attributes_;
   // non_sort_attributes_ is present only for Rule PruneColumns,
   // which need attributes referenced by Sort (i.e. sort_attributes_)
   // and others by its ancestors (i.e. non_sort_attributes_).
   // The output attributes by Sort may contain additional non-sorting attributes,
   // since the input physical of the Sort may not allow column pruning.
-  std::vector<expressions::AttributeReferencePtr> non_sort_attributes_;
-  std::vector<bool> sort_ascending_;
-  std::vector<bool> nulls_first_flags_;
-  int limit_;
+  const std::vector<expressions::AttributeReferencePtr> non_sort_attributes_;
+  const std::vector<bool> sort_ascending_;
+  const std::vector<bool> nulls_first_flags_;
+  const int limit_;
 
   DISALLOW_COPY_AND_ASSIGN(Sort);
 };

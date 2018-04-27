@@ -123,8 +123,8 @@ class DeleteTuples : public Physical {
     addChild(input_);
   }
 
-  PhysicalPtr input_;
-  expressions::PredicatePtr predicate_;
+  const PhysicalPtr input_;
+  const expressions::PredicatePtr predicate_;
 
   DISALLOW_COPY_AND_ASSIGN(DeleteTuples);
 };

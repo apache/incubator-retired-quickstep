@@ -42,6 +42,7 @@ namespace expressions {
 
 LogicalAnd::LogicalAnd(const std::vector<PredicatePtr> &operands) {
   // Flatten the predicate tree.
+  operands_.reserve(operands.size());
   for (const PredicatePtr &operand : operands) {
     LogicalAndPtr logical_and;
     PredicateLiteralPtr literal;

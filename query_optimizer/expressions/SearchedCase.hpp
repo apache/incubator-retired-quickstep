@@ -152,11 +152,11 @@ class SearchedCase : public Scalar {
     }
   }
 
-  std::vector<PredicatePtr> condition_predicates_;
-  std::vector<ScalarPtr> conditional_result_expressions_;
+  const std::vector<PredicatePtr> condition_predicates_;
+  const std::vector<ScalarPtr> conditional_result_expressions_;
 
   // May be NULL.
-  ScalarPtr else_result_expression_;
+  const ScalarPtr else_result_expression_;
 
   const Type &value_type_;
 

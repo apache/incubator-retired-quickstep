@@ -74,14 +74,14 @@ class Join : public Physical {
    * @param partition_scheme_header The optional output partition scheme header.
    */
   explicit Join(
-      const std::vector<expressions::NamedExpressionPtr>& project_expressions,
+      const std::vector<expressions::NamedExpressionPtr> &project_expressions,
       const bool has_repartition = false,
       PartitionSchemeHeader *partition_scheme_header = nullptr)
       : Physical(has_repartition, partition_scheme_header),
         project_expressions_(project_expressions) {}
 
  private:
-  std::vector<expressions::NamedExpressionPtr> project_expressions_;
+  const std::vector<expressions::NamedExpressionPtr> project_expressions_;
 
   DISALLOW_COPY_AND_ASSIGN(Join);
 };

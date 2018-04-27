@@ -113,6 +113,7 @@ class ScalarLiteral : public Scalar {
 
   const TypedValue value_;
   const Type &value_type_;
+
   DISALLOW_COPY_AND_ASSIGN(ScalarLiteral);
 };
 

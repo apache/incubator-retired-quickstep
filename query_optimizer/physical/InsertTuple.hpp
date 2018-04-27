@@ -123,8 +123,8 @@ class InsertTuple : public Physical {
     addChild(input_);
   }
 
-  PhysicalPtr input_;
-  std::vector<std::vector<expressions::ScalarLiteralPtr>> column_values_;
+  const PhysicalPtr input_;
+  const std::vector<std::vector<expressions::ScalarLiteralPtr>> column_values_;
 
   DISALLOW_COPY_AND_ASSIGN(InsertTuple);
 };

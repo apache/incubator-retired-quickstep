@@ -41,6 +41,7 @@ TableReference::TableReference(const CatalogRelation *catalog_relation,
                                OptimizerContext *optimizer_context)
     : catalog_relation_(catalog_relation),
       relation_alias_(relation_alias) {
+  attribute_list_.reserve(catalog_relation_->size());
   for (CatalogRelation::const_iterator attribute_it = catalog_relation_->begin();
        attribute_it < catalog_relation_->end();
        ++attribute_it) {

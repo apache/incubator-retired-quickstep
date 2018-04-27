@@ -94,7 +94,7 @@ class PredicateLiteral : public Predicate {
  private:
   explicit PredicateLiteral(bool is_true) : is_true_(is_true) {}
 
-  bool is_true_;
+  const bool is_true_;
 
   DISALLOW_COPY_AND_ASSIGN(PredicateLiteral);
 };

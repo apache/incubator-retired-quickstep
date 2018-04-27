@@ -107,8 +107,8 @@ class InsertSelection : public Logical {
     addChild(selection);
   }
 
-  LogicalPtr destination_;
-  LogicalPtr selection_;
+  const LogicalPtr destination_;
+  const LogicalPtr selection_;
 
   DISALLOW_COPY_AND_ASSIGN(InsertSelection);
 };

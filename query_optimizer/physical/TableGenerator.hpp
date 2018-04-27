@@ -162,9 +162,9 @@ class TableGenerator : public Physical {
         attribute_list_(attribute_list) {
   }
 
-  GeneratorFunctionHandlePtr generator_function_handle_;
-  std::string table_alias_;
-  std::vector<E::AttributeReferencePtr> attribute_list_;
+  const GeneratorFunctionHandlePtr generator_function_handle_;
+  const std::string table_alias_;
+  const std::vector<E::AttributeReferencePtr> attribute_list_;
 
   DISALLOW_COPY_AND_ASSIGN(TableGenerator);
 };

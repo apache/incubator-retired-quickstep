@@ -171,12 +171,12 @@ class SimpleCase : public Scalar {
     }
   }
 
-  ScalarPtr case_operand_;
-  std::vector<ScalarPtr> condition_operands_;
-  std::vector<ScalarPtr> conditional_result_expressions_;
+  const ScalarPtr case_operand_;
+  const std::vector<ScalarPtr> condition_operands_;
+  const std::vector<ScalarPtr> conditional_result_expressions_;
 
   // May be NULL.
-  ScalarPtr else_result_expression_;
+  const ScalarPtr else_result_expression_;
 
   const Type &value_type_;
 

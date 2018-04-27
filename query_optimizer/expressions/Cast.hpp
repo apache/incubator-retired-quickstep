@@ -110,7 +110,7 @@ class Cast : public Scalar {
     DCHECK(target_type.isCoercibleFrom(operand->getValueType()));
   }
 
-  ScalarPtr operand_;
+  const ScalarPtr operand_;
   const Type &target_type_;
 
   DISALLOW_COPY_AND_ASSIGN(Cast);

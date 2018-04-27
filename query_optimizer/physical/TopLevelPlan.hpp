@@ -192,11 +192,11 @@ class TopLevelPlan : public Physical {
     }
   }
 
-  PhysicalPtr plan_;
+  const PhysicalPtr plan_;
   // Stored in the topological ordering based on dependencies.
-  std::vector<PhysicalPtr> shared_subplans_;
-  std::unordered_map<expressions::ExprId, int> uncorrelated_subquery_map_;
-  LIPFilterConfigurationPtr lip_filter_configuration_;
+  const std::vector<PhysicalPtr> shared_subplans_;
+  const std::unordered_map<expressions::ExprId, int> uncorrelated_subquery_map_;
+  const LIPFilterConfigurationPtr lip_filter_configuration_;
 
   DISALLOW_COPY_AND_ASSIGN(TopLevelPlan);
 };

@@ -111,8 +111,8 @@ class DeleteTuples : public Logical {
     addChild(input_);
   }
 
-  LogicalPtr input_;
-  expressions::PredicatePtr predicate_;
+  const LogicalPtr input_;
+  const expressions::PredicatePtr predicate_;
 
   DISALLOW_COPY_AND_ASSIGN(DeleteTuples);
 };

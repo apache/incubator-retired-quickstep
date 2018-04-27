@@ -228,9 +228,9 @@ class HashJoin : public BinaryJoin {
     }
   }
 
-  std::vector<expressions::AttributeReferencePtr> left_join_attributes_;
-  std::vector<expressions::AttributeReferencePtr> right_join_attributes_;
-  expressions::PredicatePtr residual_predicate_;
+  const std::vector<expressions::AttributeReferencePtr> left_join_attributes_;
+  const std::vector<expressions::AttributeReferencePtr> right_join_attributes_;
+  const expressions::PredicatePtr residual_predicate_;
   const JoinType join_type_;
 
   DISALLOW_COPY_AND_ASSIGN(HashJoin);

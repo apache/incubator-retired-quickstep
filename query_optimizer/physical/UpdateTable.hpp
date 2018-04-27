@@ -142,13 +142,13 @@ class UpdateTable : public Physical {
     addChild(input);
   }
 
-  PhysicalPtr input_;
+  const PhysicalPtr input_;
   // The attributes to be assigned values to.
-  std::vector<expressions::AttributeReferencePtr> assignees_;
+  const std::vector<expressions::AttributeReferencePtr> assignees_;
   // The expressions for which the values are assigned. Has 1:1 matching with
   // <assignees_>.
-  std::vector<expressions::ScalarPtr> assignment_expressions_;
-  expressions::PredicatePtr predicate_;
+  const std::vector<expressions::ScalarPtr> assignment_expressions_;
+  const expressions::PredicatePtr predicate_;
 
   DISALLOW_COPY_AND_ASSIGN(UpdateTable);
 };

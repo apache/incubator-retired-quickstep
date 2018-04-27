@@ -99,6 +99,26 @@ class TableGenerator : public Logical {
     return {};
   }
 
+  /**
+   * @brief Creates a logical TableGenerator node.
+   *
+   * @param generator_function_handle The shared_ptr reference to a generator
+            function handle.
+   * @param table_alias The alias name of this table.
+   * @param optimizer_context The OptimizerContext for the query
+   * @return An immutable TableGenerator.
+   */
+  static TableGeneratorPtr Create(
+      const GeneratorFunctionHandlePtr &generator_function_handle,
+      const std::string &table_alias,
+      OptimizerContext *optimizer_context) {
+    return TableGeneratorPtr(
+        new TableGenerator(generator_function_handle,
+                           table_alias,
+                           optimizer_context));
+  }
+
+ protected:
   void getFieldStringItems(
       std::vector<std::string> *inline_field_names,
       std::vector<std::string> *inline_field_values,
@@ -119,34 +139,16 @@ class TableGenerator : public Logical {
     container_child_fields->push_back(CastSharedPtrVector<OptimizerTreeBase>(attribute_list_));
   }
 
-  /**
-   * @brief Creates a logical TableGenerator node.
-   *
-   * @param generator_function_handle The shared_ptr reference to a generator
-            function handle.
-   * @param table_alias The alias name of this table.
-   * @param optimizer_context The OptimizerContext for the query
-   * @return An immutable TableGenerator.
-   */
-  static TableGeneratorPtr Create(
-      const GeneratorFunctionHandlePtr &generator_function_handle,
-      const std::string &table_alias,
-      OptimizerContext *optimizer_context) {
-    return TableGeneratorPtr(
-        new TableGenerator(generator_function_handle,
-                           table_alias,
-                           optimizer_context));
-  }
-
  private:
   TableGenerator(const GeneratorFunctionHandlePtr &generator_function_handle,
                  const std::string &table_alias,
                  OptimizerContext *optimizer_context)
       : generator_function_handle_(generator_function_handle),
         table_alias_(table_alias) {
-    int num_attrs = generator_function_handle->getNumberOfOutputColumns();
+    const int num_attrs = generator_function_handle->getNumberOfOutputColumns();
     const std::string &table_name = generator_function_handle->getName();
 
+    attribute_list_.reserve(num_attrs);
     for (int i = 0; i < num_attrs; ++i) {
       attribute_list_.emplace_back(
         E::AttributeReference::Create(
@@ -167,8 +169,8 @@ class TableGenerator : public Logical {
         attribute_list_(attribute_list) {
   }
 
-  GeneratorFunctionHandlePtr generator_function_handle_;
-  std::string table_alias_;
+  const GeneratorFunctionHandlePtr generator_function_handle_;
+  const std::string table_alias_;
   std::vector<E::AttributeReferencePtr> attribute_list_;
 
   DISALLOW_COPY_AND_ASSIGN(TableGenerator);

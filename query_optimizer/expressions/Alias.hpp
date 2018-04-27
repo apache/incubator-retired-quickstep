@@ -97,7 +97,7 @@ class Alias : public NamedExpression {
    * @param relation_name The name of the source relation.
    * @return An immutable Alias.
    */
-  static AliasPtr Create(ExprId id,
+  static AliasPtr Create(const ExprId id,
                          const ExpressionPtr &expression,
                          const std::string &attribute_name,
                          const std::string &attribute_alias,
@@ -119,7 +119,7 @@ class Alias : public NamedExpression {
       std::vector<std::vector<OptimizerTreeBaseNodePtr>> *container_child_fields) const override;
 
  private:
-  Alias(ExprId id,
+  Alias(const ExprId id,
         const ExpressionPtr &expression,
         const std::string &attribute_name,
         const std::string &attribute_alais,

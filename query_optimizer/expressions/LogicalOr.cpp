@@ -40,6 +40,7 @@ namespace expressions {
 
 LogicalOr::LogicalOr(const std::vector<PredicatePtr> &operands) {
   // Flatten the predicate tree.
+  operands_.reserve(operands.size());
   for (const PredicatePtr &operand : operands) {
     LogicalOrPtr logical_or;
     PredicateLiteralPtr literal;

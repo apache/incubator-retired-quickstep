@@ -116,8 +116,8 @@ class BinaryExpression : public Scalar {
 
   const BinaryOperation &operation_;
 
-  ScalarPtr left_;
-  ScalarPtr right_;
+  const ScalarPtr left_;
+  const ScalarPtr right_;
 
   DISALLOW_COPY_AND_ASSIGN(BinaryExpression);
 };

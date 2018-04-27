@@ -38,7 +38,7 @@ class Scalar;
 namespace optimizer {
 namespace expressions {
 
-Alias::Alias(attribute_id id,
+Alias::Alias(const attribute_id id,
              const ExpressionPtr &expression,
              const std::string &attribute_name,
              const std::string &attribute_alias,

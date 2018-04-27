@@ -144,8 +144,8 @@ class InValueList : public Predicate {
     }
   }
 
-  ScalarPtr test_expression_;
-  std::vector<ScalarPtr> match_expressions_;
+  const ScalarPtr test_expression_;
+  const std::vector<ScalarPtr> match_expressions_;
 
   DISALLOW_COPY_AND_ASSIGN(InValueList);
 };

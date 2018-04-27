@@ -116,8 +116,8 @@ class InsertSelection : public Physical {
     addChild(selection_);
   }
 
-  PhysicalPtr destination_;
-  PhysicalPtr selection_;
+  const PhysicalPtr destination_;
+  const PhysicalPtr selection_;
 
   DISALLOW_COPY_AND_ASSIGN(InsertSelection);
 };

@@ -89,8 +89,8 @@ class BinaryJoin : public Join {
       std::vector<std::vector<OptimizerTreeBaseNodePtr>> *container_child_fields) const override;
 
  private:
-  LogicalPtr left_;
-  LogicalPtr right_;
+  const LogicalPtr left_;
+  const LogicalPtr right_;
 
   DISALLOW_COPY_AND_ASSIGN(BinaryJoin);
 };

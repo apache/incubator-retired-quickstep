@@ -128,7 +128,7 @@ class TableReference : public Logical {
         attribute_list_(attribute_list) {}
 
   const CatalogRelation *catalog_relation_;
-  std::string relation_alias_;
+  const std::string relation_alias_;
   std::vector<expressions::AttributeReferencePtr> attribute_list_;
 
   DISALLOW_COPY_AND_ASSIGN(TableReference);

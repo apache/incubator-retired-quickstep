@@ -40,8 +40,11 @@ AttributeReferencePtr ToRef(const NamedExpressionPtr &expression) {
 std::vector<AttributeReferencePtr> GetNullableAttributeVector(
     const std::vector<AttributeReferencePtr> &attributes) {
   std::vector<AttributeReferencePtr> nullable_attributes;
+  nullable_attributes.reserve(attributes.size());
   for (const auto &attr : attributes) {
-    if (!attr->getValueType().isNullable()) {
+    if (attr->getValueType().isNullable()) {
+      nullable_attributes.emplace_back(attr);
+    } else {
       nullable_attributes.emplace_back(
           AttributeReference::Create(attr->id(),
                                      attr->attribute_name(),
@@ -49,8 +52,6 @@ std::vector<AttributeReferencePtr> GetNullableAttributeVector(
                                      attr->relation_name(),
                                      attr->getValueType().getNullableVersion(),
                                      attr->scope()));
-    } else {
-      nullable_attributes.emplace_back(attr);
     }
   }
   return nullable_attributes;
@@ -60,6 +61,7 @@ std::vector<AttributeReferencePtr> GetAttributeReferencesWithinScope(
     const std::vector<AttributeReferencePtr> &attributes,
     const AttributeReferenceScope scope) {
   std::vector<AttributeReferencePtr> filtered_attributes;
+  filtered_attributes.reserve(attributes.size());
   for (const auto &attr_it : attributes) {
     if (attr_it->scope() == scope) {
       filtered_attributes.emplace_back(attr_it);

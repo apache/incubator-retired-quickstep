@@ -140,7 +140,7 @@ class NestedLoopsJoin : public BinaryJoin {
     DCHECK(join_predicate_ != nullptr);
   }
 
-  expressions::PredicatePtr join_predicate_;
+  const expressions::PredicatePtr join_predicate_;
 
   DISALLOW_COPY_AND_ASSIGN(NestedLoopsJoin);
 };

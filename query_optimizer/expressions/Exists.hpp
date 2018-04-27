@@ -113,7 +113,7 @@ class Exists : public Predicate {
     addChild(exists_subquery_);
   }
 
-  SubqueryExpressionPtr exists_subquery_;
+  const SubqueryExpressionPtr exists_subquery_;
 
   DISALLOW_COPY_AND_ASSIGN(Exists);
 };

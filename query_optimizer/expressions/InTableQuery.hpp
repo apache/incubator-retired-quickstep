@@ -130,8 +130,8 @@ class InTableQuery : public Predicate {
     addChild(table_query_);
   }
 
-  ScalarPtr test_expression_;
-  SubqueryExpressionPtr table_query_;
+  const ScalarPtr test_expression_;
+  const SubqueryExpressionPtr table_query_;
 
   DISALLOW_COPY_AND_ASSIGN(InTableQuery);
 };

@@ -119,7 +119,7 @@ class Sample : public Logical {
      addChild(input);
   }
 
-  LogicalPtr input_;
+  const LogicalPtr input_;
   const bool is_block_sample_;
   const int percentage_;
 

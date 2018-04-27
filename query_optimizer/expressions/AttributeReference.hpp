@@ -95,7 +95,7 @@ class AttributeReference : public NamedExpression {
   /**
    * @brief Creates an immutable AttributReference.
    *
-   * @param attribute_id The ExprId of the expression this AttributeReference
+   * @param attr_id The ExprId of the expression this AttributeReference
    *                     references to.
    * @param attribute_name The attribute name. This is only for printing purpose.
    * @param attribute_alias The attribute alias (or display name). This is only
@@ -107,14 +107,14 @@ class AttributeReference : public NamedExpression {
    * @param scope The scope of the referenced attribute.
    * @return An immutable AttributeReference.
    */
-  static AttributeReferencePtr Create(ExprId attribute_id,
+  static AttributeReferencePtr Create(const ExprId attr_id,
                                       const std::string &attribute_name,
                                       const std::string &attribute_alias,
                                       const std::string &relation_name,
                                       const Type &type,
                                       const AttributeReferenceScope scope) {
     return AttributeReferencePtr(new AttributeReference(
-        attribute_id, attribute_name, attribute_alias, relation_name, type, scope));
+        attr_id, attribute_name, attribute_alias, relation_name, type, scope));
   }
 
  protected:
@@ -129,13 +129,13 @@ class AttributeReference : public NamedExpression {
      std::vector<std::vector<OptimizerTreeBaseNodePtr>> *container_child_fields) const override;
 
  private:
-  AttributeReference(attribute_id attribute_id,
+  AttributeReference(const ExprId attr_id,
                      const std::string &attribute_name,
                      const std::string &attribute_alias,
                      const std::string &relation_name,
                      const Type &type,
                      const AttributeReferenceScope scope)
-      : NamedExpression(attribute_id,
+      : NamedExpression(attr_id,
                         attribute_name,
                         attribute_alias,
                         relation_name),

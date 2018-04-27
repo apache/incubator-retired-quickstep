@@ -116,7 +116,7 @@ class SharedSubplanReference : public physical::Physical {
    * @return An immutable SharedSubplanReference.
    */
   static SharedSubplanReferencePtr Create(
-      int subplan_id,
+      const int subplan_id,
       const std::vector<expressions::AttributeReferencePtr> &referenced_attributes,
       const std::vector<expressions::AttributeReferencePtr> &output_attributes) {
     return SharedSubplanReferencePtr(
@@ -124,7 +124,7 @@ class SharedSubplanReference : public physical::Physical {
   }
 
  private:
-  SharedSubplanReference(int subplan_id,
+  SharedSubplanReference(const int subplan_id,
                          const std::vector<expressions::AttributeReferencePtr> &referenced_attributes,
                          const std::vector<expressions::AttributeReferencePtr> &output_attributes)
     : subplan_id_(subplan_id),
@@ -133,9 +133,9 @@ class SharedSubplanReference : public physical::Physical {
     DCHECK_EQ(output_attributes_.size(), referenced_attributes_.size());
   }
 
-  int subplan_id_;
-  std::vector<expressions::AttributeReferencePtr> referenced_attributes_;
-  std::vector<expressions::AttributeReferencePtr> output_attributes_;
+  const int subplan_id_;
+  const std::vector<expressions::AttributeReferencePtr> referenced_attributes_;
+  const std::vector<expressions::AttributeReferencePtr> output_attributes_;
 
   DISALLOW_COPY_AND_ASSIGN(SharedSubplanReference);
 };

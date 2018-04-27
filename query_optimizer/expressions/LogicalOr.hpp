@@ -116,6 +116,7 @@ class LogicalOr : public Predicate {
   explicit LogicalOr(const std::vector<PredicatePtr> &operands);
 
   std::vector<PredicatePtr> operands_;
+
   DISALLOW_COPY_AND_ASSIGN(LogicalOr);
 };
 

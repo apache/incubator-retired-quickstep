@@ -99,7 +99,8 @@ class MultiwayCartesianJoin : public Join {
       addChild(operand);
     }
   }
-  std::vector<LogicalPtr> operands_;
+
+  const std::vector<LogicalPtr> operands_;
 
   DISALLOW_COPY_AND_ASSIGN(MultiwayCartesianJoin);
 };

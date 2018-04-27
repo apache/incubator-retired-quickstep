@@ -101,10 +101,10 @@ class NamedExpression : public Scalar {
       std::vector<std::vector<OptimizerTreeBaseNodePtr>> *container_child_fields) const override;
 
  private:
-  ExprId id_;
-  std::string attribute_name_;
-  std::string attribute_alias_;
-  std::string relation_name_;
+  const ExprId id_;
+  const std::string attribute_name_;
+  const std::string attribute_alias_;
+  const std::string relation_name_;
 
   DISALLOW_COPY_AND_ASSIGN(NamedExpression);
 };

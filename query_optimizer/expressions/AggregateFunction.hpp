@@ -164,7 +164,7 @@ class AggregateFunction : public Expression {
   }
 
   const ::quickstep::AggregateFunction &aggregate_;
-  std::vector<ScalarPtr> arguments_;
+  const std::vector<ScalarPtr> arguments_;
   const bool is_vector_aggregate_;
   const bool is_distinct_;
 

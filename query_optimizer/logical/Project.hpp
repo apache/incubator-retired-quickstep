@@ -107,8 +107,8 @@ class Project : public Logical {
     addInputExpressions(project_expressions_);
   }
 
-  LogicalPtr input_;
-  std::vector<expressions::NamedExpressionPtr> project_expressions_;
+  const LogicalPtr input_;
+  const std::vector<expressions::NamedExpressionPtr> project_expressions_;
 
   DISALLOW_COPY_AND_ASSIGN(Project);
 };

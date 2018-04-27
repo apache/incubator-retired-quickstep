@@ -168,7 +168,7 @@ class CrossReferenceCoalesceAggregate : public Physical {
       const PhysicalPtr &right_child,
       const std::vector<expressions::AttributeReferencePtr> &left_join_attributes,
       const std::vector<expressions::AttributeReferencePtr> &right_join_attributes,
-      const expressions::PredicatePtr right_filter_predicate,
+      const expressions::PredicatePtr &right_filter_predicate,
       const std::vector<expressions::AliasPtr> &aggregate_expressions,
       const std::size_t group_by_key_value_range) {
     return CrossReferenceCoalesceAggregatePtr(
@@ -196,7 +196,7 @@ class CrossReferenceCoalesceAggregate : public Physical {
       const PhysicalPtr &right_child,
       const std::vector<expressions::AttributeReferencePtr> &left_join_attributes,
       const std::vector<expressions::AttributeReferencePtr> &right_join_attributes,
-      const expressions::PredicatePtr right_filter_predicate,
+      const expressions::PredicatePtr &right_filter_predicate,
       const std::vector<expressions::AliasPtr> &aggregate_expressions,
       const std::size_t group_by_key_value_range)
       : left_child_(left_child),
@@ -212,13 +212,13 @@ class CrossReferenceCoalesceAggregate : public Physical {
 
   // TODO(jianqiao): For the left child, support filter predicate fusing and
   // attachment of LIPFilters.
-  PhysicalPtr left_child_;
-  PhysicalPtr right_child_;
-  std::vector<expressions::AttributeReferencePtr> left_join_attributes_;
-  std::vector<expressions::AttributeReferencePtr> right_join_attributes_;
-  expressions::PredicatePtr right_filter_predicate_;
-  std::vector<expressions::AliasPtr> aggregate_expressions_;
-  std::size_t group_by_key_value_range_;
+  const PhysicalPtr left_child_;
+  const PhysicalPtr right_child_;
+  const std::vector<expressions::AttributeReferencePtr> left_join_attributes_;
+  const std::vector<expressions::AttributeReferencePtr> right_join_attributes_;
+  const expressions::PredicatePtr right_filter_predicate_;
+  const std::vector<expressions::AliasPtr> aggregate_expressions_;
+  const std::size_t group_by_key_value_range_;
 
   DISALLOW_COPY_AND_ASSIGN(CrossReferenceCoalesceAggregate);
 };

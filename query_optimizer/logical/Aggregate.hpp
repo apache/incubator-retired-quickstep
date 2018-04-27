@@ -92,7 +92,7 @@ class Aggregate : public Logical {
    * @return An immutable Aggregate node.
    */
   static AggregatePtr Create(
-      LogicalPtr input,
+      const LogicalPtr &input,
       const std::vector<expressions::NamedExpressionPtr> &grouping_expressions,
       const std::vector<expressions::AliasPtr> &aggregate_expressions) {
     return AggregatePtr(
@@ -109,7 +109,7 @@ class Aggregate : public Logical {
       std::vector<std::vector<OptimizerTreeBaseNodePtr>> *container_child_fields) const override;
 
  private:
-  Aggregate(LogicalPtr input,
+  Aggregate(const LogicalPtr &input,
             const std::vector<expressions::NamedExpressionPtr> &grouping_expressions,
             const std::vector<expressions::AliasPtr> &aggregate_expressions)
       : input_(input),
@@ -120,9 +120,9 @@ class Aggregate : public Logical {
     addInputExpressions(aggregate_expressions_);
   }
 
-  LogicalPtr input_;
-  std::vector<expressions::NamedExpressionPtr> grouping_expressions_;
-  std::vector<expressions::AliasPtr> aggregate_expressions_;
+  const LogicalPtr input_;
+  const std::vector<expressions::NamedExpressionPtr> grouping_expressions_;
+  const std::vector<expressions::AliasPtr> aggregate_expressions_;
 
   DISALLOW_COPY_AND_ASSIGN(Aggregate);
 };

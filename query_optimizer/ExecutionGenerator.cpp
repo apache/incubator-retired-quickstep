@@ -687,7 +687,7 @@ bool ExecutionGenerator::convertSimpleProjection(
 
 void ExecutionGenerator::convertSelection(
     const P::SelectionPtr &physical_selection) {
-  const P::PhysicalPtr input = physical_selection->input();
+  const P::PhysicalPtr &input = physical_selection->input();
   const CatalogRelationInfo *input_relation_info =
       findRelationInfoOutputByPhysical(input);
   DCHECK(input_relation_info != nullptr);
@@ -829,7 +829,7 @@ void ExecutionGenerator::convertSharedSubplanReference(const physical::SharedSub
 }
 
 void ExecutionGenerator::convertFilterJoin(const P::FilterJoinPtr &physical_plan) {
-  P::PhysicalPtr probe_physical = physical_plan->left();
+  const P::PhysicalPtr &probe_physical = physical_plan->left();
   P::PhysicalPtr build_physical = physical_plan->right();
 
   // Let B denote the build side child. If B is also a FilterJoin, then the
@@ -891,13 +891,13 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
   // HashJoin is converted to three operators:
   //     BuildHash, HashJoin, DestroyHash. The second is the primary operator.
 
-  P::PhysicalPtr probe_physical = physical_plan->left();
-  P::PhysicalPtr build_physical = physical_plan->right();
+  const P::PhysicalPtr &probe_physical = physical_plan->left();
+  const P::PhysicalPtr &build_physical = physical_plan->right();
 
   std::vector<attribute_id> probe_attribute_ids;
   std::vector<attribute_id> build_attribute_ids;
 
-  std::size_t build_cardinality =
+  const std::size_t build_cardinality =
       cost_model_for_hash_join_->estimateCardinality(build_physical);
 
   bool any_probe_attributes_nullable = false;
@@ -1486,7 +1486,6 @@ void ExecutionGenerator::convertInsertTuple(
   const CatalogRelation &input_relation =
       *catalog_database_->getRelationById(
           input_relation_info->relation->getID());
-
 
   // Construct the tuple proto to be inserted.
   std::vector<QueryContext::tuple_id> tuple_indexes;

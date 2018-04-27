@@ -121,8 +121,8 @@ class ComparisonExpression : public Predicate {
                        const ScalarPtr &right);
 
   const Comparison &comparison_;
-  ScalarPtr left_;
-  ScalarPtr right_;
+  const ScalarPtr left_;
+  const ScalarPtr right_;
 
   DISALLOW_COPY_AND_ASSIGN(ComparisonExpression);
 };

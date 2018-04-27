@@ -207,6 +207,7 @@ template <class NamedExpressionType>
 std::vector<AttributeReferencePtr> ToRefVector(
     const std::vector<std::shared_ptr<const NamedExpressionType>> &expressions) {
   std::vector<AttributeReferencePtr> cast_expressions;
+  cast_expressions.reserve(expressions.size());
   for (const std::shared_ptr<const NamedExpressionType> &expression :
        expressions) {
     cast_expressions.push_back(ToRef(expression));
@@ -225,6 +226,7 @@ template <class ExpressionType>
 std::vector<NamedExpressionPtr> ToNamedExpressions(
     const std::vector<std::shared_ptr<const ExpressionType>> &expressions) {
   std::vector<NamedExpressionPtr> cast_expressions;
+  cast_expressions.reserve(expressions.size());
   for (const std::shared_ptr<const ExpressionType> &expression : expressions) {
     NamedExpressionPtr cast_expression;
     CHECK(SomeNamedExpression::MatchesWithConditionalCast(expression, &cast_expression))

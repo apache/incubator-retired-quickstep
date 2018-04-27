@@ -229,7 +229,7 @@ class WindowAggregateFunction : public Expression {
   // AggregationFunction, a new class for WindowAggregationFunction should be
   // created as quickstep::WindowAggregateFunction.
   const ::quickstep::WindowAggregateFunction &window_aggregate_;
-  std::vector<ScalarPtr> arguments_;
+  const std::vector<ScalarPtr> arguments_;
   const WindowInfo window_info_;
   const std::string window_name_;
   const bool is_distinct_;

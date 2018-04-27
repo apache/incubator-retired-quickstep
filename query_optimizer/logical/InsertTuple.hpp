@@ -108,8 +108,8 @@ class InsertTuple : public Logical {
     addChild(input_);
   }
 
-  LogicalPtr input_;
-  std::vector<std::vector<expressions::ScalarLiteralPtr>> column_values_;
+  const LogicalPtr input_;
+  const std::vector<std::vector<expressions::ScalarLiteralPtr>> column_values_;
 
   DISALLOW_COPY_AND_ASSIGN(InsertTuple);
 };

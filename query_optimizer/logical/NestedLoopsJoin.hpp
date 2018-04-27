@@ -140,7 +140,7 @@ class NestedLoopsJoin : public BinaryJoin {
     addInputExpression(join_predicate);
   }
 
-  expressions::PredicatePtr join_predicate_;
+  const expressions::PredicatePtr join_predicate_;
 
   DISALLOW_COPY_AND_ASSIGN(NestedLoopsJoin);
 };

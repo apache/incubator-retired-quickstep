@@ -116,7 +116,7 @@ class SubqueryExpression : public Scalar {
     DCHECK(!subquery->getOutputAttributes().empty());
   }
 
-  logical::LogicalPtr subquery_;
+  const logical::LogicalPtr subquery_;
   // Set to the first output attribute if the subquery is a multi-column table query.
   const AttributeReferencePtr output_attribute_;
 

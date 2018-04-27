@@ -121,7 +121,7 @@ class UnaryExpression : public Scalar {
   }
 
   const UnaryOperation &operation_;
-  ScalarPtr operand_;
+  const ScalarPtr operand_;
 
   DISALLOW_COPY_AND_ASSIGN(UnaryExpression);
 };
