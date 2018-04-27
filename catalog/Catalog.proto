@@ -48,6 +48,13 @@ message PartitionSchemeHeader {
   extensions 16 to max;
 }
 
+message HashPartitionSchemeHeader {
+  extend PartitionSchemeHeader {
+    // Required.
+    repeated Type partition_attr_types = 16;
+  }
+}
+
 message PartitionValues {
   repeated TypedValue partition_values = 1;
 }

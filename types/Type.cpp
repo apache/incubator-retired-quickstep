@@ -30,38 +30,7 @@ namespace quickstep {
 
 serialization::Type Type::getProto() const {
   serialization::Type proto;
-  switch (type_id_) {
-    case kInt:
-      proto.set_type_id(serialization::Type::INT);
-      break;
-    case kLong:
-      proto.set_type_id(serialization::Type::LONG);
-      break;
-    case kFloat:
-      proto.set_type_id(serialization::Type::FLOAT);
-      break;
-    case kDouble:
-      proto.set_type_id(serialization::Type::DOUBLE);
-      break;
-    case kDate:
-      proto.set_type_id(serialization::Type::DATE);
-      break;
-    case kDatetime:
-      proto.set_type_id(serialization::Type::DATETIME);
-      break;
-    case kDatetimeInterval:
-      proto.set_type_id(serialization::Type::DATETIME_INTERVAL);
-      break;
-    case kYearMonthInterval:
-      proto.set_type_id(serialization::Type::YEAR_MONTH_INTERVAL);
-      break;
-    case kNullType:
-      proto.set_type_id(serialization::Type::NULL_TYPE);
-      break;
-    default:
-      FATAL_ERROR("Unrecognized TypeID in Type::getProto");
-  }
-
+  proto.set_type_id(SerializeTypeID(type_id_));
   proto.set_nullable(nullable_);
 
   return proto;

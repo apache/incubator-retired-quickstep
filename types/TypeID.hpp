@@ -21,6 +21,9 @@
 #define QUICKSTEP_TYPES_TYPE_ID_HPP_
 
 #include <cstddef>
+#include <cstdint>
+
+#include "types/Type.pb.h"
 
 namespace quickstep {
 
@@ -29,7 +32,7 @@ namespace quickstep {
  *
  * @note TypedValue assumes that this doesn't exceed 64 TypeIDs.
  **/
-enum TypeID {
+enum TypeID : std::uint8_t {
   kInt = 0,
   kLong,
   kFloat,
@@ -64,6 +67,10 @@ struct TypeSignature {
  * @note Defined out-of-line in TypeID.cpp
  **/
 extern const char *kTypeNames[kNumTypeIDs];
+
+extern TypeID DeserializeTypeID(const serialization::Type::TypeID type_id_proto);
+
+extern serialization::Type::TypeID SerializeTypeID(const TypeID type_id);
 
 }  // namespace quickstep
 

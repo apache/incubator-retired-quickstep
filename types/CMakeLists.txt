@@ -182,6 +182,9 @@ target_link_libraries(quickstep_types_TypeFactory
                       quickstep_types_VarCharType
                       quickstep_types_YearMonthIntervalType
                       quickstep_utility_Macros)
+target_link_libraries(quickstep_types_TypeID
+                      glog
+                      quickstep_types_Type_proto)
 target_link_libraries(quickstep_types_TypedValue
                       farmhash
                       glog

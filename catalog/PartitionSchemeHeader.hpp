@@ -21,6 +21,7 @@
 #define QUICKSTEP_CATALOG_PARTITION_SCHEME_HEADER_HPP_
 
 #include <cstddef>
+#include <cstring>
 #include <memory>
 #include <random>
 #include <string>
@@ -30,20 +31,26 @@
 #include "catalog/Catalog.pb.h"
 #include "catalog/CatalogTypedefs.hpp"
 #include "storage/StorageConstants.hpp"
+#include "storage/TupleIdSequence.hpp"
+#include "storage/ValueAccessor.hpp"
+#include "storage/ValueAccessorUtil.hpp"
 #include "threading/SpinMutex.hpp"
+#include "types/Type.hpp"
+#include "types/TypeID.hpp"
 #include "types/TypedValue.hpp"
 #include "types/operations/comparisons/Comparison.hpp"
 #include "types/operations/comparisons/EqualComparison.hpp"
 #include "types/operations/comparisons/LessComparison.hpp"
 #include "utility/CompositeHash.hpp"
+#include "utility/HashPair.hpp"
 #include "utility/Macros.hpp"
 
+#include "farmhash/farmhash.h"
 #include "glog/logging.h"
 
 namespace quickstep {
 
 class CatalogRelationSchema;
-class Type;
 
 /** \addtogroup Catalog
  *  @{
@@ -109,6 +116,10 @@ class PartitionSchemeHeader {
   // tuples that correspond to those partitions.
   virtual partition_id getPartitionId(
       const PartitionValues &value_of_attributes) const = 0;
+
+  virtual void setPartitionMembership(
+      std::vector<std::unique_ptr<TupleIdSequence>> *partition_membership,
+      ValueAccessor *accessor) const = 0;
 
   /**
    * @brief Serialize the Partition Scheme as Protocol Buffer.
@@ -184,11 +195,26 @@ class HashPartitionSchemeHeader final : public PartitionSchemeHeader {
    *
    * @param num_partitions The number of partitions to be created.
    * @param attributes A vector of attributes on which the partitioning happens.
+   * @param attribute_types The types of partition attributes.
+   * @param attribute_type_nullables The nullable of partition attributes.
+   * @param char_type_lengths The length of char partition attribute types.
    **/
   HashPartitionSchemeHeader(const std::size_t num_partitions,
-                            PartitionAttributeIds &&attributes)  // NOLINT(whitespace/operators)
+                            PartitionAttributeIds &&attributes,  // NOLINT(whitespace/operators)
+                            std::vector<TypeID> &&attribute_types,
+                            std::vector<bool> &&attribute_type_nullables = {},
+                            std::vector<std::size_t> &&char_type_lengths = {})
       : PartitionSchemeHeader(PartitionType::kHash, num_partitions, std::move(attributes)),
+        attr_type_ids_(std::move(attribute_types)),
+        attr_type_nullables_(attribute_type_nullables.empty()
+                                 ? std::vector<bool>(attr_type_ids_.size(), false)
+                                 : std::move(attribute_type_nullables)),
+        char_type_lengths_(std::move(char_type_lengths)),
         is_power_of_two_(!(num_partitions & (num_partitions - 1))) {
+    DCHECK_EQ(partition_attribute_ids_.size(),
+              attr_type_ids_.size());
+    DCHECK_EQ(attr_type_ids_.size(),
+              attr_type_nullables_.size());
   }
 
   /**
@@ -198,24 +224,126 @@ class HashPartitionSchemeHeader final : public PartitionSchemeHeader {
   }
 
   partition_id getPartitionId(
-      const PartitionValues &value_of_attributes) const override {
-    DCHECK_EQ(partition_attribute_ids_.size(), value_of_attributes.size());
-    return getPartitionId(HashCompositeKey(value_of_attributes));
-  }
+      const PartitionValues &value_of_attributes) const override;
+
+  void setPartitionMembership(
+      std::vector<std::unique_ptr<TupleIdSequence>> *partition_membership,
+      ValueAccessor *accessor) const override;
+
+  serialization::PartitionSchemeHeader getProto() const override;
 
  private:
-  partition_id getPartitionId(const std::size_t hash_code) const {
-    if (is_power_of_two_) {
-      return hash_code & (num_partitions_ - 1);
-    }
+  template <bool is_power_of_two>
+  partition_id getPartitionIdImpl(const std::size_t hash_code) const;
 
-    return (hash_code >= num_partitions_) ? hash_code % num_partitions_
-                                          : hash_code;
-  }
+  template <TypeID type_id, bool type_nullable, typename ValueAccessorT, typename ...Optional>
+  void setPartitionMembershipImpl(ValueAccessorT *accessor,
+                                  const attribute_id attr_id,
+                                  std::vector<std::unique_ptr<TupleIdSequence>> *partition_membership,
+                                  const Optional &...length) const;
+
+  template <TypeID type_id>
+  std::size_t getHashCode(const void *data) const;
+
+  template <TypeID type_id>
+  std::size_t getHashCode(const void *data, const std::size_t length) const;
+
+  // The size is equal to 'partition_attribute_ids_.size()'.
+  const std::vector<TypeID> attr_type_ids_;
+  const std::vector<bool> attr_type_nullables_;
+  const std::vector<std::size_t> char_type_lengths_;
 
   const bool is_power_of_two_;
+
   DISALLOW_COPY_AND_ASSIGN(HashPartitionSchemeHeader);
 };
+
+// Explicit specializations of getPartitionIdImpl().
+template <>
+inline partition_id HashPartitionSchemeHeader::getPartitionIdImpl<true>(const std::size_t hash_code) const {
+  return hash_code & (num_partitions_ - 1);
+}
+
+template <>
+inline partition_id HashPartitionSchemeHeader::getPartitionIdImpl<false>(const std::size_t hash_code) const {
+  return (hash_code >= num_partitions_) ? hash_code % num_partitions_
+                                        : hash_code;
+}
+
+// Explicit specializations of getHashCode().
+template <>
+inline std::size_t HashPartitionSchemeHeader::getHashCode<kInt>(const void *data) const {
+  return *static_cast<const std::uint32_t*>(data);
+}
+
+template <>
+inline std::size_t HashPartitionSchemeHeader::getHashCode<kLong>(const void *data) const {
+  return *static_cast<const std::uint64_t*>(data);
+}
+
+template <>
+inline std::size_t HashPartitionSchemeHeader::getHashCode<kVarChar>(const void *data) const {
+  const char *p_char = static_cast<const char*>(data);
+  // Don't hash any bytes that follow it.
+  return util::Hash(p_char, std::strlen(p_char));
+}
+
+template <>
+inline std::size_t HashPartitionSchemeHeader::getHashCode<kChar>(const void *data, const std::size_t length) const {
+  // Don't hash any bytes that follow it.
+  const std::size_t actual_length =
+      strnlen(static_cast<const char*>(data), length);
+  return util::Hash(static_cast<const char*>(data), actual_length);
+}
+
+// Implementation of setPartitionMembershipImpl() is written out-of-line
+// here because instantiations of getHashCode() and getPartitionIdImpl() must
+// come after the explicit specializations above.
+template <TypeID type_id, bool type_nullable, typename ValueAccessorT, typename ...Optional>
+inline void HashPartitionSchemeHeader::setPartitionMembershipImpl(
+    ValueAccessorT *accessor, const attribute_id attr_id,
+    std::vector<std::unique_ptr<TupleIdSequence>> *partition_membership,
+    const Optional &...length) const {
+  if (is_power_of_two_) {
+    if (type_nullable) {
+      while (accessor->next()) {
+        const void *data = accessor->getUntypedValue(attr_id);
+        if (data) {
+          const std::size_t hash_code = getHashCode<type_id>(data, length...);
+          const partition_id part_id = getPartitionIdImpl<true>(hash_code);
+          (*partition_membership)[part_id]->set(accessor->getCurrentPosition());
+        } else {
+          (*partition_membership)[0u]->set(accessor->getCurrentPosition());
+        }
+      }
+    } else {
+      while (accessor->next()) {
+        const std::size_t hash_code = getHashCode<type_id>(accessor->getUntypedValue(attr_id), length...);
+        const partition_id part_id = getPartitionIdImpl<true>(hash_code);
+        (*partition_membership)[part_id]->set(accessor->getCurrentPosition());
+      }
+    }
+  } else {
+    if (type_nullable) {
+      while (accessor->next()) {
+        const void *data = accessor->getUntypedValue(attr_id);
+        if (data) {
+          const std::size_t hash_code = getHashCode<type_id>(data, length...);
+          const partition_id part_id = getPartitionIdImpl<false>(hash_code);
+          (*partition_membership)[part_id]->set(accessor->getCurrentPosition());
+        } else {
+          (*partition_membership)[0u]->set(accessor->getCurrentPosition());
+        }
+      }
+    } else {
+      while (accessor->next()) {
+        const std::size_t hash_code = getHashCode<type_id>(accessor->getUntypedValue(attr_id), length...);
+        const partition_id part_id = getPartitionIdImpl<false>(hash_code);
+        (*partition_membership)[part_id]->set(accessor->getCurrentPosition());
+      }
+    }
+  }
+}
 
 /**
  * @brief Implementation of PartitionSchemeHeader that partitions the tuples in
@@ -243,6 +371,20 @@ class RandomPartitionSchemeHeader final : public PartitionSchemeHeader {
       const PartitionValues &value_of_attributes) const override {
     SpinMutexLock lock(mutex_);
     return dist_(mt_);
+  }
+
+  void setPartitionMembership(
+      std::vector<std::unique_ptr<TupleIdSequence>> *partition_membership,
+      ValueAccessor *accessor) const override {
+    InvokeOnAnyValueAccessor(
+        accessor,
+        [this,
+         &partition_membership](auto *accessor) -> void {
+      SpinMutexLock lock(mutex_);
+      while (accessor->next()) {
+        (*partition_membership)[dist_(mt_)]->set(accessor->getCurrentPosition());
+      }
+    });
   }
 
  private:
@@ -331,6 +473,12 @@ class RangePartitionSchemeHeader final : public PartitionSchemeHeader {
     }
 
     return start;
+  }
+
+  void setPartitionMembership(
+      std::vector<std::unique_ptr<TupleIdSequence>> *partition_membership,
+      ValueAccessor *accessor) const override {
+    LOG(FATAL) << "TODO";
   }
 
   serialization::PartitionSchemeHeader getProto() const override;

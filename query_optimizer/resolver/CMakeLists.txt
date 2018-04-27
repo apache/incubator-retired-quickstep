@@ -124,8 +124,9 @@ target_link_libraries(quickstep_queryoptimizer_resolver_Resolver
                       quickstep_storage_StorageConstants
                       quickstep_types_IntType
                       quickstep_types_Type
-                      quickstep_types_TypedValue
                       quickstep_types_TypeFactory
+                      quickstep_types_TypeID
+                      quickstep_types_TypedValue
                       quickstep_types_operations_binaryoperations_BinaryOperation
                       quickstep_types_operations_comparisons_Comparison
                       quickstep_types_operations_comparisons_ComparisonFactory

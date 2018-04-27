@@ -26,11 +26,12 @@
 #include <vector>
 
 #include "query_optimizer/expressions/Alias.hpp"
+#include "query_optimizer/expressions/AttributeReference.hpp"
 #include "query_optimizer/expressions/ExprId.hpp"
 #include "query_optimizer/expressions/NamedExpression.hpp"
 #include "query_optimizer/expressions/Predicate.hpp"
-#include "query_optimizer/expressions/SubqueryExpression.hpp"
 #include "query_optimizer/expressions/Scalar.hpp"
+#include "query_optimizer/expressions/SubqueryExpression.hpp"
 #include "query_optimizer/expressions/WindowAggregateFunction.hpp"
 #include "query_optimizer/logical/Logical.hpp"
 #include "utility/Macros.hpp"
@@ -243,7 +244,8 @@ class Resolver {
    * @return A pointer to a user-owned serialized PartitionSchemeHeader.
    */
   const serialization::PartitionSchemeHeader* resolvePartitionClause(
-      const ParseStatementCreateTable &create_table_statement);
+      const ParseStatementCreateTable &create_table_statement,
+      const std::vector<expressions::AttributeReferencePtr> &attributes);
 
   /**
    * @brief Resolves a DELETE query and returns a logical plan.
