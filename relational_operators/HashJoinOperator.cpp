@@ -72,7 +72,7 @@ typedef std::pair<std::vector<tuple_id>, std::vector<tuple_id>> PairOfTupleIdVec
 // Functor passed to HashTable::getAllFromValueAccessor() to collect matching
 // tuples from the inner relation. It stores matching tuple ID pairs
 // in an unordered_map keyed by inner block ID and a vector of
-// pairs of (build-tupleID, probe-tuple-ID).
+// pairs of (probe-tupleID, build-tuple-ID).
 class VectorsOfPairsJoinedTuplesCollector {
  public:
   VectorsOfPairsJoinedTuplesCollector() {
@@ -81,7 +81,7 @@ class VectorsOfPairsJoinedTuplesCollector {
   template <typename ValueAccessorT>
   inline void operator()(const ValueAccessorT &accessor,
                          const TupleReference &tref) {
-    joined_tuples_[tref.block].emplace_back(tref.tuple, accessor.getCurrentPosition());
+    joined_tuples_[tref.block].emplace_back(accessor.getCurrentPosition(), tref.tuple);
   }
 
   // Get a mutable pointer to the collected map of joined tuple ID pairs. The
@@ -102,7 +102,7 @@ class VectorsOfPairsJoinedTuplesCollector {
 };
 
 // Another collector using an unordered_map keyed on inner block just like above,
-// except that it uses of a pair of (build-tupleIDs-vector, probe-tuple-IDs-vector).
+// except that it uses of a pair of (probe-tupleIDs-vector, build-tuple-IDs-vector).
 class PairsOfVectorsJoinedTuplesCollector {
  public:
   PairsOfVectorsJoinedTuplesCollector() {
@@ -112,8 +112,8 @@ class PairsOfVectorsJoinedTuplesCollector {
   inline void operator()(const ValueAccessorT &accessor,
                          const TupleReference &tref) {
     auto &entry = joined_tuples_[tref.block];
-    entry.first.emplace_back(tref.tuple);
-    entry.second.emplace_back(accessor.getCurrentPosition());
+    entry.first.emplace_back(accessor.getCurrentPosition());
+    entry.second.emplace_back(tref.tuple);
   }
 
   // Get a mutable pointer to the collected map of joined tuple ID pairs. The
@@ -151,7 +151,8 @@ class OuterJoinTupleCollector {
   template <typename ValueAccessorT>
   inline void operator()(const ValueAccessorT &accessor,
                          const TupleReference &tref) {
-    joined_tuples_[tref.block].emplace_back(tref.tuple, accessor.getCurrentPosition());
+    // <probe-tid, build-tid>.
+    joined_tuples_[tref.block].emplace_back(accessor.getCurrentPosition(), tref.tuple);
   }
 
   template <typename ValueAccessorT>
@@ -165,7 +166,7 @@ class OuterJoinTupleCollector {
   }
 
  private:
-  std::unordered_map<block_id, std::vector<std::pair<tuple_id, tuple_id>>> joined_tuples_;
+  std::unordered_map<block_id, VectorOfTupleIdPair> joined_tuples_;
   // BitVector on the probe relation. 1 if the corresponding tuple has no match.
   TupleIdSequence *filter_;
 };
@@ -490,9 +491,6 @@ void HashInnerJoinWorkOrder::executeWithoutCopyElision(ValueAccessor *probe_acce
         &collector);
   }
 
-  const relation_id build_relation_id = build_relation_.getID();
-  const relation_id probe_relation_id = probe_relation_.getID();
-
   for (std::pair<const block_id, VectorOfTupleIdPair>
            &build_block_entry : *collector.getJoinedTuples()) {
     BlockReference build_block =
@@ -515,11 +513,9 @@ void HashInnerJoinWorkOrder::executeWithoutCopyElision(ValueAccessor *probe_acce
 
       for (const std::pair<tuple_id, tuple_id> &hash_match
            : build_block_entry.second) {
-        if (residual_predicate_->matchesForJoinedTuples(*build_accessor,
-                                                        build_relation_id,
+        if (residual_predicate_->matchesForJoinedTuples(*probe_accessor,
                                                         hash_match.first,
-                                                        *probe_accessor,
-                                                        probe_relation_id,
+                                                        *build_accessor,
                                                         hash_match.second)) {
           filtered_matches.emplace_back(hash_match);
         }
@@ -533,10 +529,8 @@ void HashInnerJoinWorkOrder::executeWithoutCopyElision(ValueAccessor *probe_acce
     for (auto selection_cit = selection_.begin();
          selection_cit != selection_.end();
          ++selection_cit) {
-      temp_result.addColumn((*selection_cit)->getAllValuesForJoin(build_relation_id,
+      temp_result.addColumn((*selection_cit)->getAllValuesForJoin(probe_accessor,
                                                                   build_accessor.get(),
-                                                                  probe_relation_id,
-                                                                  probe_accessor,
                                                                   build_block_entry.second,
                                                                   cv_cache.get()));
     }
@@ -562,9 +556,6 @@ void HashInnerJoinWorkOrder::executeWithCopyElision(ValueAccessor *probe_accesso
         &collector);
   }
 
-  const relation_id build_relation_id = build_relation_.getID();
-  const relation_id probe_relation_id = probe_relation_.getID();
-
   constexpr std::size_t kNumIndexes = 3u;
   constexpr std::size_t kBuildIndex = 0, kProbeIndex = 1u, kTempIndex = 2u;
 
@@ -584,11 +575,15 @@ void HashInnerJoinWorkOrder::executeWithCopyElision(ValueAccessor *probe_accesso
       accessor_attribute_map[kTempIndex].second[dest_attr] = non_trivial_expressions.size();
       non_trivial_expressions.emplace_back(scalar.get());
     } else {
-      const CatalogAttribute &attr = static_cast<const ScalarAttribute *>(scalar.get())->getAttribute();
-      const attribute_id attr_id = attr.getID();
-      if (attr.getParent().getID() == build_relation_id) {
+      const Scalar::JoinSide join_side = scalar->join_side();
+      DCHECK(join_side != Scalar::kNone);
+
+      const attribute_id attr_id =
+          static_cast<const ScalarAttribute *>(scalar.get())->getAttribute().getID();
+      if (join_side == Scalar::kRightSide) {
         accessor_attribute_map[kBuildIndex].second[dest_attr] = attr_id;
       } else {
+        DCHECK(join_side == Scalar::kLeftSide);
         accessor_attribute_map[kProbeIndex].second[dest_attr] = attr_id;
       }
     }
@@ -601,8 +596,8 @@ void HashInnerJoinWorkOrder::executeWithCopyElision(ValueAccessor *probe_accesso
         storage_manager_->getBlock(build_block_entry.first, build_relation_);
     const TupleStorageSubBlock &build_store = build_block->getTupleStorageSubBlock();
     std::unique_ptr<ValueAccessor> build_accessor(build_store.createValueAccessor());
-    const std::vector<tuple_id> &build_tids = build_block_entry.second.first;
-    const std::vector<tuple_id> &probe_tids = build_block_entry.second.second;
+    const std::vector<tuple_id> &build_tids = build_block_entry.second.second;
+    const std::vector<tuple_id> &probe_tids = build_block_entry.second.first;
 
     // Evaluate '*residual_predicate_', if any.
     //
@@ -618,14 +613,12 @@ void HashInnerJoinWorkOrder::executeWithCopyElision(ValueAccessor *probe_accesso
       PairOfTupleIdVector filtered_matches;
 
       for (std::size_t i = 0; i < build_tids.size(); ++i) {
-        if (residual_predicate_->matchesForJoinedTuples(*build_accessor,
-                                                        build_relation_id,
-                                                        build_tids[i],
-                                                        *probe_accessor,
-                                                        probe_relation_id,
-                                                        probe_tids[i])) {
-          filtered_matches.first.emplace_back(build_tids[i]);
-          filtered_matches.second.emplace_back(probe_tids[i]);
+        if (residual_predicate_->matchesForJoinedTuples(*probe_accessor,
+                                                        probe_tids[i],
+                                                        *build_accessor,
+                                                        build_tids[i])) {
+          filtered_matches.first.emplace_back(probe_tids[i]);
+          filtered_matches.second.emplace_back(build_tids[i]);
         }
       }
 
@@ -646,15 +639,13 @@ void HashInnerJoinWorkOrder::executeWithCopyElision(ValueAccessor *probe_accesso
       // zip our two vectors together.
       VectorOfTupleIdPair zipped_joined_tuple_ids;
       for (std::size_t i = 0; i < build_tids.size(); ++i) {
-        zipped_joined_tuple_ids.emplace_back(build_tids[i], probe_tids[i]);
+        zipped_joined_tuple_ids.emplace_back(probe_tids[i], build_tids[i]);
       }
 
       ColumnVectorCache cv_cache;
       for (const Scalar *scalar : non_trivial_expressions) {
-        temp_result.addColumn(scalar->getAllValuesForJoin(build_relation_id,
+        temp_result.addColumn(scalar->getAllValuesForJoin(probe_accessor,
                                                           build_accessor.get(),
-                                                          probe_relation_id,
-                                                          probe_accessor,
                                                           zipped_joined_tuple_ids,
                                                           &cv_cache));
       }
@@ -690,9 +681,6 @@ void HashSemiJoinWorkOrder::execute() {
 }
 
 void HashSemiJoinWorkOrder::executeWithResidualPredicate() {
-  const relation_id build_relation_id = build_relation_.getID();
-  const relation_id probe_relation_id = probe_relation_.getID();
-
   BlockReference probe_block = storage_manager_->getBlock(block_id_,
                                                           probe_relation_);
   const TupleStorageSubBlock &probe_store = probe_block->getTupleStorageSubBlock();
@@ -752,11 +740,9 @@ void HashSemiJoinWorkOrder::executeWithResidualPredicate() {
         // probe side, skip it.
         continue;
       }
-      if (residual_predicate_->matchesForJoinedTuples(*build_accessor,
-                                                      build_relation_id,
+      if (residual_predicate_->matchesForJoinedTuples(*probe_accessor,
                                                       hash_match.first,
-                                                      *probe_accessor,
-                                                      probe_relation_id,
+                                                      *build_accessor,
                                                       hash_match.second)) {
         filter.set(hash_match.second);
       }
@@ -910,9 +896,6 @@ void HashAntiJoinWorkOrder::executeWithoutResidualPredicate() {
 }
 
 void HashAntiJoinWorkOrder::executeWithResidualPredicate() {
-  const relation_id build_relation_id = build_relation_.getID();
-  const relation_id probe_relation_id = probe_relation_.getID();
-
   BlockReference probe_block = storage_manager_->getBlock(block_id_,
                                                           probe_relation_);
   const TupleStorageSubBlock &probe_store = probe_block->getTupleStorageSubBlock();
@@ -970,11 +953,9 @@ void HashAntiJoinWorkOrder::executeWithResidualPredicate() {
         // We have already seen this tuple, skip it.
         continue;
       }
-      if (residual_predicate_->matchesForJoinedTuples(*build_accessor,
-                                                      build_relation_id,
+      if (residual_predicate_->matchesForJoinedTuples(*probe_accessor,
                                                       hash_match.first,
-                                                      *probe_accessor,
-                                                      probe_relation_id,
+                                                      *build_accessor,
                                                       hash_match.second)) {
         // Note that the existence map marks a match as false, as needed by the
         // anti join definition.
@@ -1007,9 +988,6 @@ void HashAntiJoinWorkOrder::executeWithResidualPredicate() {
 
 void HashOuterJoinWorkOrder::execute() {
   output_destination_->setInputPartitionId(partition_id_);
-
-  const relation_id build_relation_id = build_relation_.getID();
-  const relation_id probe_relation_id = probe_relation_.getID();
 
   const BlockReference probe_block = storage_manager_->getBlock(block_id_,
                                                                 probe_relation_);
@@ -1061,10 +1039,8 @@ void HashOuterJoinWorkOrder::execute() {
          ++selection_it) {
       temp_result.addColumn(
           (*selection_it)->getAllValuesForJoin(
-              build_relation_id,
-              build_accessor.get(),
-              probe_relation_id,
               probe_accessor.get(),
+              build_accessor.get(),
               build_block_entry.second,
               cv_cache.get()));
     }

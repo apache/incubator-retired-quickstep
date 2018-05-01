@@ -22,6 +22,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "expressions/scalar/ScalarSharedExpression.hpp"
@@ -47,10 +48,12 @@ ExpressionPtr CommonSubexpression::copyWithNewChildren(
 }
 
 ::quickstep::Scalar* CommonSubexpression::concretize(
-    const std::unordered_map<ExprId, const CatalogAttribute*> &substitution_map) const {
+    const std::unordered_map<ExprId, const CatalogAttribute*> &substitution_map,
+    const std::unordered_set<ExprId> &left_expr_ids,
+    const std::unordered_set<ExprId> &right_expr_ids) const {
   return new ::quickstep::ScalarSharedExpression(
       static_cast<int>(common_subexpression_id_),
-      operand_->concretize(substitution_map));
+      operand_->concretize(substitution_map, left_expr_ids, right_expr_ids));
 }
 
 void CommonSubexpression::getFieldStringItems(

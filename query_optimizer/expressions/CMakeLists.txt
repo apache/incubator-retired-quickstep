@@ -79,6 +79,7 @@ target_link_libraries(quickstep_queryoptimizer_expressions_Alias
 target_link_libraries(quickstep_queryoptimizer_expressions_AttributeReference
                       glog
                       quickstep_catalog_CatalogTypedefs
+                      quickstep_expressions_scalar_Scalar
                       quickstep_expressions_scalar_ScalarAttribute
                       quickstep_queryoptimizer_expressions_ExprId
                       quickstep_queryoptimizer_expressions_Expression

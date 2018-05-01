@@ -432,7 +432,7 @@ TEST_P(HashJoinOperatorTest, LongKeyHashJoinTest) {
 
   // Create the prober operator with one selection attribute.
   const QueryContext::scalar_group_id selection_index = query_context_proto.scalar_groups_size();
-  ScalarAttribute scalar_attr(dim_col_long);
+  ScalarAttribute scalar_attr(dim_col_long, Scalar::kRightSide);
   query_context_proto.add_scalar_groups()->add_scalars()->MergeFrom(scalar_attr.getProto());
 
   // Create result_table, owned by db_.
@@ -581,9 +581,9 @@ TEST_P(HashJoinOperatorTest, IntDuplicateKeyHashJoinTest) {
   const QueryContext::scalar_group_id selection_index = query_context_proto.scalar_groups_size();
   serialization::QueryContext::ScalarGroup *scalar_group_proto = query_context_proto.add_scalar_groups();
 
-  ScalarAttribute scalar_attr_dim(dim_col_long);
+  ScalarAttribute scalar_attr_dim(dim_col_long, Scalar::kRightSide);
   scalar_group_proto->add_scalars()->MergeFrom(scalar_attr_dim.getProto());
-  ScalarAttribute scalar_attr_fact(fact_col_long);
+  ScalarAttribute scalar_attr_fact(fact_col_long, Scalar::kLeftSide);
   scalar_group_proto->add_scalars()->MergeFrom(scalar_attr_fact.getProto());
 
   // Create result_table, owned by db_.
@@ -745,7 +745,7 @@ TEST_P(HashJoinOperatorTest, CharKeyCartesianProductHashJoinTest) {
 
   // Create prober operator with one selection attribute.
   const QueryContext::scalar_group_id selection_index = query_context_proto.scalar_groups_size();
-  ScalarAttribute scalar_attr(dim_col_long);
+  ScalarAttribute scalar_attr(dim_col_long, Scalar::kRightSide);
   query_context_proto.add_scalar_groups()->add_scalars()->MergeFrom(scalar_attr.getProto());
 
   // Create result_table, owned by db_.
@@ -887,9 +887,9 @@ TEST_P(HashJoinOperatorTest, VarCharDuplicateKeyHashJoinTest) {
   const QueryContext::scalar_group_id selection_index = query_context_proto.scalar_groups_size();
   serialization::QueryContext::ScalarGroup *scalar_group_proto = query_context_proto.add_scalar_groups();
 
-  ScalarAttribute scalar_attr_dim(dim_col_long);
+  ScalarAttribute scalar_attr_dim(dim_col_long, Scalar::kRightSide);
   scalar_group_proto->add_scalars()->MergeFrom(scalar_attr_dim.getProto());
-  ScalarAttribute scalar_attr_fact(fact_col_long);
+  ScalarAttribute scalar_attr_fact(fact_col_long, Scalar::kLeftSide);
   scalar_group_proto->add_scalars()->MergeFrom(scalar_attr_fact.getProto());
 
   // Create result_table, owned by db_.
@@ -1063,9 +1063,9 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinTest) {
   const QueryContext::scalar_group_id selection_index = query_context_proto.scalar_groups_size();
   serialization::QueryContext::ScalarGroup *scalar_group_proto = query_context_proto.add_scalar_groups();
 
-  ScalarAttribute scalar_attr_dim(dim_col_long);
+  ScalarAttribute scalar_attr_dim(dim_col_long, Scalar::kRightSide);
   scalar_group_proto->add_scalars()->MergeFrom(scalar_attr_dim.getProto());
-  ScalarAttribute scalar_attr_fact(fact_col_long);
+  ScalarAttribute scalar_attr_fact(fact_col_long, Scalar::kLeftSide);
   scalar_group_proto->add_scalars()->MergeFrom(scalar_attr_fact.getProto());
 
   // Create result_table, owned by db_.
@@ -1244,9 +1244,9 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest) {
   const QueryContext::scalar_group_id selection_index = query_context_proto.scalar_groups_size();
   serialization::QueryContext::ScalarGroup *scalar_group_proto = query_context_proto.add_scalar_groups();
 
-  ScalarAttribute scalar_attr_dim(dim_col_long);
+  ScalarAttribute scalar_attr_dim(dim_col_long, Scalar::kRightSide);
   scalar_group_proto->add_scalars()->MergeFrom(scalar_attr_dim.getProto());
-  ScalarAttribute scalar_attr_fact(fact_col_long);
+  ScalarAttribute scalar_attr_fact(fact_col_long, Scalar::kLeftSide);
   scalar_group_proto->add_scalars()->MergeFrom(scalar_attr_fact.getProto());
 
   // Create result_table, owned by db_.
@@ -1269,7 +1269,7 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest) {
   unique_ptr<Predicate> residual_pred(new ComparisonPredicate(
       ComparisonFactory::GetComparison(
           ComparisonID::kLess),
-          new ScalarAttribute(dim_col_long),
+          new ScalarAttribute(dim_col_long, Scalar::kRightSide),
           new ScalarLiteral(TypedValue(static_cast<std::int64_t>(15)), LongType::InstanceNonNullable())));
 
   std::vector<attribute_id> fact_key_attrs;
@@ -1436,7 +1436,7 @@ TEST_P(HashJoinOperatorTest, SingleAttributePartitionedLongKeyHashJoinTest) {
 
   // Create the prober operator with one selection attribute.
   const QueryContext::scalar_group_id selection_index = query_context_proto.scalar_groups_size();
-  ScalarAttribute scalar_attr(dim_col_long);
+  ScalarAttribute scalar_attr(dim_col_long, Scalar::kRightSide);
   query_context_proto.add_scalar_groups()->add_scalars()->MergeFrom(scalar_attr.getProto());
 
   // Create result_table, owned by db_.
@@ -1580,9 +1580,9 @@ TEST_P(HashJoinOperatorTest, SingleAttributePartitionedCompositeKeyHashJoinTest)
   const QueryContext::scalar_group_id selection_index = query_context_proto.scalar_groups_size();
   serialization::QueryContext::ScalarGroup *scalar_group_proto = query_context_proto.add_scalar_groups();
 
-  ScalarAttribute scalar_attr_dim(dim_col_long);
+  ScalarAttribute scalar_attr_dim(dim_col_long, Scalar::kRightSide);
   scalar_group_proto->add_scalars()->MergeFrom(scalar_attr_dim.getProto());
-  ScalarAttribute scalar_attr_fact(fact_col_long);
+  ScalarAttribute scalar_attr_fact(fact_col_long, Scalar::kLeftSide);
   scalar_group_proto->add_scalars()->MergeFrom(scalar_attr_fact.getProto());
 
   // Create result_table, owned by db_.
@@ -1752,9 +1752,9 @@ TEST_P(HashJoinOperatorTest, SingleAttributePartitionedCompositeKeyHashJoinWithR
   const QueryContext::scalar_group_id selection_index = query_context_proto.scalar_groups_size();
   serialization::QueryContext::ScalarGroup *scalar_group_proto = query_context_proto.add_scalar_groups();
 
-  ScalarAttribute scalar_attr_dim(dim_col_long);
+  ScalarAttribute scalar_attr_dim(dim_col_long, Scalar::kRightSide);
   scalar_group_proto->add_scalars()->MergeFrom(scalar_attr_dim.getProto());
-  ScalarAttribute scalar_attr_fact(fact_col_long);
+  ScalarAttribute scalar_attr_fact(fact_col_long, Scalar::kLeftSide);
   scalar_group_proto->add_scalars()->MergeFrom(scalar_attr_fact.getProto());
 
   // Create result_table, owned by db_.
@@ -1777,7 +1777,7 @@ TEST_P(HashJoinOperatorTest, SingleAttributePartitionedCompositeKeyHashJoinWithR
   unique_ptr<Predicate> residual_pred(new ComparisonPredicate(
       ComparisonFactory::GetComparison(
           ComparisonID::kLess),
-          new ScalarAttribute(dim_col_long),
+          new ScalarAttribute(dim_col_long, Scalar::kRightSide),
           new ScalarLiteral(TypedValue(static_cast<std::int64_t>(15)), LongType::InstanceNonNullable())));
 
   const QueryContext::predicate_id residual_pred_index = query_context_proto.predicates_size();

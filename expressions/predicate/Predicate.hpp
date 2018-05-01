@@ -123,15 +123,11 @@ class Predicate : public Expression {
    * @param left_accessor The ValueAccessor that the first of the joined tuples
    *        will be read from (this does NOT necessarily correspond to the left
    *        operand of a binary operation).
-   * @param left_relation_id The ID of the relation that left_accessor provides
-   *        access to.
    * @param left_tuple_id The ID of the tuple (the absolute position) from
    *        left_accessor to evaluate this Predicate for.
    * @param right_accessor The ValueAccessor that the second of the joined
    *        tuples will be read from (this does NOT necessarily correspond to
    *        the right operand of a binary operation).
-   * @param right_relation_id The ID of the relation that right_accessor
-   *        provides access to.
    * @param right_tuple_id The ID of the tuple (the absolute position) from
    *        right_accessor to evaluate this Predicate for.
    * @return Whether this predicate is true for the given tuples.
@@ -144,10 +140,8 @@ class Predicate : public Expression {
   // a smallish set of matches from a hash-join by a residual predicate).
   virtual bool matchesForJoinedTuples(
       const ValueAccessor &left_accessor,
-      const relation_id left_relation_id,
       const tuple_id left_tuple_id,
       const ValueAccessor &right_accessor,
-      const relation_id right_relation_id,
       const tuple_id right_tuple_id) const = 0;
 
   /**

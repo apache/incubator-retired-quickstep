@@ -24,11 +24,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
-
-#ifdef QUICKSTEP_DISTRIBUTED
 #include <unordered_set>
-#endif
-
 #include <vector>
 
 #include "catalog/CatalogTypedefs.hpp"
@@ -388,10 +384,16 @@ class ExecutionGenerator {
    * @param named_expressions The list of NamedExpressions to be converted.
    * @param scalar_group_proto The corresponding scalars proto in QueryContext
    *        proto.
+   * @param left_expr_ids The ExprIds from the left hand side.
+   * @param right_expr_ids The ExprIds from the right hand side.
    */
   void convertNamedExpressions(
       const std::vector<expressions::NamedExpressionPtr> &named_expressions,
-      serialization::QueryContext::ScalarGroup *scalar_group_proto);
+      serialization::QueryContext::ScalarGroup *scalar_group_proto,
+      const std::unordered_set<expressions::ExprId> &left_expr_ids =
+          std::unordered_set<expressions::ExprId>(),
+      const std::unordered_set<expressions::ExprId> &right_expr_ids =
+          std::unordered_set<expressions::ExprId>());
 
   /**
    * @brief Converts a Predicate in the optimizer expression system to a
@@ -399,9 +401,16 @@ class ExecutionGenerator {
    *        takes ownership of the returned pointer.
    *
    * @param optimizer_predicate The Predicate to be converted.
+   * @param left_expr_ids The ExprIds from the left hand side.
+   * @param right_expr_ids The ExprIds from the right hand side.
    * @return The corresponding Predicate in the execution expression system.
    */
-  Predicate* convertPredicate(const expressions::PredicatePtr &optimizer_predicate) const;
+  Predicate* convertPredicate(
+      const expressions::PredicatePtr &optimizer_predicate,
+      const std::unordered_set<expressions::ExprId> &left_expr_ids =
+          std::unordered_set<expressions::ExprId>(),
+      const std::unordered_set<expressions::ExprId> &right_expr_ids =
+          std::unordered_set<expressions::ExprId>()) const;
 
   /**
    * @brief Drops all temporary relations created by the generator

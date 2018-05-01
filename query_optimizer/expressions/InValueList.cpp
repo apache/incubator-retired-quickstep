@@ -22,6 +22,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "expressions/predicate/DisjunctionPredicate.hpp"
@@ -40,7 +41,9 @@ namespace optimizer {
 namespace expressions {
 
 ::quickstep::Predicate* InValueList::concretize(
-    const std::unordered_map<ExprId, const CatalogAttribute*> &substitution_map) const {
+    const std::unordered_map<ExprId, const CatalogAttribute*> &substitution_map,
+    const std::unordered_set<ExprId> &left_expr_ids,
+    const std::unordered_set<ExprId> &right_expr_ids) const {
   std::unique_ptr<quickstep::DisjunctionPredicate>
       disjunction_predicate(new quickstep::DisjunctionPredicate());
   for (const ScalarPtr &match_expression : match_expressions_) {
@@ -51,7 +54,7 @@ namespace expressions {
             match_expression);
 
     disjunction_predicate->addPredicate(
-        match_predicate->concretize(substitution_map));
+        match_predicate->concretize(substitution_map, left_expr_ids, right_expr_ids));
   }
   return disjunction_predicate.release();
 }

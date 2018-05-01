@@ -269,7 +269,6 @@ WHERE int_col < 10
 +-----------+--------------------+
 ==
 
-# The execution engine currently does not support self-join.
 SELECT a.int_col,
        a.int_col*b.int_col,
        b.long_col
@@ -277,7 +276,32 @@ FROM test AS a,
      test AS b
 WHERE a.int_col*b.int_col = b.long_col;
 --
-ERROR: NestedLoopsJoin does not support self-join yet
++-----------+---------------------+--------------------+
+|int_col    |(a.int_col*b.int_col)|long_col            |
++-----------+---------------------+--------------------+
+|         -1|                    1|                   1|
+|          2|                    4|                   4|
+|         -3|                    9|                   9|
+|          4|                   16|                  16|
+|         -5|                   25|                  25|
+|          6|                   36|                  36|
+|         -7|                   49|                  49|
+|          8|                   64|                  64|
+|         -9|                   81|                  81|
+|        -11|                  121|                 121|
+|         12|                  144|                 144|
+|        -13|                  169|                 169|
+|         14|                  196|                 196|
+|        -15|                  225|                 225|
+|         16|                  256|                 256|
+|        -17|                  289|                 289|
+|         18|                  324|                 324|
+|        -19|                  361|                 361|
+|        -21|                  441|                 441|
+|         22|                  484|                 484|
+|        -23|                  529|                 529|
+|         24|                  576|                 576|
++-----------+---------------------+--------------------+
 ==
 
 # The nested loops join is not a self-join, because the predicate "a.int_col<10" is pushed under the join, which results
@@ -305,14 +329,38 @@ WHERE a.long_col < 100
 +-----------+---------------------+--------------------+
 ==
 
-# Hash join does not support the self-join.
 SELECT a.int_col,
        b.int_col
 FROM test AS a,
      test AS b
 WHERE a.int_col = b.int_col;
 --
-ERROR: Self-join is not supported
++-----------+-----------+
+|int_col    |int_col    |
++-----------+-----------+
+|         -1|         -1|
+|          2|          2|
+|         -3|         -3|
+|          4|          4|
+|         -5|         -5|
+|          6|          6|
+|         -7|         -7|
+|          8|          8|
+|         -9|         -9|
+|        -11|        -11|
+|         12|         12|
+|        -13|        -13|
+|         14|         14|
+|        -15|        -15|
+|         16|         16|
+|        -17|        -17|
+|         18|         18|
+|        -19|        -19|
+|        -21|        -21|
+|         22|         22|
+|        -23|        -23|
+|         24|         24|
++-----------+-----------+
 ==
 
 # This is not a self-join, because there is a Select under the HashJoin for "a.long_col < 50".

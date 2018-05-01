@@ -247,47 +247,27 @@ TypedValue ScalarCaseExpression::getValueForSingleTuple(
 
 TypedValue ScalarCaseExpression::getValueForJoinedTuples(
     const ValueAccessor &left_accessor,
-    const relation_id left_relation_id,
     const tuple_id left_tuple_id,
     const ValueAccessor &right_accessor,
-    const relation_id right_relation_id,
     const tuple_id right_tuple_id) const {
   if (has_static_value_) {
     return static_value_.makeReferenceToThis();
   } else if (fixed_result_expression_ != nullptr) {
-    return fixed_result_expression_->getValueForJoinedTuples(left_accessor,
-                                                             left_relation_id,
-                                                             left_tuple_id,
-                                                             right_accessor,
-                                                             right_relation_id,
-                                                             right_tuple_id);
+    return fixed_result_expression_->getValueForJoinedTuples(
+        left_accessor, left_tuple_id, right_accessor, right_tuple_id);
   }
 
   for (std::vector<std::unique_ptr<Predicate>>::size_type case_idx = 0;
        case_idx < when_predicates_.size();
        ++case_idx) {
-    if (when_predicates_[case_idx]->matchesForJoinedTuples(left_accessor,
-                                                           left_relation_id,
-                                                           left_tuple_id,
-                                                           right_accessor,
-                                                           right_relation_id,
-                                                           right_tuple_id)) {
+    if (when_predicates_[case_idx]->matchesForJoinedTuples(
+            left_accessor, left_tuple_id, right_accessor, right_tuple_id)) {
       return result_expressions_[case_idx]->getValueForJoinedTuples(
-          left_accessor,
-          left_relation_id,
-          left_tuple_id,
-          right_accessor,
-          right_relation_id,
-          right_tuple_id);
+          left_accessor, left_tuple_id, right_accessor, right_tuple_id);
     }
   }
   return else_result_expression_->getValueForJoinedTuples(
-      left_accessor,
-      left_relation_id,
-      left_tuple_id,
-      right_accessor,
-      right_relation_id,
-      right_tuple_id);
+      left_accessor, left_tuple_id, right_accessor, right_tuple_id);
 }
 
 ColumnVectorPtr ScalarCaseExpression::getAllValues(
@@ -370,9 +350,7 @@ ColumnVectorPtr ScalarCaseExpression::getAllValues(
 }
 
 ColumnVectorPtr ScalarCaseExpression::getAllValuesForJoin(
-    const relation_id left_relation_id,
     ValueAccessor *left_accessor,
-    const relation_id right_relation_id,
     ValueAccessor *right_accessor,
     const std::vector<std::pair<tuple_id, tuple_id>> &joined_tuple_ids,
     ColumnVectorCache *cv_cache) const {
@@ -381,9 +359,7 @@ ColumnVectorPtr ScalarCaseExpression::getAllValuesForJoin(
         ColumnVector::MakeVectorOfValue(type_, static_value_, joined_tuple_ids.size()));
   } else if (fixed_result_expression_) {
     return fixed_result_expression_->getAllValuesForJoin(
-        left_relation_id, left_accessor,
-        right_relation_id, right_accessor,
-        joined_tuple_ids, cv_cache);
+        left_accessor, right_accessor, joined_tuple_ids, cv_cache);
   }
 
   // Slice 'joined_tuple_ids' apart by case.
@@ -418,13 +394,9 @@ ColumnVectorPtr ScalarCaseExpression::getAllValuesForJoin(
 
     const Predicate &case_predicate = *when_predicates_[case_idx];
     for (tuple_id pos : else_positions) {
-      const std::pair<tuple_id, tuple_id> check_pair = joined_tuple_ids[pos];
-      if (case_predicate.matchesForJoinedTuples(*left_accessor,
-                                                left_relation_id,
-                                                check_pair.first,
-                                                *right_accessor,
-                                                right_relation_id,
-                                                check_pair.second)) {
+      const std::pair<tuple_id, tuple_id> &check_pair = joined_tuple_ids[pos];
+      if (case_predicate.matchesForJoinedTuples(
+              *left_accessor, check_pair.first, *right_accessor, check_pair.second)) {
         current_case_positions->set(pos);
         current_case_matches.emplace_back(check_pair);
       }
@@ -439,12 +411,7 @@ ColumnVectorPtr ScalarCaseExpression::getAllValuesForJoin(
        case_idx < case_matches.size();
        ++case_idx) {
     case_results.emplace_back(result_expressions_[case_idx]->getAllValuesForJoin(
-        left_relation_id,
-        left_accessor,
-        right_relation_id,
-        right_accessor,
-        case_matches[case_idx],
-        cv_cache));
+        left_accessor, right_accessor, case_matches[case_idx], cv_cache));
   }
 
   ColumnVectorPtr else_results;
@@ -455,12 +422,7 @@ ColumnVectorPtr ScalarCaseExpression::getAllValuesForJoin(
     }
 
     else_results = else_result_expression_->getAllValuesForJoin(
-        left_relation_id,
-        left_accessor,
-        right_relation_id,
-        right_accessor,
-        else_matches,
-        cv_cache);
+        left_accessor, right_accessor, else_matches, cv_cache);
   }
 
   // Multiplex per-case results into a single ColumnVector with values in the

@@ -95,9 +95,16 @@ message ScalarLiteral {
 }
 
 message ScalarAttribute {
+  enum JoinSide {
+    NONE = 0;
+    LEFT_SIDE = 1;
+    RIGHT_SIDE = 2;
+  }
+
   extend Scalar {
     optional int32 relation_id = 64;
     optional int32 attribute_id = 65;
+    optional JoinSide join_side = 66;
   }
 }
 

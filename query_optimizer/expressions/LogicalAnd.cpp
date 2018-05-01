@@ -22,6 +22,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "expressions/predicate/ConjunctionPredicate.hpp"
@@ -86,13 +87,15 @@ std::vector<AttributeReferencePtr> LogicalAnd::getReferencedAttributes() const {
 }
 
 ::quickstep::Predicate* LogicalAnd::concretize(
-    const std::unordered_map<ExprId, const CatalogAttribute*> &substitution_map) const {
+    const std::unordered_map<ExprId, const CatalogAttribute*> &substitution_map,
+    const std::unordered_set<ExprId> &left_expr_ids,
+    const std::unordered_set<ExprId> &right_expr_ids) const {
   if (operands_.empty()) {
     return new TruePredicate();
   }
 
   if (operands_.size() == 1u) {
-    return operands_[0]->concretize(substitution_map);
+    return operands_[0]->concretize(substitution_map, left_expr_ids, right_expr_ids);
   }
 
   std::unique_ptr<::quickstep::ConjunctionPredicate> concretized_predicate;
@@ -100,7 +103,7 @@ std::vector<AttributeReferencePtr> LogicalAnd::getReferencedAttributes() const {
 
   for (const PredicatePtr &operand : operands_) {
     concretized_predicate->addPredicate(
-        operand->concretize(substitution_map));
+        operand->concretize(substitution_map, left_expr_ids, right_expr_ids));
   }
 
   return concretized_predicate.release();

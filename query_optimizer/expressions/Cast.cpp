@@ -22,6 +22,7 @@
 #include <cstddef>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "expressions/scalar/Scalar.hpp"
@@ -52,9 +53,12 @@ ExpressionPtr Cast::copyWithNewChildren(
 }
 
 ::quickstep::Scalar *Cast::concretize(
-    const std::unordered_map<ExprId, const CatalogAttribute*> &substitution_map) const {
-  return new ::quickstep::ScalarUnaryExpression(::quickstep::NumericCastOperation::Instance(target_type_),
-                                                operand_->concretize(substitution_map));
+    const std::unordered_map<ExprId, const CatalogAttribute*> &substitution_map,
+    const std::unordered_set<ExprId> &left_expr_ids,
+    const std::unordered_set<ExprId> &right_expr_ids) const {
+  return new ::quickstep::ScalarUnaryExpression(
+      ::quickstep::NumericCastOperation::Instance(target_type_),
+      operand_->concretize(substitution_map, left_expr_ids, right_expr_ids));
 }
 
 std::size_t Cast::computeHash() const {

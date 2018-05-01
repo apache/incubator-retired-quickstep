@@ -24,6 +24,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "query_optimizer/OptimizerTree.hpp"
@@ -109,7 +110,9 @@ class InValueList : public Predicate {
   }
 
   ::quickstep::Predicate* concretize(
-      const std::unordered_map<ExprId, const CatalogAttribute*> &substitution_map) const override;
+      const std::unordered_map<ExprId, const CatalogAttribute*> &substitution_map,
+      const std::unordered_set<ExprId> &left_expr_ids = std::unordered_set<ExprId>(),
+      const std::unordered_set<ExprId> &right_expr_ids = std::unordered_set<ExprId>()) const override;
 
   /**
    * @brief Create an IN predicate with a value list.

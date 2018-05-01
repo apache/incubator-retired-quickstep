@@ -28,6 +28,7 @@
 #include "catalog/CatalogRelationSchema.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "expressions/Expressions.pb.h"
+#include "expressions/scalar/Scalar.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "storage/ValueAccessor.hpp"
 #include "storage/ValueAccessorUtil.hpp"
@@ -40,8 +41,11 @@
 
 namespace quickstep {
 
-ScalarAttribute::ScalarAttribute(const CatalogAttribute &attribute)
-    : Scalar(attribute.getType()),
+namespace S = serialization;
+
+ScalarAttribute::ScalarAttribute(const CatalogAttribute &attribute,
+                                 const JoinSide join_side)
+    : Scalar(attribute.getType(), join_side),
       attribute_(attribute) {
 }
 
@@ -51,11 +55,25 @@ serialization::Scalar ScalarAttribute::getProto() const {
   proto.SetExtension(serialization::ScalarAttribute::relation_id, attribute_.getParent().getID());
   proto.SetExtension(serialization::ScalarAttribute::attribute_id, attribute_.getID());
 
+  S::ScalarAttribute::JoinSide join_side_proto;
+  switch (join_side_) {
+    case kNone:
+      join_side_proto = S::ScalarAttribute::NONE;
+      break;
+    case kLeftSide:
+      join_side_proto = S::ScalarAttribute::LEFT_SIDE;
+      break;
+    case kRightSide:
+      join_side_proto = S::ScalarAttribute::RIGHT_SIDE;
+      break;
+  }
+  proto.SetExtension(S::ScalarAttribute::join_side, join_side_proto);
+
   return proto;
 }
 
 Scalar* ScalarAttribute::clone() const {
-  return new ScalarAttribute(attribute_);
+  return new ScalarAttribute(attribute_, join_side_);
 }
 
 TypedValue ScalarAttribute::getValueForSingleTuple(const ValueAccessor &accessor,
@@ -65,18 +83,16 @@ TypedValue ScalarAttribute::getValueForSingleTuple(const ValueAccessor &accessor
 
 TypedValue ScalarAttribute::getValueForJoinedTuples(
     const ValueAccessor &left_accessor,
-    const relation_id left_relation_id,
     const tuple_id left_tuple_id,
     const ValueAccessor &right_accessor,
-    const relation_id right_relation_id,
     const tuple_id right_tuple_id) const {
-  // FIXME(chasseur): This can get confused and break for self-joins.
-  DCHECK((attribute_.getParent().getID() == left_relation_id)
-         || (attribute_.getParent().getID() == right_relation_id));
-  if (attribute_.getParent().getID() == left_relation_id) {
+  DCHECK(join_side_ != kNone);
+
+  if (join_side_ == kLeftSide) {
     return left_accessor.getTypedValueAtAbsolutePositionVirtual(attribute_.getID(),
                                                                 left_tuple_id);
   } else {
+    DCHECK(join_side_ == kRightSide);
     return right_accessor.getTypedValueAtAbsolutePositionVirtual(attribute_.getID(),
                                                                  right_tuple_id);
   }
@@ -84,10 +100,6 @@ TypedValue ScalarAttribute::getValueForJoinedTuples(
 
 attribute_id ScalarAttribute::getAttributeIdForValueAccessor() const {
   return attribute_.getID();
-}
-
-relation_id ScalarAttribute::getRelationIdForValueAccessor() const {
-  return attribute_.getParent().getID();
 }
 
 ColumnVectorPtr ScalarAttribute::getAllValues(
@@ -157,19 +169,16 @@ ColumnVectorPtr ScalarAttribute::getAllValues(
 }
 
 ColumnVectorPtr ScalarAttribute::getAllValuesForJoin(
-    const relation_id left_relation_id,
     ValueAccessor *left_accessor,
-    const relation_id right_relation_id,
     ValueAccessor *right_accessor,
     const std::vector<std::pair<tuple_id, tuple_id>> &joined_tuple_ids,
     ColumnVectorCache *cv_cache) const {
-  DCHECK((attribute_.getParent().getID() == left_relation_id)
-         || (attribute_.getParent().getID() == right_relation_id));
+  DCHECK(join_side_ != kNone);
 
   const attribute_id attr_id = attribute_.getID();
   const Type &result_type = attribute_.getType();
 
-  const bool using_left_relation = (attribute_.getParent().getID() == left_relation_id);
+  const bool using_left_relation = (join_side_ == kLeftSide);
   ValueAccessor *accessor = using_left_relation ? left_accessor
                                                 : right_accessor;
 
@@ -232,6 +241,19 @@ void ScalarAttribute::getFieldStringItems(
 
   inline_field_names->emplace_back("attribute");
   inline_field_values->emplace_back(std::to_string(attribute_.getID()));
+
+  switch (join_side_) {
+    case kNone:
+      break;
+    case kLeftSide:
+      inline_field_names->emplace_back("join_side");
+      inline_field_values->push_back("left_side");
+      break;
+    case kRightSide:
+      inline_field_names->emplace_back("join_side");
+      inline_field_values->push_back("right_side");
+      break;
+  }
 }
 
 }  // namespace quickstep

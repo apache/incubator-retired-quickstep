@@ -407,9 +407,6 @@ serialization::WorkOrder* NestedLoopsJoinOperator::createWorkOrderProto(const pa
 template <bool LEFT_PACKED, bool RIGHT_PACKED>
 void NestedLoopsJoinWorkOrder::executeHelper(const TupleStorageSubBlock &left_store,
                                              const TupleStorageSubBlock &right_store) {
-  const relation_id left_input_relation_id = left_input_relation_.getID();
-  const relation_id right_input_relation_id = right_input_relation_.getID();
-
   const tuple_id left_max_tid = left_store.getMaxTupleID();
   const tuple_id right_max_tid = right_store.getMaxTupleID();
 
@@ -428,10 +425,8 @@ void NestedLoopsJoinWorkOrder::executeHelper(const TupleStorageSubBlock &left_st
         if (RIGHT_PACKED || right_store.hasTupleWithID(right_tid)) {
           // For each tuple in the right block...
           if (join_predicate_->matchesForJoinedTuples(*left_accessor,
-                                                      left_input_relation_id,
                                                       left_tid,
                                                       *right_accessor,
-                                                      right_input_relation_id,
                                                       right_tid)) {
             joined_tuple_ids.emplace_back(left_tid, right_tid);
           }
@@ -460,9 +455,7 @@ void NestedLoopsJoinWorkOrder::executeHelper(const TupleStorageSubBlock &left_st
     for (vector<unique_ptr<const Scalar>>::const_iterator selection_cit = selection_.begin();
          selection_cit != selection_.end();
          ++selection_cit) {
-      temp_result.addColumn((*selection_cit)->getAllValuesForJoin(left_input_relation_id,
-                                                                  left_accessor.get(),
-                                                                  right_input_relation_id,
+      temp_result.addColumn((*selection_cit)->getAllValuesForJoin(left_accessor.get(),
                                                                   right_accessor.get(),
                                                                   joined_tuple_ids,
                                                                   cv_cache.get()));

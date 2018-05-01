@@ -916,8 +916,8 @@ TEST_F(ScalarCaseExpressionTest, JoinStaticBranchConstantTest) {
       new ScalarLiteral(TypedValue(static_cast<int>(2)), int_type)));
   result_expressions.emplace_back(new ScalarBinaryExpression(
       BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kAdd),
-      new ScalarAttribute(*sample_relation_->getAttributeById(0)),
-      new ScalarAttribute(*other_relation.getAttributeById(1))));
+      new ScalarAttribute(*sample_relation_->getAttributeById(0), Scalar::kLeftSide),
+      new ScalarAttribute(*other_relation.getAttributeById(1), Scalar::kRightSide)));
 
   const int kConstant = 72;
   // WHEN 1 < 2 THEN kConstant
@@ -931,8 +931,8 @@ TEST_F(ScalarCaseExpressionTest, JoinStaticBranchConstantTest) {
   // WHEN double_attr = other_double THEN 0
   when_predicates.emplace_back(new ComparisonPredicate(
       ComparisonFactory::GetComparison(ComparisonID::kEqual),
-      new ScalarAttribute(*sample_relation_->getAttributeById(1)),
-      new ScalarAttribute(*other_relation.getAttributeById(0))));
+      new ScalarAttribute(*sample_relation_->getAttributeById(1), Scalar::kLeftSide),
+      new ScalarAttribute(*other_relation.getAttributeById(0), Scalar::kRightSide)));
   result_expressions.emplace_back(new ScalarLiteral(TypedValue(0), TypeFactory::GetType(kInt)));
 
   const Type &int_nullable_type = TypeFactory::GetType(kInt, true);
@@ -947,14 +947,13 @@ TEST_F(ScalarCaseExpressionTest, JoinStaticBranchConstantTest) {
   // Create a list of joined tuple-id pairs (just the cross-product of tuples).
   std::vector<std::pair<tuple_id, tuple_id>> joined_tuple_ids;
   for (std::size_t tuple_num = 0; tuple_num < kNumSampleTuples; ++tuple_num) {
+    // <LeftSide-tid, RightSide-tid>.
     joined_tuple_ids.emplace_back(tuple_num, 0);
     joined_tuple_ids.emplace_back(tuple_num, 1);
   }
 
   ColumnVectorPtr result_cv(case_expr.getAllValuesForJoin(
-      0,
       &sample_data_value_accessor_,
-      1,
       &other_accessor,
       joined_tuple_ids,
       nullptr /* cv_cache */));
@@ -1012,8 +1011,8 @@ TEST_F(ScalarCaseExpressionTest, JoinStaticBranchOnScalarAttributeTest) {
       new ScalarLiteral(TypedValue(static_cast<int>(2)), int_type)));
   result_expressions.emplace_back(new ScalarBinaryExpression(
       BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kAdd),
-      new ScalarAttribute(*sample_relation_->getAttributeById(0)),
-      new ScalarAttribute(*other_relation.getAttributeById(1))));
+      new ScalarAttribute(*sample_relation_->getAttributeById(0), Scalar::kLeftSide),
+      new ScalarAttribute(*other_relation.getAttributeById(1), Scalar::kRightSide)));
 
   // WHEN 1 < 2 THEN int_attr
   when_predicates.emplace_back(new ComparisonPredicate(
@@ -1021,13 +1020,13 @@ TEST_F(ScalarCaseExpressionTest, JoinStaticBranchOnScalarAttributeTest) {
       new ScalarLiteral(TypedValue(static_cast<int>(1)), int_type),
       new ScalarLiteral(TypedValue(static_cast<int>(2)), int_type)));
   result_expressions.emplace_back(
-      new ScalarAttribute(*sample_relation_->getAttributeById(0)));
+      new ScalarAttribute(*sample_relation_->getAttributeById(0), Scalar::kLeftSide));
 
   // WHEN double_attr = other_double THEN 0
   when_predicates.emplace_back(new ComparisonPredicate(
       ComparisonFactory::GetComparison(ComparisonID::kEqual),
-      new ScalarAttribute(*sample_relation_->getAttributeById(1)),
-      new ScalarAttribute(*other_relation.getAttributeById(0))));
+      new ScalarAttribute(*sample_relation_->getAttributeById(1), Scalar::kLeftSide),
+      new ScalarAttribute(*other_relation.getAttributeById(0), Scalar::kRightSide)));
   result_expressions.emplace_back(new ScalarLiteral(TypedValue(0), TypeFactory::GetType(kInt)));
 
   const Type &int_nullable_type = TypeFactory::GetType(kInt, true);
@@ -1042,14 +1041,13 @@ TEST_F(ScalarCaseExpressionTest, JoinStaticBranchOnScalarAttributeTest) {
   // Create a list of joined tuple-id pairs (just the cross-product of tuples).
   std::vector<std::pair<tuple_id, tuple_id>> joined_tuple_ids;
   for (std::size_t tuple_num = 0; tuple_num < kNumSampleTuples; ++tuple_num) {
+    // <LeftSide-tid, RightSide-tid>.
     joined_tuple_ids.emplace_back(tuple_num, 0);
     joined_tuple_ids.emplace_back(tuple_num, 1);
   }
 
   ColumnVectorPtr result_cv(case_expr.getAllValuesForJoin(
-      0,
       &sample_data_value_accessor_,
-      1,
       &other_accessor,
       joined_tuple_ids,
       nullptr /* cv_cache */));
@@ -1116,8 +1114,8 @@ TEST_F(ScalarCaseExpressionTest, JoinStaticBranchTest) {
       new ScalarLiteral(TypedValue(static_cast<int>(2)), int_type)));
   result_expressions.emplace_back(new ScalarBinaryExpression(
       BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kAdd),
-      new ScalarAttribute(*sample_relation_->getAttributeById(0)),
-      new ScalarAttribute(*other_relation.getAttributeById(1))));
+      new ScalarAttribute(*sample_relation_->getAttributeById(0), Scalar::kLeftSide),
+      new ScalarAttribute(*other_relation.getAttributeById(1), Scalar::kRightSide)));
 
   // WHEN 1 < 2 THEN int_attr * other_int
   when_predicates.emplace_back(new ComparisonPredicate(
@@ -1126,14 +1124,14 @@ TEST_F(ScalarCaseExpressionTest, JoinStaticBranchTest) {
       new ScalarLiteral(TypedValue(static_cast<int>(2)), int_type)));
   result_expressions.emplace_back(new ScalarBinaryExpression(
       BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kMultiply),
-      new ScalarAttribute(*sample_relation_->getAttributeById(0)),
-      new ScalarAttribute(*other_relation.getAttributeById(1))));
+      new ScalarAttribute(*sample_relation_->getAttributeById(0), Scalar::kLeftSide),
+      new ScalarAttribute(*other_relation.getAttributeById(1), Scalar::kRightSide)));
 
   // WHEN double_attr = other_double THEN 0
   when_predicates.emplace_back(new ComparisonPredicate(
       ComparisonFactory::GetComparison(ComparisonID::kEqual),
-      new ScalarAttribute(*sample_relation_->getAttributeById(1)),
-      new ScalarAttribute(*other_relation.getAttributeById(0))));
+      new ScalarAttribute(*sample_relation_->getAttributeById(1), Scalar::kLeftSide),
+      new ScalarAttribute(*other_relation.getAttributeById(0), Scalar::kRightSide)));
   result_expressions.emplace_back(new ScalarLiteral(TypedValue(0), TypeFactory::GetType(kInt)));
 
   const Type &int_nullable_type = TypeFactory::GetType(kInt, true);
@@ -1148,14 +1146,13 @@ TEST_F(ScalarCaseExpressionTest, JoinStaticBranchTest) {
   // Create a list of joined tuple-id pairs (just the cross-product of tuples).
   std::vector<std::pair<tuple_id, tuple_id>> joined_tuple_ids;
   for (std::size_t tuple_num = 0; tuple_num < kNumSampleTuples; ++tuple_num) {
+    // <LeftSide-tid, RightSide-tid>.
     joined_tuple_ids.emplace_back(tuple_num, 0);
     joined_tuple_ids.emplace_back(tuple_num, 1);
   }
 
   ColumnVectorPtr result_cv(case_expr.getAllValuesForJoin(
-      0,
       &sample_data_value_accessor_,
-      1,
       &other_accessor,
       joined_tuple_ids,
       nullptr /* cv_cache */));
@@ -1217,22 +1214,22 @@ TEST_F(ScalarCaseExpressionTest, JoinTest) {
   // WHEN double_attr > other_double THEN int_attr + other_int
   when_predicates.emplace_back(new ComparisonPredicate(
       ComparisonFactory::GetComparison(ComparisonID::kGreater),
-      new ScalarAttribute(*sample_relation_->getAttributeById(1)),
-      new ScalarAttribute(*other_relation.getAttributeById(0))));
+      new ScalarAttribute(*sample_relation_->getAttributeById(1), Scalar::kLeftSide),
+      new ScalarAttribute(*other_relation.getAttributeById(0), Scalar::kRightSide)));
   result_expressions.emplace_back(new ScalarBinaryExpression(
       BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kAdd),
-      new ScalarAttribute(*sample_relation_->getAttributeById(0)),
-      new ScalarAttribute(*other_relation.getAttributeById(1))));
+      new ScalarAttribute(*sample_relation_->getAttributeById(0), Scalar::kLeftSide),
+      new ScalarAttribute(*other_relation.getAttributeById(1), Scalar::kRightSide)));
 
   // WHEN double_attr < other_double THEN int_attr * other_int
   when_predicates.emplace_back(new ComparisonPredicate(
       ComparisonFactory::GetComparison(ComparisonID::kLess),
-      new ScalarAttribute(*sample_relation_->getAttributeById(1)),
-      new ScalarAttribute(*other_relation.getAttributeById(0))));
+      new ScalarAttribute(*sample_relation_->getAttributeById(1), Scalar::kLeftSide),
+      new ScalarAttribute(*other_relation.getAttributeById(0), Scalar::kRightSide)));
   result_expressions.emplace_back(new ScalarBinaryExpression(
       BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kMultiply),
-      new ScalarAttribute(*sample_relation_->getAttributeById(0)),
-      new ScalarAttribute(*other_relation.getAttributeById(1))));
+      new ScalarAttribute(*sample_relation_->getAttributeById(0), Scalar::kLeftSide),
+      new ScalarAttribute(*other_relation.getAttributeById(1), Scalar::kRightSide)));
 
   // ELSE 0
   ScalarCaseExpression case_expr(
@@ -1244,14 +1241,13 @@ TEST_F(ScalarCaseExpressionTest, JoinTest) {
   // Create a list of joined tuple-id pairs (just the cross-product of tuples).
   std::vector<std::pair<tuple_id, tuple_id>> joined_tuple_ids;
   for (std::size_t tuple_num = 0; tuple_num < kNumSampleTuples; ++tuple_num) {
+    // <LeftSide-tid, RightSide-tid>.
     joined_tuple_ids.emplace_back(tuple_num, 0);
     joined_tuple_ids.emplace_back(tuple_num, 1);
   }
 
   ColumnVectorPtr result_cv(case_expr.getAllValuesForJoin(
-      0,
       &sample_data_value_accessor_,
-      1,
       &other_accessor,
       joined_tuple_ids,
       nullptr /* cv_cache */));

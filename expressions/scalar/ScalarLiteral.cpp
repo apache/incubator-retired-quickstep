@@ -59,9 +59,7 @@ ColumnVectorPtr ScalarLiteral::getAllValues(
 }
 
 ColumnVectorPtr ScalarLiteral::getAllValuesForJoin(
-    const relation_id left_relation_id,
     ValueAccessor *left_accessor,
-    const relation_id right_relation_id,
     ValueAccessor *right_accessor,
     const std::vector<std::pair<tuple_id, tuple_id>> &joined_tuple_ids,
     ColumnVectorCache *cv_cache) const {

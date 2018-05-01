@@ -84,10 +84,8 @@ class TruePredicate : public TrivialPredicate {
 
   bool matchesForJoinedTuples(
       const ValueAccessor &left_accessor,
-      const relation_id left_relation_id,
       const tuple_id left_tuple_id,
       const ValueAccessor &right_accessor,
-      const relation_id right_relation_id,
       const tuple_id right_tuple_id) const override {
     return true;
   }
@@ -137,10 +135,8 @@ class FalsePredicate : public TrivialPredicate {
 
   bool matchesForJoinedTuples(
       const ValueAccessor &left_accessor,
-      const relation_id left_relation_id,
       const tuple_id left_tuple_id,
       const ValueAccessor &right_accessor,
-      const relation_id right_relation_id,
       const tuple_id right_tuple_id) const override {
     return false;
   }

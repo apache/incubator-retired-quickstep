@@ -76,19 +76,15 @@ TypedValue ScalarUnaryExpression::getValueForSingleTuple(const ValueAccessor &ac
 
 TypedValue ScalarUnaryExpression::getValueForJoinedTuples(
     const ValueAccessor &left_accessor,
-    const relation_id left_relation_id,
     const tuple_id left_tuple_id,
     const ValueAccessor &right_accessor,
-    const relation_id right_relation_id,
     const tuple_id right_tuple_id) const {
   if (fast_operator_.get() == nullptr) {
     return static_value_.makeReferenceToThis();
   } else {
     return fast_operator_->applyToTypedValue(operand_->getValueForJoinedTuples(left_accessor,
-                                                                               left_relation_id,
                                                                                left_tuple_id,
                                                                                right_accessor,
-                                                                               right_relation_id,
                                                                                right_tuple_id));
   }
 }
@@ -119,9 +115,7 @@ ColumnVectorPtr ScalarUnaryExpression::getAllValues(
 }
 
 ColumnVectorPtr ScalarUnaryExpression::getAllValuesForJoin(
-    const relation_id left_relation_id,
     ValueAccessor *left_accessor,
-    const relation_id right_relation_id,
     ValueAccessor *right_accessor,
     const std::vector<std::pair<tuple_id, tuple_id>> &joined_tuple_ids,
     ColumnVectorCache *cv_cache) const {
@@ -134,11 +128,9 @@ ColumnVectorPtr ScalarUnaryExpression::getAllValuesForJoin(
 #ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_JOIN
     const attribute_id operand_attr_id = operand_->getAttributeIdForValueAccessor();
     if (operand_attr_id != -1) {
-      const relation_id operand_relation_id = operand_->getRelationIdForValueAccessor();
-      DCHECK_NE(operand_relation_id, -1);
-      DCHECK((operand_relation_id == left_relation_id)
-             || (operand_relation_id == right_relation_id));
-      const bool using_left_relation = (operand_relation_id == left_relation_id);
+      const JoinSide join_side = operand_->join_side();
+      DCHECK(join_side != kNone);
+      const bool using_left_relation = (join_side == kLeftSide);
       ValueAccessor *operand_accessor = using_left_relation ? left_accessor
                                                             : right_accessor;
       return ColumnVectorPtr(
@@ -150,9 +142,7 @@ ColumnVectorPtr ScalarUnaryExpression::getAllValuesForJoin(
 #endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_JOIN
 
     ColumnVectorPtr operand_result(
-        operand_->getAllValuesForJoin(left_relation_id,
-                                      left_accessor,
-                                      right_relation_id,
+        operand_->getAllValuesForJoin(left_accessor,
                                       right_accessor,
                                       joined_tuple_ids,
                                       cv_cache));

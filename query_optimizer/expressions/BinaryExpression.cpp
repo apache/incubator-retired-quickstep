@@ -23,6 +23,7 @@
 #include <cstddef>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -101,11 +102,13 @@ std::vector<AttributeReferencePtr> BinaryExpression::getReferencedAttributes() c
 }
 
 ::quickstep::Scalar *BinaryExpression::concretize(
-    const std::unordered_map<ExprId, const CatalogAttribute*> &substitution_map) const {
+    const std::unordered_map<ExprId, const CatalogAttribute*> &substitution_map,
+    const std::unordered_set<ExprId> &left_expr_ids,
+    const std::unordered_set<ExprId> &right_expr_ids) const {
   return new ::quickstep::ScalarBinaryExpression(
       operation_,
-      left_->concretize(substitution_map),
-      right_->concretize(substitution_map));
+      left_->concretize(substitution_map, left_expr_ids, right_expr_ids),
+      right_->concretize(substitution_map, left_expr_ids, right_expr_ids));
 }
 
 std::size_t BinaryExpression::computeHash() const {

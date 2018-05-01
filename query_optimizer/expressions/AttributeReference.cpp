@@ -23,8 +23,10 @@
 #include <functional>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
+#include "expressions/scalar/Scalar.hpp"
 #include "expressions/scalar/ScalarAttribute.hpp"
 #include "query_optimizer/expressions/ExprId.hpp"
 #include "query_optimizer/expressions/Expression.hpp"
@@ -53,11 +55,22 @@ std::vector<AttributeReferencePtr> AttributeReference::getReferencedAttributes()
 }
 
 ::quickstep::Scalar *AttributeReference::concretize(
-    const std::unordered_map<ExprId, const CatalogAttribute*> &substitution_map) const {
+    const std::unordered_map<ExprId, const CatalogAttribute*> &substitution_map,
+    const std::unordered_set<ExprId> &left_expr_ids,
+    const std::unordered_set<ExprId> &right_expr_ids) const {
+  const ExprId expr_id = id();
   const std::unordered_map<ExprId, const CatalogAttribute*>::const_iterator found_it =
-      substitution_map.find(id());
+      substitution_map.find(expr_id);
   DCHECK(found_it != substitution_map.end()) << toString();
-  return new ::quickstep::ScalarAttribute(*found_it->second);
+
+  ::quickstep::Scalar::JoinSide join_side = ::quickstep::Scalar::kNone;
+  if (left_expr_ids.find(expr_id) != left_expr_ids.end()) {
+    join_side = ::quickstep::Scalar::kLeftSide;
+  } else if (right_expr_ids.find(expr_id) != right_expr_ids.end()) {
+    join_side = ::quickstep::Scalar::kRightSide;
+  }
+
+  return new ::quickstep::ScalarAttribute(*found_it->second, join_side);
 }
 
 std::size_t AttributeReference::computeHash() const {

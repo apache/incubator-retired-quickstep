@@ -52,6 +52,8 @@
 
 namespace quickstep {
 
+namespace S = serialization;
+
 class Type;
 
 Predicate* PredicateFactory::ReconstructFromProto(const serialization::Predicate &proto,
@@ -163,9 +165,22 @@ Scalar* ScalarFactory::ReconstructFromProto(const serialization::Scalar &proto,
     case serialization::Scalar::ATTRIBUTE: {
       const relation_id rel_id = proto.GetExtension(serialization::ScalarAttribute::relation_id);
 
+      Scalar::JoinSide join_side;
+      switch (proto.GetExtension(S::ScalarAttribute::join_side)) {
+        case S::ScalarAttribute::NONE:
+          join_side = Scalar::kNone;
+          break;
+        case S::ScalarAttribute::LEFT_SIDE:
+          join_side = Scalar::kLeftSide;
+          break;
+        case S::ScalarAttribute::RIGHT_SIDE:
+          join_side = Scalar::kRightSide;
+          break;
+      }
+
       DCHECK(database.hasRelationWithId(rel_id));
       return new ScalarAttribute(*database.getRelationSchemaById(rel_id).getAttributeById(
-          proto.GetExtension(serialization::ScalarAttribute::attribute_id)));
+          proto.GetExtension(serialization::ScalarAttribute::attribute_id)), join_side);
     }
     case serialization::Scalar::UNARY_EXPRESSION: {
       return new ScalarUnaryExpression(

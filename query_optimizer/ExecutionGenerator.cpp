@@ -29,15 +29,11 @@
 #include <string>
 #include <type_traits>
 #include <unordered_map>
-
-#include "query_optimizer/QueryOptimizerConfig.h"  // For QUICKSTEP_DISTRIBUTED.
-
-#ifdef QUICKSTEP_DISTRIBUTED
 #include <unordered_set>
-#endif
-
 #include <utility>
 #include <vector>
+
+#include "query_optimizer/QueryOptimizerConfig.h"  // For QUICKSTEP_DISTRIBUTED.
 
 #ifdef QUICKSTEP_DISTRIBUTED
 #include "catalog/Catalog.pb.h"
@@ -72,6 +68,7 @@
 #include "query_optimizer/expressions/Alias.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"
 #include "query_optimizer/expressions/ComparisonExpression.hpp"
+#include "query_optimizer/expressions/ExprId.hpp"
 #include "query_optimizer/expressions/ExpressionType.hpp"
 #include "query_optimizer/expressions/PatternMatcher.hpp"
 #include "query_optimizer/expressions/Scalar.hpp"
@@ -573,7 +570,9 @@ void ExecutionGenerator::dropAllTemporaryRelations() {
 
 void ExecutionGenerator::convertNamedExpressions(
     const std::vector<E::NamedExpressionPtr> &named_expressions,
-    S::QueryContext::ScalarGroup *scalar_group_proto) {
+    S::QueryContext::ScalarGroup *scalar_group_proto,
+    const std::unordered_set<E::ExprId> &left_expr_ids,
+    const std::unordered_set<E::ExprId> &right_expr_ids) {
   for (const E::NamedExpressionPtr &project_expression : named_expressions) {
     unique_ptr<const Scalar> execution_scalar;
     E::AliasPtr alias;
@@ -583,9 +582,11 @@ void ExecutionGenerator::convertNamedExpressions(
       // so all child expressions of an Alias should be a Scalar.
       CHECK(E::SomeScalar::MatchesWithConditionalCast(alias->expression(), &scalar))
           << alias->toString();
-      execution_scalar.reset(scalar->concretize(attribute_substitution_map_));
+      execution_scalar.reset(
+          scalar->concretize(attribute_substitution_map_, left_expr_ids, right_expr_ids));
     } else {
-      execution_scalar.reset(project_expression->concretize(attribute_substitution_map_));
+      execution_scalar.reset(
+          project_expression->concretize(attribute_substitution_map_, left_expr_ids, right_expr_ids));
     }
 
     scalar_group_proto->add_scalars()->MergeFrom(execution_scalar->getProto());
@@ -593,8 +594,10 @@ void ExecutionGenerator::convertNamedExpressions(
 }
 
 Predicate* ExecutionGenerator::convertPredicate(
-    const expressions::PredicatePtr &optimizer_predicate) const {
-  return optimizer_predicate->concretize(attribute_substitution_map_);
+    const expressions::PredicatePtr &optimizer_predicate,
+    const std::unordered_set<E::ExprId> &left_expr_ids,
+    const std::unordered_set<E::ExprId> &right_expr_ids) const {
+  return optimizer_predicate->concretize(attribute_substitution_map_, left_expr_ids, right_expr_ids);
 }
 
 void ExecutionGenerator::convertTableReference(
@@ -941,12 +944,27 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
     key_types.push_back(&left_attribute_type);
   }
 
+  std::unordered_set<E::ExprId> probe_expr_ids;
+  const auto probe_output_attributes = probe_physical->getOutputAttributes();
+  probe_expr_ids.reserve(probe_output_attributes.size());
+  for (const auto &probe_output_attribute : probe_output_attributes) {
+    probe_expr_ids.insert(probe_output_attribute->id());
+  }
+
+  std::unordered_set<E::ExprId> build_expr_ids;
+  const auto build_output_attributes = build_physical->getOutputAttributes();
+  build_expr_ids.reserve(build_output_attributes.size());
+  for (const auto &build_output_attribute : build_output_attributes) {
+    build_expr_ids.insert(build_output_attribute->id());
+  }
+
   // Convert the residual predicate proto.
   QueryContext::predicate_id residual_predicate_index = QueryContext::kInvalidPredicateId;
   if (physical_plan->residual_predicate()) {
     residual_predicate_index = query_context_proto_->predicates_size();
 
-    unique_ptr<const Predicate> residual_predicate(convertPredicate(physical_plan->residual_predicate()));
+    unique_ptr<const Predicate> residual_predicate(
+        convertPredicate(physical_plan->residual_predicate(), probe_expr_ids, build_expr_ids));
     query_context_proto_->add_predicates()->MergeFrom(residual_predicate->getProto());
   }
 
@@ -955,7 +973,8 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
   if (physical_plan->build_predicate()) {
     build_predicate_index = query_context_proto_->predicates_size();
 
-    unique_ptr<const Predicate> build_predicate(convertPredicate(physical_plan->build_predicate()));
+    unique_ptr<const Predicate> build_predicate(
+        convertPredicate(physical_plan->build_predicate(), probe_expr_ids, build_expr_ids));
     query_context_proto_->add_predicates()->MergeFrom(build_predicate->getProto());
   }
 
@@ -963,7 +982,7 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
   const QueryContext::scalar_group_id project_expressions_group_index =
       query_context_proto_->scalar_groups_size();
   convertNamedExpressions(physical_plan->project_expressions(),
-                          query_context_proto_->add_scalar_groups());
+                          query_context_proto_->add_scalar_groups(), probe_expr_ids, build_expr_ids);
 
   const CatalogRelationInfo *build_relation_info =
       findRelationInfoOutputByPhysical(build_physical);
@@ -979,18 +998,11 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
         new std::vector<bool>(
             E::MarkExpressionsReferingAnyAttribute(
                 physical_plan->project_expressions(),
-                build_physical->getOutputAttributes())));
+                build_output_attributes)));
   }
 
   const CatalogRelation *build_relation = build_relation_info->relation;
   const CatalogRelation *probe_relation = probe_relation_info->relation;
-
-  // FIXME(quickstep-team): Add support for self-join.
-  // We check to see if the build_predicate is null as certain queries that
-  // support hash-select fuse will result in the first check being true.
-  if (build_relation == probe_relation && physical_plan->build_predicate() == nullptr) {
-    THROW_SQL_ERROR() << "Self-join is not supported";
-  }
 
   // Create join hash table proto.
   const QueryContext::join_hash_table_id join_hash_table_index =
@@ -1129,10 +1141,28 @@ void ExecutionGenerator::convertNestedLoopsJoin(
     const P::NestedLoopsJoinPtr &physical_plan) {
   // NestedLoopsJoin is converted to a NestedLoopsJoin operator.
 
+  const P::PhysicalPtr &left_physical = physical_plan->left();
+  const P::PhysicalPtr &right_physical = physical_plan->right();
+
+  std::unordered_set<E::ExprId> left_expr_ids;
+  const auto left_output_attributes = left_physical->getOutputAttributes();
+  left_expr_ids.reserve(left_output_attributes.size());
+  for (const auto &left_output_attribute : left_output_attributes) {
+    left_expr_ids.insert(left_output_attribute->id());
+  }
+
+  std::unordered_set<E::ExprId> right_expr_ids;
+  const auto right_output_attributes = right_physical->getOutputAttributes();
+  right_expr_ids.reserve(right_output_attributes.size());
+  for (const auto &right_output_attribute : right_output_attributes) {
+    right_expr_ids.insert(right_output_attribute->id());
+  }
+
   // Convert the join predicate proto.
   const QueryContext::predicate_id execution_join_predicate_index = query_context_proto_->predicates_size();
   if (physical_plan->join_predicate()) {
-    unique_ptr<const Predicate> execution_join_predicate(convertPredicate(physical_plan->join_predicate()));
+    unique_ptr<const Predicate> execution_join_predicate(
+        convertPredicate(physical_plan->join_predicate(), left_expr_ids, right_expr_ids));
     query_context_proto_->add_predicates()->MergeFrom(execution_join_predicate->getProto());
   } else {
     query_context_proto_->add_predicates()->set_predicate_type(S::Predicate::TRUE);
@@ -1142,19 +1172,15 @@ void ExecutionGenerator::convertNestedLoopsJoin(
   const QueryContext::scalar_group_id project_expressions_group_index =
       query_context_proto_->scalar_groups_size();
   convertNamedExpressions(physical_plan->project_expressions(),
-                          query_context_proto_->add_scalar_groups());
+                          query_context_proto_->add_scalar_groups(),
+                          left_expr_ids, right_expr_ids);
 
   const CatalogRelationInfo *left_relation_info =
-      findRelationInfoOutputByPhysical(physical_plan->left());
+      findRelationInfoOutputByPhysical(left_physical);
   const CatalogRelation &left_relation = *left_relation_info->relation;
   const CatalogRelationInfo *right_relation_info =
-      findRelationInfoOutputByPhysical(physical_plan->right());
+      findRelationInfoOutputByPhysical(right_physical);
   const CatalogRelation &right_relation = *right_relation_info->relation;
-
-  // FIXME(quickstep-team): Add support for self-join.
-  if (left_relation.getID() == right_relation.getID()) {
-    THROW_SQL_ERROR() << "NestedLoopsJoin does not support self-join yet";
-  }
 
   const std::size_t num_partitions = left_relation.getNumPartitions();
 

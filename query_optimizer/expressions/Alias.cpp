@@ -21,6 +21,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "catalog/CatalogTypedefs.hpp"
@@ -65,7 +66,9 @@ ExpressionPtr Alias::copyWithNewChildren(
 }
 
 ::quickstep::Scalar *Alias::concretize(
-    const std::unordered_map<ExprId, const CatalogAttribute*> &substitution_map) const {
+    const std::unordered_map<ExprId, const CatalogAttribute*> &substitution_map,
+    const std::unordered_set<ExprId> &left_expr_ids,
+    const std::unordered_set<ExprId> &right_expr_ids) const {
   // Alias should be converted to a CatalogAttribute.
   LOG(FATAL) << "Cannot concretize Alias to a scalar for evaluation";
 }

@@ -22,6 +22,7 @@
 #include <cstddef>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "expressions/scalar/ScalarUnaryExpression.hpp"
@@ -53,9 +54,11 @@ ExpressionPtr UnaryExpression::copyWithNewChildren(
 }
 
 ::quickstep::Scalar* UnaryExpression::concretize(
-    const std::unordered_map<ExprId, const CatalogAttribute*> &substitution_map) const {
+    const std::unordered_map<ExprId, const CatalogAttribute*> &substitution_map,
+    const std::unordered_set<ExprId> &left_expr_ids,
+    const std::unordered_set<ExprId> &right_expr_ids) const {
   return new ::quickstep::ScalarUnaryExpression(
-      operation_, operand_->concretize(substitution_map));
+      operation_, operand_->concretize(substitution_map, left_expr_ids, right_expr_ids));
 }
 
 std::size_t UnaryExpression::computeHash() const {

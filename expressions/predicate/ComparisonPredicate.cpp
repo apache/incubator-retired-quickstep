@@ -94,28 +94,22 @@ bool ComparisonPredicate::matchesForSingleTuple(const ValueAccessor &accessor,
 
 bool ComparisonPredicate::matchesForJoinedTuples(
     const ValueAccessor &left_accessor,
-    const relation_id left_relation_id,
     const tuple_id left_tuple_id,
     const ValueAccessor &right_accessor,
-    const relation_id right_relation_id,
     const tuple_id right_tuple_id) const {
   if (fast_comparator_.get() == nullptr) {
     return static_result_;
-  } else {
-    return fast_comparator_->compareTypedValues(
-        left_operand_->getValueForJoinedTuples(left_accessor,
-                                               left_relation_id,
-                                               left_tuple_id,
-                                               right_accessor,
-                                               right_relation_id,
-                                               right_tuple_id),
-        right_operand_->getValueForJoinedTuples(left_accessor,
-                                                left_relation_id,
-                                                left_tuple_id,
-                                                right_accessor,
-                                                right_relation_id,
-                                                right_tuple_id));
   }
+
+  return fast_comparator_->compareTypedValues(
+      left_operand_->getValueForJoinedTuples(left_accessor,
+                                             left_tuple_id,
+                                             right_accessor,
+                                             right_tuple_id),
+      right_operand_->getValueForJoinedTuples(left_accessor,
+                                              left_tuple_id,
+                                              right_accessor,
+                                              right_tuple_id));
 }
 
 TupleIdSequence* ComparisonPredicate::getAllMatches(

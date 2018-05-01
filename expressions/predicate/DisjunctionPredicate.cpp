@@ -85,10 +85,8 @@ bool DisjunctionPredicate::matchesForSingleTuple(const ValueAccessor &accessor,
 
 bool DisjunctionPredicate::matchesForJoinedTuples(
     const ValueAccessor &left_accessor,
-    const relation_id left_relation_id,
     const tuple_id left_tuple_id,
     const ValueAccessor &right_accessor,
-    const relation_id right_relation_id,
     const tuple_id right_tuple_id) const {
   if (has_static_result_) {
     return static_result_;
@@ -97,10 +95,8 @@ bool DisjunctionPredicate::matchesForJoinedTuples(
          it != dynamic_operand_list_.end();
          ++it) {
       if (it->matchesForJoinedTuples(left_accessor,
-                                     left_relation_id,
                                      left_tuple_id,
                                      right_accessor,
-                                     right_relation_id,
                                      right_tuple_id)) {
         return true;
       }

@@ -79,26 +79,20 @@ TypedValue ScalarBinaryExpression::getValueForSingleTuple(const ValueAccessor &a
 
 TypedValue ScalarBinaryExpression::getValueForJoinedTuples(
     const ValueAccessor &left_accessor,
-    const relation_id left_relation_id,
     const tuple_id left_tuple_id,
     const ValueAccessor &right_accessor,
-    const relation_id right_relation_id,
     const tuple_id right_tuple_id) const {
   if (fast_operator_.get() == nullptr) {
     return static_value_.makeReferenceToThis();
   } else {
     return fast_operator_->applyToTypedValues(
         left_operand_->getValueForJoinedTuples(left_accessor,
-                                               left_relation_id,
                                                left_tuple_id,
                                                right_accessor,
-                                               right_relation_id,
                                                right_tuple_id),
         right_operand_->getValueForJoinedTuples(left_accessor,
-                                                left_relation_id,
                                                 left_tuple_id,
                                                 right_accessor,
-                                                right_relation_id,
                                                 right_tuple_id));
   }
 }
@@ -199,9 +193,7 @@ ColumnVectorPtr ScalarBinaryExpression::getAllValues(
 }
 
 ColumnVectorPtr ScalarBinaryExpression::getAllValuesForJoin(
-    const relation_id left_relation_id,
     ValueAccessor *left_accessor,
-    const relation_id right_relation_id,
     ValueAccessor *right_accessor,
     const std::vector<std::pair<tuple_id, tuple_id>> &joined_tuple_ids,
     ColumnVectorCache *cv_cache) const {
@@ -216,12 +208,9 @@ ColumnVectorPtr ScalarBinaryExpression::getAllValuesForJoin(
       const attribute_id right_operand_attr_id
           = right_operand_->getAttributeIdForValueAccessor();
       if (right_operand_attr_id != -1) {
-        const relation_id right_operand_relation_id
-            = right_operand_->getRelationIdForValueAccessor();
-        DCHECK_NE(right_operand_relation_id, -1);
-        DCHECK((right_operand_relation_id == left_relation_id)
-               || (right_operand_relation_id == right_relation_id));
-        const bool using_left_relation = (right_operand_relation_id == left_relation_id);
+        const JoinSide join_side = right_operand_->join_side();
+        DCHECK(join_side != kNone);
+        const bool using_left_relation = (join_side == kLeftSide);
         ValueAccessor *right_operand_accessor = using_left_relation ? left_accessor
                                                                     : right_accessor;
         return ColumnVectorPtr(
@@ -235,9 +224,7 @@ ColumnVectorPtr ScalarBinaryExpression::getAllValuesForJoin(
 #endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_JOIN
 
       ColumnVectorPtr right_result(
-          right_operand_->getAllValuesForJoin(left_relation_id,
-                                              left_accessor,
-                                              right_relation_id,
+          right_operand_->getAllValuesForJoin(left_accessor,
                                               right_accessor,
                                               joined_tuple_ids,
                                               cv_cache));
@@ -250,12 +237,9 @@ ColumnVectorPtr ScalarBinaryExpression::getAllValuesForJoin(
       const attribute_id left_operand_attr_id
           = left_operand_->getAttributeIdForValueAccessor();
       if (left_operand_attr_id != -1) {
-        const relation_id left_operand_relation_id
-            = left_operand_->getRelationIdForValueAccessor();
-        DCHECK_NE(left_operand_relation_id, -1);
-        DCHECK((left_operand_relation_id == left_relation_id)
-               || (left_operand_relation_id == right_relation_id));
-        const bool using_left_relation = (left_operand_relation_id == left_relation_id);
+        const JoinSide join_side = left_operand_->join_side();
+        DCHECK(join_side != kNone);
+        const bool using_left_relation = (join_side == kLeftSide);
         ValueAccessor *left_operand_accessor = using_left_relation ? left_accessor
                                                                    : right_accessor;
         return ColumnVectorPtr(
@@ -269,9 +253,7 @@ ColumnVectorPtr ScalarBinaryExpression::getAllValuesForJoin(
 #endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_JOIN
 
       ColumnVectorPtr left_result(
-          left_operand_->getAllValuesForJoin(left_relation_id,
-                                             left_accessor,
-                                             right_relation_id,
+          left_operand_->getAllValuesForJoin(left_accessor,
                                              right_accessor,
                                              joined_tuple_ids,
                                              cv_cache));
@@ -286,25 +268,17 @@ ColumnVectorPtr ScalarBinaryExpression::getAllValuesForJoin(
       const attribute_id right_operand_attr_id
           = right_operand_->getAttributeIdForValueAccessor();
       if (left_operand_attr_id != -1) {
-        const relation_id left_operand_relation_id
-            = left_operand_->getRelationIdForValueAccessor();
-        DCHECK_NE(left_operand_relation_id, -1);
-        DCHECK((left_operand_relation_id == left_relation_id)
-               || (left_operand_relation_id == right_relation_id));
-        const bool using_left_relation_for_left_operand
-            = (left_operand_relation_id == left_relation_id);
+        const JoinSide join_side = left_operand_->join_side();
+        DCHECK(join_side != kNone);
+        const bool using_left_relation_for_left_operand = (join_side == kLeftSide);
         ValueAccessor *left_operand_accessor = using_left_relation_for_left_operand ? left_accessor
                                                                                     : right_accessor;
 
 #ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_JOIN_WITH_BINARY_EXPRESSIONS
         if (right_operand_attr_id != -1) {
-          const relation_id right_operand_relation_id
-              = right_operand_->getRelationIdForValueAccessor();
-          DCHECK_NE(right_operand_relation_id, -1);
-          DCHECK((right_operand_relation_id == left_relation_id)
-                 || (right_operand_relation_id == right_relation_id));
-          const bool using_left_relation_for_right_operand
-              = (right_operand_relation_id == left_relation_id);
+          const JoinSide join_side = right_operand_->join_side();
+          DCHECK(join_side != kNone);
+          const bool using_left_relation_for_right_operand = (join_side == kLeftSide);
           ValueAccessor *right_operand_accessor = using_left_relation_for_right_operand ? left_accessor
                                                                                         : right_accessor;
           return ColumnVectorPtr(
@@ -318,9 +292,7 @@ ColumnVectorPtr ScalarBinaryExpression::getAllValuesForJoin(
         }
 #endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_JOIN_WITH_BINARY_EXPRESSIONS
         ColumnVectorPtr right_result(
-            right_operand_->getAllValuesForJoin(left_relation_id,
-                                                left_accessor,
-                                                right_relation_id,
+            right_operand_->getAllValuesForJoin(left_accessor,
                                                 right_accessor,
                                                 joined_tuple_ids,
                                                 cv_cache));
@@ -333,20 +305,14 @@ ColumnVectorPtr ScalarBinaryExpression::getAllValuesForJoin(
                 *right_result,
                 joined_tuple_ids));
       } else if (right_operand_attr_id != -1) {
-        const relation_id right_operand_relation_id
-            = right_operand_->getRelationIdForValueAccessor();
-        DCHECK_NE(right_operand_relation_id, -1);
-        DCHECK((right_operand_relation_id == left_relation_id)
-               || (right_operand_relation_id == right_relation_id));
-        const bool using_left_relation_for_right_operand
-            = (right_operand_relation_id == left_relation_id);
+        const JoinSide join_side = right_operand_->join_side();
+        DCHECK(join_side != kNone);
+        const bool using_left_relation_for_right_operand = (join_side == kLeftSide);
         ValueAccessor *right_operand_accessor = using_left_relation_for_right_operand ? left_accessor
                                                                                       : right_accessor;
 
         ColumnVectorPtr left_result(
-            left_operand_->getAllValuesForJoin(left_relation_id,
-                                               left_accessor,
-                                               right_relation_id,
+            left_operand_->getAllValuesForJoin(left_accessor,
                                                right_accessor,
                                                joined_tuple_ids,
                                                cv_cache));
@@ -361,16 +327,12 @@ ColumnVectorPtr ScalarBinaryExpression::getAllValuesForJoin(
 #endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_JOIN
 
       ColumnVectorPtr left_result(
-          left_operand_->getAllValuesForJoin(left_relation_id,
-                                             left_accessor,
-                                             right_relation_id,
+          left_operand_->getAllValuesForJoin(left_accessor,
                                              right_accessor,
                                              joined_tuple_ids,
                                              cv_cache));
       ColumnVectorPtr right_result(
-          right_operand_->getAllValuesForJoin(left_relation_id,
-                                              left_accessor,
-                                              right_relation_id,
+          right_operand_->getAllValuesForJoin(left_accessor,
                                               right_accessor,
                                               joined_tuple_ids,
                                               cv_cache));

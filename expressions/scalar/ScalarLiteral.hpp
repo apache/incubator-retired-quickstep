@@ -87,10 +87,8 @@ class ScalarLiteral : public Scalar {
 
   TypedValue getValueForJoinedTuples(
       const ValueAccessor &left_accessor,
-      const relation_id left_relation_id,
       const tuple_id left_tuple_id,
       const ValueAccessor &right_accessor,
-      const relation_id right_relation_id,
       const tuple_id right_tuple_id) const override {
     return internal_literal_.makeReferenceToThis();
   }
@@ -108,9 +106,7 @@ class ScalarLiteral : public Scalar {
                                ColumnVectorCache *cv_cache) const override;
 
   ColumnVectorPtr getAllValuesForJoin(
-      const relation_id left_relation_id,
       ValueAccessor *left_accessor,
-      const relation_id right_relation_id,
       ValueAccessor *right_accessor,
       const std::vector<std::pair<tuple_id, tuple_id>> &joined_tuple_ids,
       ColumnVectorCache *cv_cache) const override;

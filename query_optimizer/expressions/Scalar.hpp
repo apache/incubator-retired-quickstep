@@ -23,6 +23,7 @@
 #include <cstddef>
 #include <memory>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "query_optimizer/expressions/Expression.hpp"
 #include "query_optimizer/expressions/ExprId.hpp"
@@ -61,11 +62,14 @@ class Scalar : public Expression {
    * @param substitution_map Map from ExprId to CatalogAttribute for use in
    *                         substituting CatalogAttribute for
    *                         AttributeReference.
+   * @param left_expr_ids The ExprIds from the left hand side.
+   * @param right_expr_ids The ExprIds from the right hand side.
    * @return Concretized expression for evaluation.
    */
   virtual ::quickstep::Scalar* concretize(
-      const std::unordered_map<ExprId, const CatalogAttribute*>& substitution_map)
-      const = 0;
+      const std::unordered_map<ExprId, const CatalogAttribute*> &substitution_map,
+      const std::unordered_set<ExprId> &left_expr_ids = std::unordered_set<ExprId>(),
+      const std::unordered_set<ExprId> &right_expr_ids = std::unordered_set<ExprId>()) const = 0;
 
   /**
    * @brief Check whether this scalar is semantically equivalent to \p other.

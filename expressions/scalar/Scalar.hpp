@@ -51,6 +51,15 @@ struct SubBlocksReference;
 class Scalar : public Expression {
  public:
   /**
+   * @brief The possible binary join side of Scalar values.
+   **/
+  enum JoinSide {
+    kNone = 0,
+    kLeftSide,
+    kRightSide
+  };
+
+  /**
    * @brief The possible provenance of Scalar values.
    **/
   enum ScalarDataSource {
@@ -128,26 +137,33 @@ class Scalar : public Expression {
    * @param left_accessor The ValueAccessor that the first of the joined
    *        tuples can be read from (this does NOT necessarily correspond to
    *        the left operand of a binary operation).
-   * @param left_relation_id The ID of the relation that left_tuple_store
-   *        belongs to.
    * @param left_tuple_id The ID of the tuple in left_tuple_store to evaluate
    *        this Scalar for.
    * @param right_accessor The ValueAccessor that the second of the joined
    *        tuples can be read from (this does NOT necessarily correspond to
    *        the right operand of a binary operation).
-   * @param right_relation_id The ID of the relation that right_tuple_store
-   *        belongs to.
    * @param right_tuple_id The ID of the tuple in right_tuple_store to evaluate
    *        this Scalar for.
    * @return The value of this scalar for the given tuples.
    **/
   virtual TypedValue getValueForJoinedTuples(
       const ValueAccessor &left_accessor,
-      const relation_id left_relation_id,
       const tuple_id left_tuple_id,
       const ValueAccessor &right_accessor,
-      const relation_id right_relation_id,
       const tuple_id right_tuple_id) const = 0;
+
+  /**
+   * @brief If it is possible to get this Scalar's values directly from a
+   *        ValueAccessor, return the binary join side of the ValueAccessor
+   *        should belong to.
+   *
+   * @return The binary join side for ValueAccessors that can directly produce
+   *         this Scalar's values, or kNone if values can not be obtained
+   *         directly from a ValueAccessor.
+   **/
+  JoinSide join_side() const {
+    return join_side_;
+  }
 
   /**
    * @brief Determine whether this Scalar's value is static (i.e. whether it is
@@ -181,19 +197,6 @@ class Scalar : public Expression {
   }
 
   /**
-   * @brief If it is possible to get this Scalar's values directly from a
-   *        ValueAccessor, return the ID of the relation that such a
-   *        ValueAccessor should belong to.
-   *
-   * @return The relation_id for ValueAccessors that can directly produce this
-   *         Scalar's values, or -1 if values can not be obtained directly from
-   *         a ValueAccessor.
-   **/
-  virtual relation_id getRelationIdForValueAccessor() const {
-    return -1;
-  }
-
-  /**
    * @brief Get this Scalar's values for all tuples accesible via a
    *        ValueAccessor.
    *
@@ -217,10 +220,8 @@ class Scalar : public Expression {
    * @brief Get this Scalar's value for all specified joined tuples from two
    *        ValueAccessors.
    *
-   * @param left_relation_id The ID of the left relation in the join.
    * @param left_accessor A ValueAccessor which will be used to access tuples
    *        from the left relation.
-   * @param right_relation_id The ID of the right relation in the join.
    * @param right_accessor A ValueAccessor which will be used to access tuples
    *        from the right relation.
    * @param joined_tuple_ids A series of pairs of tuple ids from the left and
@@ -231,9 +232,7 @@ class Scalar : public Expression {
    *         specified by joined_tuple_ids.
    **/
   virtual ColumnVectorPtr getAllValuesForJoin(
-      const relation_id left_relation_id,
       ValueAccessor *left_accessor,
-      const relation_id right_relation_id,
       ValueAccessor *right_accessor,
       const std::vector<std::pair<tuple_id, tuple_id>> &joined_tuple_ids,
       ColumnVectorCache *cv_cache) const = 0;
@@ -247,10 +246,11 @@ class Scalar : public Expression {
       std::vector<std::string> *container_child_field_names,
       std::vector<std::vector<const Expression*>> *container_child_fields) const override;
 
-  explicit Scalar(const Type &type)
-      : Expression(), type_(type) {}
+  explicit Scalar(const Type &type, const JoinSide join_side = kNone)
+      : Expression(), type_(type), join_side_(join_side) {}
 
   const Type &type_;
+  const JoinSide join_side_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(Scalar);

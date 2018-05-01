@@ -53,8 +53,10 @@ class ScalarAttribute : public Scalar {
    * @brief Constructor.
    *
    * @param attribute The attribute to use.
+   * @param join_side The join side of which this attribute belongs to.
    **/
-  explicit ScalarAttribute(const CatalogAttribute &attribute);
+  explicit ScalarAttribute(const CatalogAttribute &attribute,
+                           const JoinSide join_side = kNone);
 
   serialization::Scalar getProto() const override;
 
@@ -69,24 +71,18 @@ class ScalarAttribute : public Scalar {
 
   TypedValue getValueForJoinedTuples(
       const ValueAccessor &left_accessor,
-      const relation_id left_relation_id,
       const tuple_id left_tuple_id,
       const ValueAccessor &right_accessor,
-      const relation_id right_relation_id,
       const tuple_id right_tuple_id) const override;
 
   attribute_id getAttributeIdForValueAccessor() const override;
-
-  relation_id getRelationIdForValueAccessor() const override;
 
   ColumnVectorPtr getAllValues(ValueAccessor *accessor,
                                const SubBlocksReference *sub_blocks_ref,
                                ColumnVectorCache *cv_cache) const override;
 
   ColumnVectorPtr getAllValuesForJoin(
-      const relation_id left_relation_id,
       ValueAccessor *left_accessor,
-      const relation_id right_relation_id,
       ValueAccessor *right_accessor,
       const std::vector<std::pair<tuple_id, tuple_id>> &joined_tuple_ids,
       ColumnVectorCache *cv_cache) const override;

@@ -22,6 +22,7 @@
 
 #include <memory>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "query_optimizer/expressions/ExprId.hpp"
 #include "query_optimizer/expressions/Expression.hpp"
@@ -70,10 +71,14 @@ class Predicate : public Expression {
    *
    * @param substitution_map Map from ExprId to CatalogAttribute for use in
    *                         replacing AttributeReference.
+   * @param left_expr_ids The ExprIds from the left hand side.
+   * @param right_expr_ids The ExprIds from the right hand side.
    * @return A concretized predicate for evaluation.
    */
   virtual ::quickstep::Predicate* concretize(
-      const std::unordered_map<ExprId, const CatalogAttribute*>& substitution_map) const = 0;
+      const std::unordered_map<ExprId, const CatalogAttribute*> &substitution_map,
+      const std::unordered_set<ExprId> &left_expr_ids = std::unordered_set<ExprId>(),
+      const std::unordered_set<ExprId> &right_expr_ids = std::unordered_set<ExprId>()) const = 0;
 
  protected:
   Predicate() {}

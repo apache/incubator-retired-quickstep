@@ -23,6 +23,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -114,15 +115,21 @@ ExpressionPtr SearchedCase::copyWithNewChildren(
 }
 
 ::quickstep::Scalar* SearchedCase::concretize(
-    const std::unordered_map<ExprId, const CatalogAttribute*> &substitution_map) const {
+    const std::unordered_map<ExprId, const CatalogAttribute*> &substitution_map,
+    const std::unordered_set<ExprId> &left_expr_ids,
+    const std::unordered_set<ExprId> &right_expr_ids) const {
   std::vector<std::unique_ptr<quickstep::Predicate>> when_predicates;
+  when_predicates.reserve(condition_predicates_.size());
   for (const PredicatePtr &predicate : condition_predicates_) {
-    when_predicates.emplace_back(predicate->concretize(substitution_map));
+    when_predicates.emplace_back(
+        predicate->concretize(substitution_map, left_expr_ids, right_expr_ids));
   }
 
   std::vector<std::unique_ptr<quickstep::Scalar>> result_expressions;
+  result_expressions.reserve(conditional_result_expressions_.size());
   for (const ScalarPtr &expression : conditional_result_expressions_) {
-    result_expressions.emplace_back(expression->concretize(substitution_map));
+    result_expressions.emplace_back(
+        expression->concretize(substitution_map, left_expr_ids, right_expr_ids));
   }
 
   std::unique_ptr<quickstep::Scalar> else_result_expression;
@@ -131,14 +138,14 @@ ExpressionPtr SearchedCase::copyWithNewChildren(
         new quickstep::ScalarLiteral(value_type_.makeNullValue(), value_type_));
   } else {
     else_result_expression.reset(
-        else_result_expression_->concretize(substitution_map));
+        else_result_expression_->concretize(substitution_map, left_expr_ids, right_expr_ids));
   }
 
   return new quickstep::ScalarCaseExpression(
       value_type_,
       std::move(when_predicates),
       std::move(result_expressions),
-      else_result_expression_->concretize(substitution_map));
+      else_result_expression_->concretize(substitution_map, left_expr_ids, right_expr_ids));
 }
 
 void SearchedCase::getFieldStringItems(
