@@ -875,6 +875,313 @@ TEST_F(ScalarCaseExpressionTest,
   }
 }
 
+// Test CASE evaluation over joins, which that always goes to the same branch
+// on a constant.
+TEST_F(ScalarCaseExpressionTest, JoinStaticBranchConstantTest) {
+  // Simulate a join with another relation.
+  CatalogRelation other_relation(nullptr, "other", 1);
+  other_relation.addAttribute(new CatalogAttribute(&other_relation,
+                                                   "other_double",
+                                                   TypeFactory::GetType(kDouble, false)));
+  other_relation.addAttribute(new CatalogAttribute(&other_relation,
+                                                   "other_int",
+                                                   TypeFactory::GetType(kInt, false)));
+
+  static const double kOtherDoubleValues[] = {-250.0, -750.0};
+  std::unique_ptr<NativeColumnVector> other_double_column(
+      new NativeColumnVector(TypeFactory::GetType(kDouble, false), 2));
+  other_double_column->appendUntypedValue(kOtherDoubleValues);
+  other_double_column->appendUntypedValue(kOtherDoubleValues + 1);
+
+  static const int kOtherIntValues[] = {10, -1};
+  std::unique_ptr<NativeColumnVector> other_int_column(
+      new NativeColumnVector(TypeFactory::GetType(kInt, false), 2));
+  other_int_column->appendUntypedValue(kOtherIntValues);
+  other_int_column->appendUntypedValue(kOtherIntValues + 1);
+
+  ColumnVectorsValueAccessor other_accessor;
+  other_accessor.addColumn(other_double_column.release());
+  other_accessor.addColumn(other_int_column.release());
+
+  const Type &int_type = TypeFactory::GetType(kInt);
+
+  // Setup expression.
+  std::vector<std::unique_ptr<Predicate>> when_predicates;
+  std::vector<std::unique_ptr<Scalar>> result_expressions;
+
+  // WHEN 1 > 2 THEN int_attr + other_int
+  when_predicates.emplace_back(new ComparisonPredicate(
+      ComparisonFactory::GetComparison(ComparisonID::kGreater),
+      new ScalarLiteral(TypedValue(static_cast<int>(1)), int_type),
+      new ScalarLiteral(TypedValue(static_cast<int>(2)), int_type)));
+  result_expressions.emplace_back(new ScalarBinaryExpression(
+      BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kAdd),
+      new ScalarAttribute(*sample_relation_->getAttributeById(0)),
+      new ScalarAttribute(*other_relation.getAttributeById(1))));
+
+  const int kConstant = 72;
+  // WHEN 1 < 2 THEN kConstant
+  when_predicates.emplace_back(new ComparisonPredicate(
+      ComparisonFactory::GetComparison(ComparisonID::kLess),
+      new ScalarLiteral(TypedValue(static_cast<int>(1)), int_type),
+      new ScalarLiteral(TypedValue(static_cast<int>(2)), int_type)));
+  result_expressions.emplace_back(
+      new ScalarLiteral(TypedValue(kConstant), int_type));
+
+  // WHEN double_attr = other_double THEN 0
+  when_predicates.emplace_back(new ComparisonPredicate(
+      ComparisonFactory::GetComparison(ComparisonID::kEqual),
+      new ScalarAttribute(*sample_relation_->getAttributeById(1)),
+      new ScalarAttribute(*other_relation.getAttributeById(0))));
+  result_expressions.emplace_back(new ScalarLiteral(TypedValue(0), TypeFactory::GetType(kInt)));
+
+  const Type &int_nullable_type = TypeFactory::GetType(kInt, true);
+
+  // ELSE NULL
+  ScalarCaseExpression case_expr(
+      int_nullable_type,
+      std::move(when_predicates),
+      std::move(result_expressions),
+      new ScalarLiteral(TypedValue(kInt), int_nullable_type));
+
+  // Create a list of joined tuple-id pairs (just the cross-product of tuples).
+  std::vector<std::pair<tuple_id, tuple_id>> joined_tuple_ids;
+  for (std::size_t tuple_num = 0; tuple_num < kNumSampleTuples; ++tuple_num) {
+    joined_tuple_ids.emplace_back(tuple_num, 0);
+    joined_tuple_ids.emplace_back(tuple_num, 1);
+  }
+
+  ColumnVectorPtr result_cv(case_expr.getAllValuesForJoin(
+      0,
+      &sample_data_value_accessor_,
+      1,
+      &other_accessor,
+      joined_tuple_ids,
+      nullptr /* cv_cache */));
+  ASSERT_TRUE(result_cv->isNative());
+  const NativeColumnVector &native_result_cv
+      = static_cast<const NativeColumnVector&>(*result_cv);
+  EXPECT_EQ(kNumSampleTuples * 2, native_result_cv.size());
+
+  for (std::size_t result_num = 0;
+       result_num < native_result_cv.size();
+       ++result_num) {
+    EXPECT_EQ(kConstant,
+              *static_cast<const int*>(native_result_cv.getUntypedValue(result_num)));
+  }
+}
+
+// Test CASE evaluation over joins, which that always goes to the same branch
+// of ScalarAttribute.
+TEST_F(ScalarCaseExpressionTest, JoinStaticBranchOnScalarAttributeTest) {
+  // Simulate a join with another relation.
+  CatalogRelation other_relation(nullptr, "other", 1);
+  other_relation.addAttribute(new CatalogAttribute(&other_relation,
+                                                   "other_double",
+                                                   TypeFactory::GetType(kDouble, false)));
+  other_relation.addAttribute(new CatalogAttribute(&other_relation,
+                                                   "other_int",
+                                                   TypeFactory::GetType(kInt, false)));
+
+  static const double kOtherDoubleValues[] = {-250.0, -750.0};
+  std::unique_ptr<NativeColumnVector> other_double_column(
+      new NativeColumnVector(TypeFactory::GetType(kDouble, false), 2));
+  other_double_column->appendUntypedValue(kOtherDoubleValues);
+  other_double_column->appendUntypedValue(kOtherDoubleValues + 1);
+
+  static const int kOtherIntValues[] = {10, -1};
+  std::unique_ptr<NativeColumnVector> other_int_column(
+      new NativeColumnVector(TypeFactory::GetType(kInt, false), 2));
+  other_int_column->appendUntypedValue(kOtherIntValues);
+  other_int_column->appendUntypedValue(kOtherIntValues + 1);
+
+  ColumnVectorsValueAccessor other_accessor;
+  other_accessor.addColumn(other_double_column.release());
+  other_accessor.addColumn(other_int_column.release());
+
+  const Type &int_type = TypeFactory::GetType(kInt);
+
+  // Setup expression.
+  std::vector<std::unique_ptr<Predicate>> when_predicates;
+  std::vector<std::unique_ptr<Scalar>> result_expressions;
+
+  // WHEN 1 > 2 THEN int_attr + other_int
+  when_predicates.emplace_back(new ComparisonPredicate(
+      ComparisonFactory::GetComparison(ComparisonID::kGreater),
+      new ScalarLiteral(TypedValue(static_cast<int>(1)), int_type),
+      new ScalarLiteral(TypedValue(static_cast<int>(2)), int_type)));
+  result_expressions.emplace_back(new ScalarBinaryExpression(
+      BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kAdd),
+      new ScalarAttribute(*sample_relation_->getAttributeById(0)),
+      new ScalarAttribute(*other_relation.getAttributeById(1))));
+
+  // WHEN 1 < 2 THEN int_attr
+  when_predicates.emplace_back(new ComparisonPredicate(
+      ComparisonFactory::GetComparison(ComparisonID::kLess),
+      new ScalarLiteral(TypedValue(static_cast<int>(1)), int_type),
+      new ScalarLiteral(TypedValue(static_cast<int>(2)), int_type)));
+  result_expressions.emplace_back(
+      new ScalarAttribute(*sample_relation_->getAttributeById(0)));
+
+  // WHEN double_attr = other_double THEN 0
+  when_predicates.emplace_back(new ComparisonPredicate(
+      ComparisonFactory::GetComparison(ComparisonID::kEqual),
+      new ScalarAttribute(*sample_relation_->getAttributeById(1)),
+      new ScalarAttribute(*other_relation.getAttributeById(0))));
+  result_expressions.emplace_back(new ScalarLiteral(TypedValue(0), TypeFactory::GetType(kInt)));
+
+  const Type &int_nullable_type = TypeFactory::GetType(kInt, true);
+
+  // ELSE NULL
+  ScalarCaseExpression case_expr(
+      int_nullable_type,
+      std::move(when_predicates),
+      std::move(result_expressions),
+      new ScalarLiteral(TypedValue(kInt), int_nullable_type));
+
+  // Create a list of joined tuple-id pairs (just the cross-product of tuples).
+  std::vector<std::pair<tuple_id, tuple_id>> joined_tuple_ids;
+  for (std::size_t tuple_num = 0; tuple_num < kNumSampleTuples; ++tuple_num) {
+    joined_tuple_ids.emplace_back(tuple_num, 0);
+    joined_tuple_ids.emplace_back(tuple_num, 1);
+  }
+
+  ColumnVectorPtr result_cv(case_expr.getAllValuesForJoin(
+      0,
+      &sample_data_value_accessor_,
+      1,
+      &other_accessor,
+      joined_tuple_ids,
+      nullptr /* cv_cache */));
+  ASSERT_TRUE(result_cv->isNative());
+  const NativeColumnVector &native_result_cv
+      = static_cast<const NativeColumnVector&>(*result_cv);
+  EXPECT_EQ(kNumSampleTuples * 2, native_result_cv.size());
+
+  for (std::size_t result_num = 0;
+       result_num < native_result_cv.size();
+       ++result_num) {
+    // For convenience, calculate expected tuple values here.
+    const bool sample_int_null = ((result_num >> 1) % 10 == 0);
+    const int sample_int = result_num >> 1;
+
+    if (sample_int_null) {
+      EXPECT_EQ(nullptr, native_result_cv.getUntypedValue(result_num));
+    } else {
+      ASSERT_NE(nullptr, native_result_cv.getUntypedValue(result_num));
+      EXPECT_EQ(sample_int,
+                *static_cast<const int*>(native_result_cv.getUntypedValue(result_num)));
+    }
+  }
+}
+
+// Test CASE evaluation over joins, which that always goes to the same branch
+// of ScalarBinaryExpression.
+TEST_F(ScalarCaseExpressionTest, JoinStaticBranchTest) {
+  // Simulate a join with another relation.
+  CatalogRelation other_relation(nullptr, "other", 1);
+  other_relation.addAttribute(new CatalogAttribute(&other_relation,
+                                                   "other_double",
+                                                   TypeFactory::GetType(kDouble, false)));
+  other_relation.addAttribute(new CatalogAttribute(&other_relation,
+                                                   "other_int",
+                                                   TypeFactory::GetType(kInt, false)));
+
+  static const double kOtherDoubleValues[] = {-250.0, -750.0};
+  std::unique_ptr<NativeColumnVector> other_double_column(
+      new NativeColumnVector(TypeFactory::GetType(kDouble, false), 2));
+  other_double_column->appendUntypedValue(kOtherDoubleValues);
+  other_double_column->appendUntypedValue(kOtherDoubleValues + 1);
+
+  static const int kOtherIntValues[] = {10, -1};
+  std::unique_ptr<NativeColumnVector> other_int_column(
+      new NativeColumnVector(TypeFactory::GetType(kInt, false), 2));
+  other_int_column->appendUntypedValue(kOtherIntValues);
+  other_int_column->appendUntypedValue(kOtherIntValues + 1);
+
+  ColumnVectorsValueAccessor other_accessor;
+  other_accessor.addColumn(other_double_column.release());
+  other_accessor.addColumn(other_int_column.release());
+
+  const Type &int_type = TypeFactory::GetType(kInt);
+
+  // Setup expression.
+  std::vector<std::unique_ptr<Predicate>> when_predicates;
+  std::vector<std::unique_ptr<Scalar>> result_expressions;
+
+  // WHEN 1 > 2 THEN int_attr + other_int
+  when_predicates.emplace_back(new ComparisonPredicate(
+      ComparisonFactory::GetComparison(ComparisonID::kGreater),
+      new ScalarLiteral(TypedValue(static_cast<int>(1)), int_type),
+      new ScalarLiteral(TypedValue(static_cast<int>(2)), int_type)));
+  result_expressions.emplace_back(new ScalarBinaryExpression(
+      BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kAdd),
+      new ScalarAttribute(*sample_relation_->getAttributeById(0)),
+      new ScalarAttribute(*other_relation.getAttributeById(1))));
+
+  // WHEN 1 < 2 THEN int_attr * other_int
+  when_predicates.emplace_back(new ComparisonPredicate(
+      ComparisonFactory::GetComparison(ComparisonID::kLess),
+      new ScalarLiteral(TypedValue(static_cast<int>(1)), int_type),
+      new ScalarLiteral(TypedValue(static_cast<int>(2)), int_type)));
+  result_expressions.emplace_back(new ScalarBinaryExpression(
+      BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kMultiply),
+      new ScalarAttribute(*sample_relation_->getAttributeById(0)),
+      new ScalarAttribute(*other_relation.getAttributeById(1))));
+
+  // WHEN double_attr = other_double THEN 0
+  when_predicates.emplace_back(new ComparisonPredicate(
+      ComparisonFactory::GetComparison(ComparisonID::kEqual),
+      new ScalarAttribute(*sample_relation_->getAttributeById(1)),
+      new ScalarAttribute(*other_relation.getAttributeById(0))));
+  result_expressions.emplace_back(new ScalarLiteral(TypedValue(0), TypeFactory::GetType(kInt)));
+
+  const Type &int_nullable_type = TypeFactory::GetType(kInt, true);
+
+  // ELSE NULL
+  ScalarCaseExpression case_expr(
+      int_nullable_type,
+      std::move(when_predicates),
+      std::move(result_expressions),
+      new ScalarLiteral(TypedValue(kInt), int_nullable_type));
+
+  // Create a list of joined tuple-id pairs (just the cross-product of tuples).
+  std::vector<std::pair<tuple_id, tuple_id>> joined_tuple_ids;
+  for (std::size_t tuple_num = 0; tuple_num < kNumSampleTuples; ++tuple_num) {
+    joined_tuple_ids.emplace_back(tuple_num, 0);
+    joined_tuple_ids.emplace_back(tuple_num, 1);
+  }
+
+  ColumnVectorPtr result_cv(case_expr.getAllValuesForJoin(
+      0,
+      &sample_data_value_accessor_,
+      1,
+      &other_accessor,
+      joined_tuple_ids,
+      nullptr /* cv_cache */));
+  ASSERT_TRUE(result_cv->isNative());
+  const NativeColumnVector &native_result_cv
+      = static_cast<const NativeColumnVector&>(*result_cv);
+  EXPECT_EQ(kNumSampleTuples * 2, native_result_cv.size());
+
+  for (std::size_t result_num = 0;
+       result_num < native_result_cv.size();
+       ++result_num) {
+    // For convenience, calculate expected tuple values here.
+    const bool sample_int_null = ((result_num >> 1) % 10 == 0);
+    const int sample_int = result_num >> 1;
+    const int other_int = kOtherIntValues[result_num & 0x1];
+
+    if (sample_int_null) {
+      EXPECT_EQ(nullptr, native_result_cv.getUntypedValue(result_num));
+    } else {
+      ASSERT_NE(nullptr, native_result_cv.getUntypedValue(result_num));
+      EXPECT_EQ(sample_int * other_int,
+                *static_cast<const int*>(native_result_cv.getUntypedValue(result_num)));
+    }
+  }
+}
+
 // Test CASE evaluation over joins, with both WHEN predicates and THEN
 // expressions referencing attributes in both relations.
 TEST_F(ScalarCaseExpressionTest, JoinTest) {

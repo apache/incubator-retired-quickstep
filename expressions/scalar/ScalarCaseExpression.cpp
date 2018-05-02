@@ -41,6 +41,102 @@
 
 namespace quickstep {
 
+namespace {
+
+// Merge the values in the NativeColumnVector 'case_result' into '*output' at
+// the positions specified by 'case_matches'. If '*source_sequence' is
+// non-NULL, it indicates which positions actually have tuples in the input,
+// otherwise it is assumed that there are no holes in the input.
+void MultiplexNativeColumnVector(
+    const TupleIdSequence *source_sequence,
+    const TupleIdSequence &case_matches,
+    const NativeColumnVector &case_result,
+    NativeColumnVector *output) {
+  if (source_sequence == nullptr) {
+    if (case_result.typeIsNullable()) {
+      TupleIdSequence::const_iterator output_pos_it = case_matches.begin();
+      for (std::size_t input_pos = 0;
+           input_pos < case_result.size();
+           ++input_pos, ++output_pos_it) {
+        const void *value = case_result.getUntypedValue<true>(input_pos);
+        if (value) {
+          output->positionalWriteUntypedValue(*output_pos_it, value);
+        } else {
+          output->positionalWriteNullValue(*output_pos_it);
+        }
+      }
+    } else {
+      TupleIdSequence::const_iterator output_pos_it = case_matches.begin();
+      for (std::size_t input_pos = 0;
+           input_pos < case_result.size();
+           ++input_pos, ++output_pos_it) {
+        output->positionalWriteUntypedValue(*output_pos_it,
+                                            case_result.getUntypedValue<false>(input_pos));
+      }
+    }
+  } else {
+    if (case_result.typeIsNullable()) {
+      std::size_t input_pos = 0;
+      TupleIdSequence::const_iterator source_sequence_it = source_sequence->begin();
+      for (std::size_t output_pos = 0;
+           output_pos < output->size();
+           ++output_pos, ++source_sequence_it) {
+        if (case_matches.get(*source_sequence_it)) {
+          const void *value = case_result.getUntypedValue<true>(input_pos++);
+          if (value) {
+            output->positionalWriteUntypedValue(output_pos, value);
+          } else {
+            output->positionalWriteNullValue(output_pos);
+          }
+        }
+      }
+    } else {
+      std::size_t input_pos = 0;
+      TupleIdSequence::const_iterator source_sequence_it = source_sequence->begin();
+      for (std::size_t output_pos = 0;
+           output_pos < output->size();
+           ++output_pos, ++source_sequence_it) {
+        if (case_matches.get(*source_sequence_it)) {
+          output->positionalWriteUntypedValue(output_pos,
+                                              case_result.getUntypedValue<false>(input_pos++));
+        }
+      }
+    }
+  }
+}
+
+// Same as MultiplexNativeColumnVector(), but works on IndirectColumnVectors
+// instead of NativeColumnVectors.
+void MultiplexIndirectColumnVector(
+    const TupleIdSequence *source_sequence,
+    const TupleIdSequence &case_matches,
+    const IndirectColumnVector &case_result,
+    IndirectColumnVector *output) {
+  if (source_sequence == nullptr) {
+    TupleIdSequence::const_iterator output_pos_it = case_matches.begin();
+    for (std::size_t input_pos = 0;
+         input_pos < case_result.size();
+         ++input_pos, ++output_pos_it) {
+      output->positionalWriteTypedValue(*output_pos_it,
+                                        case_result.getTypedValue(input_pos));
+    }
+  } else {
+    std::size_t input_pos = 0;
+    TupleIdSequence::const_iterator source_sequence_it = source_sequence->begin();
+    for (std::size_t output_pos = 0;
+         output_pos < output->size();
+         ++output_pos, ++source_sequence_it) {
+      if (case_matches.get(*source_sequence_it)) {
+        output->positionalWriteTypedValue(output_pos,
+                                          case_result.getTypedValue(input_pos++));
+      }
+    }
+  }
+}
+
+}  // namespace
+
+
 ScalarCaseExpression::ScalarCaseExpression(
     const Type &result_type,
     std::vector<std::unique_ptr<Predicate>> &&when_predicates,
@@ -96,17 +192,17 @@ serialization::Scalar ScalarCaseExpression::getProto() const {
   serialization::Scalar proto;
   proto.set_data_source(serialization::Scalar::CASE_EXPRESSION);
   proto.MutableExtension(serialization::ScalarCaseExpression::result_type)
-      ->CopyFrom(type_.getProto());
+      ->MergeFrom(type_.getProto());
   for (const std::unique_ptr<Predicate> &when_pred : when_predicates_) {
     proto.AddExtension(serialization::ScalarCaseExpression::when_predicate)
-      ->CopyFrom(when_pred->getProto());
+        ->MergeFrom(when_pred->getProto());
   }
   for (const std::unique_ptr<Scalar> &result_expr : result_expressions_) {
     proto.AddExtension(serialization::ScalarCaseExpression::result_expression)
-      ->CopyFrom(result_expr->getProto());
+        ->MergeFrom(result_expr->getProto());
   }
   proto.MutableExtension(serialization::ScalarCaseExpression::else_result_expression)
-      ->CopyFrom(else_result_expression_->getProto());
+      ->MergeFrom(else_result_expression_->getProto());
 
   return proto;
 }
@@ -137,16 +233,16 @@ TypedValue ScalarCaseExpression::getValueForSingleTuple(
     return static_value_.makeReferenceToThis();
   } else if (fixed_result_expression_ != nullptr) {
     return fixed_result_expression_->getValueForSingleTuple(accessor, tuple);
-  } else {
-    for (std::vector<std::unique_ptr<Predicate>>::size_type case_idx = 0;
-         case_idx < when_predicates_.size();
-         ++case_idx) {
-      if (when_predicates_[case_idx]->matchesForSingleTuple(accessor, tuple)) {
-        return result_expressions_[case_idx]->getValueForSingleTuple(accessor, tuple);
-      }
-    }
-    return else_result_expression_->getValueForSingleTuple(accessor, tuple);
   }
+
+  for (std::vector<std::unique_ptr<Predicate>>::size_type case_idx = 0;
+       case_idx < when_predicates_.size();
+       ++case_idx) {
+    if (when_predicates_[case_idx]->matchesForSingleTuple(accessor, tuple)) {
+      return result_expressions_[case_idx]->getValueForSingleTuple(accessor, tuple);
+    }
+  }
+  return else_result_expression_->getValueForSingleTuple(accessor, tuple);
 }
 
 TypedValue ScalarCaseExpression::getValueForJoinedTuples(
@@ -165,33 +261,33 @@ TypedValue ScalarCaseExpression::getValueForJoinedTuples(
                                                              right_accessor,
                                                              right_relation_id,
                                                              right_tuple_id);
-  } else {
-    for (std::vector<std::unique_ptr<Predicate>>::size_type case_idx = 0;
-         case_idx < when_predicates_.size();
-         ++case_idx) {
-      if (when_predicates_[case_idx]->matchesForJoinedTuples(left_accessor,
-                                                             left_relation_id,
-                                                             left_tuple_id,
-                                                             right_accessor,
-                                                             right_relation_id,
-                                                             right_tuple_id)) {
-        return result_expressions_[case_idx]->getValueForJoinedTuples(
-            left_accessor,
-            left_relation_id,
-            left_tuple_id,
-            right_accessor,
-            right_relation_id,
-            right_tuple_id);
-      }
-    }
-    return else_result_expression_->getValueForJoinedTuples(
-        left_accessor,
-        left_relation_id,
-        left_tuple_id,
-        right_accessor,
-        right_relation_id,
-        right_tuple_id);
   }
+
+  for (std::vector<std::unique_ptr<Predicate>>::size_type case_idx = 0;
+       case_idx < when_predicates_.size();
+       ++case_idx) {
+    if (when_predicates_[case_idx]->matchesForJoinedTuples(left_accessor,
+                                                           left_relation_id,
+                                                           left_tuple_id,
+                                                           right_accessor,
+                                                           right_relation_id,
+                                                           right_tuple_id)) {
+      return result_expressions_[case_idx]->getValueForJoinedTuples(
+          left_accessor,
+          left_relation_id,
+          left_tuple_id,
+          right_accessor,
+          right_relation_id,
+          right_tuple_id);
+    }
+  }
+  return else_result_expression_->getValueForJoinedTuples(
+      left_accessor,
+      left_relation_id,
+      left_tuple_id,
+      right_accessor,
+      right_relation_id,
+      right_tuple_id);
 }
 
 ColumnVectorPtr ScalarCaseExpression::getAllValues(
@@ -280,6 +376,16 @@ ColumnVectorPtr ScalarCaseExpression::getAllValuesForJoin(
     ValueAccessor *right_accessor,
     const std::vector<std::pair<tuple_id, tuple_id>> &joined_tuple_ids,
     ColumnVectorCache *cv_cache) const {
+  if (has_static_value_) {
+    return ColumnVectorPtr(
+        ColumnVector::MakeVectorOfValue(type_, static_value_, joined_tuple_ids.size()));
+  } else if (fixed_result_expression_) {
+    return fixed_result_expression_->getAllValuesForJoin(
+        left_relation_id, left_accessor,
+        right_relation_id, right_accessor,
+        joined_tuple_ids, cv_cache);
+  }
+
   // Slice 'joined_tuple_ids' apart by case.
   //
   // NOTE(chasseur): We use TupleIdSequence to keep track of the positions in
@@ -366,91 +472,6 @@ ColumnVectorPtr ScalarCaseExpression::getAllValuesForJoin(
       else_positions,
       case_results,
       else_results);
-}
-
-void ScalarCaseExpression::MultiplexNativeColumnVector(
-    const TupleIdSequence *source_sequence,
-    const TupleIdSequence &case_matches,
-    const NativeColumnVector &case_result,
-    NativeColumnVector *output) {
-  if (source_sequence == nullptr) {
-    if (case_result.typeIsNullable()) {
-      TupleIdSequence::const_iterator output_pos_it = case_matches.begin();
-      for (std::size_t input_pos = 0;
-           input_pos < case_result.size();
-           ++input_pos, ++output_pos_it) {
-        const void *value = case_result.getUntypedValue<true>(input_pos);
-        if (value == nullptr) {
-          output->positionalWriteNullValue(*output_pos_it);
-        } else {
-          output->positionalWriteUntypedValue(*output_pos_it, value);
-        }
-      }
-    } else {
-      TupleIdSequence::const_iterator output_pos_it = case_matches.begin();
-      for (std::size_t input_pos = 0;
-           input_pos < case_result.size();
-           ++input_pos, ++output_pos_it) {
-        output->positionalWriteUntypedValue(*output_pos_it,
-                                            case_result.getUntypedValue<false>(input_pos));
-      }
-    }
-  } else {
-    if (case_result.typeIsNullable()) {
-      std::size_t input_pos = 0;
-      TupleIdSequence::const_iterator source_sequence_it = source_sequence->begin();
-      for (std::size_t output_pos = 0;
-           output_pos < output->size();
-           ++output_pos, ++source_sequence_it) {
-        if (case_matches.get(*source_sequence_it)) {
-          const void *value = case_result.getUntypedValue<true>(input_pos++);
-          if (value == nullptr) {
-            output->positionalWriteNullValue(output_pos);
-          } else {
-            output->positionalWriteUntypedValue(output_pos, value);
-          }
-        }
-      }
-    } else {
-      std::size_t input_pos = 0;
-      TupleIdSequence::const_iterator source_sequence_it = source_sequence->begin();
-      for (std::size_t output_pos = 0;
-           output_pos < output->size();
-           ++output_pos, ++source_sequence_it) {
-        if (case_matches.get(*source_sequence_it)) {
-          output->positionalWriteUntypedValue(output_pos,
-                                              case_result.getUntypedValue<false>(input_pos++));
-        }
-      }
-    }
-  }
-}
-
-void ScalarCaseExpression::MultiplexIndirectColumnVector(
-    const TupleIdSequence *source_sequence,
-    const TupleIdSequence &case_matches,
-    const IndirectColumnVector &case_result,
-    IndirectColumnVector *output) {
-  if (source_sequence == nullptr) {
-    TupleIdSequence::const_iterator output_pos_it = case_matches.begin();
-    for (std::size_t input_pos = 0;
-         input_pos < case_result.size();
-         ++input_pos, ++output_pos_it) {
-      output->positionalWriteTypedValue(*output_pos_it,
-                                        case_result.getTypedValue(input_pos));
-    }
-  } else {
-    std::size_t input_pos = 0;
-    TupleIdSequence::const_iterator source_sequence_it = source_sequence->begin();
-    for (std::size_t output_pos = 0;
-         output_pos < output->size();
-         ++output_pos, ++source_sequence_it) {
-      if (case_matches.get(*source_sequence_it)) {
-        output->positionalWriteTypedValue(output_pos,
-                                          case_result.getTypedValue(input_pos++));
-      }
-    }
-  }
 }
 
 ColumnVectorPtr ScalarCaseExpression::multiplexColumnVectors(

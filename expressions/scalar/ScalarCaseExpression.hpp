@@ -124,14 +124,6 @@ class ScalarCaseExpression : public Scalar {
     }
   }
 
-  relation_id getRelationIdForValueAccessor() const override {
-    if (fixed_result_expression_ != nullptr) {
-      return fixed_result_expression_->getRelationIdForValueAccessor();
-    } else {
-      return -1;
-    }
-  }
-
   ColumnVectorPtr getAllValues(ValueAccessor *accessor,
                                const SubBlocksReference *sub_blocks_ref,
                                ColumnVectorCache *cv_cache) const override;
@@ -154,24 +146,6 @@ class ScalarCaseExpression : public Scalar {
       std::vector<std::vector<const Expression*>> *container_child_fields) const override;
 
  private:
-  // Merge the values in the NativeColumnVector 'case_result' into '*output' at
-  // the positions specified by 'case_matches'. If '*source_sequence' is
-  // non-NULL, it indicates which positions actually have tuples in the input,
-  // otherwise it is assumed that there are no holes in the input.
-  static void MultiplexNativeColumnVector(
-      const TupleIdSequence *source_sequence,
-      const TupleIdSequence &case_matches,
-      const NativeColumnVector &case_result,
-      NativeColumnVector *output);
-
-  // Same as MultiplexNativeColumnVector(), but works on IndirectColumnVectors
-  // instead of NativeColumnVectors.
-  static void MultiplexIndirectColumnVector(
-      const TupleIdSequence *source_sequence,
-      const TupleIdSequence &case_matches,
-      const IndirectColumnVector &case_result,
-      IndirectColumnVector *output);
-
   // Create and return a new ColumnVector by multiplexing the ColumnVectors
   // containing results for individual CASE branches at the appropriate
   // positions. 'output_size' is the total number of values in the output.
