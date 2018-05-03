@@ -111,6 +111,7 @@ target_link_libraries(quickstep_queryoptimizer_rules_EliminateEmptyNode
                       quickstep_queryoptimizer_OptimizerContext
                       quickstep_queryoptimizer_expressions_Alias
                       quickstep_queryoptimizer_expressions_AttributeReference
+                      quickstep_queryoptimizer_expressions_ExprId
                       quickstep_queryoptimizer_expressions_ExpressionUtil
                       quickstep_queryoptimizer_expressions_NamedExpression
                       quickstep_queryoptimizer_expressions_PatternMatcher

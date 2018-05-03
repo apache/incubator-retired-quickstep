@@ -24,6 +24,7 @@
 #include <sstream>
 #include <string>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "catalog/CatalogAttribute.hpp"
@@ -33,6 +34,7 @@
 #include "query_optimizer/OptimizerContext.hpp"
 #include "query_optimizer/expressions/Alias.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"
+#include "query_optimizer/expressions/ExprId.hpp"
 #include "query_optimizer/expressions/ExpressionUtil.hpp"
 #include "query_optimizer/expressions/NamedExpression.hpp"
 #include "query_optimizer/expressions/PatternMatcher.hpp"
@@ -262,20 +264,14 @@ P::PhysicalPtr EliminateEmptyNode::apply(const P::PhysicalPtr &input) {
   std::vector<E::AttributeReferencePtr> project_expressions;
   switch (plan_type) {
     case P::PhysicalType::kAggregate:
-    case P::PhysicalType::kCrossReferenceCoalesceAggregate:
     case P::PhysicalType::kFilterJoin:
     case P::PhysicalType::kHashJoin:
     case P::PhysicalType::kNestedLoopsJoin:
     case P::PhysicalType::kSample:
-    case P::PhysicalType::kSelection:
     case P::PhysicalType::kSort:
     case P::PhysicalType::kUnionAll:
     case P::PhysicalType::kWindowAggregate:
       project_expressions = plan->getOutputAttributes();
-      break;
-    case P::PhysicalType::kCopyTo:
-    case P::PhysicalType::kInsertSelection:
-      project_expressions = plan->getReferencedAttributes();
       break;
     case P::PhysicalType::kCopyFrom:
     case P::PhysicalType::kCreateIndex:
@@ -288,11 +284,53 @@ P::PhysicalPtr EliminateEmptyNode::apply(const P::PhysicalPtr &input) {
     case P::PhysicalType::kUpdateTable:
       // TODO(quickstep-team): revisit the cases above.
       return input;
+    case P::PhysicalType::kCopyTo:
+    case P::PhysicalType::kInsertSelection:
+      project_expressions = plan->getReferencedAttributes();
+      break;
+    case P::PhysicalType::kCrossReferenceCoalesceAggregate:
     case P::PhysicalType::kTableReference:
     case P::PhysicalType::kTopLevelPlan:
       LOG(FATAL) << "Unexpected PhysicalType.";
+    case P::PhysicalType::kSelection: {
+      const auto &selection_input = selection->input();
+      switch (selection_input->getPhysicalType()) {
+        case P::PhysicalType::kAggregate:
+        case P::PhysicalType::kWindowAggregate: {
+          DCHECK(project_expressions.empty());
+          const auto referenced_attributes = selection_input->getReferencedAttributes();
+          std::unordered_set<E::ExprId> unique_expr_ids;
+          for (auto &referenced_attribute : referenced_attributes) {
+            const E::ExprId expr_id = referenced_attribute->id();
+            if (unique_expr_ids.find(expr_id) == unique_expr_ids.end()) {
+              project_expressions.emplace_back(std::move(referenced_attribute));
+              unique_expr_ids.insert(expr_id);
+            }
+          }
+          break;
+        }
+        case P::PhysicalType::kCrossReferenceCoalesceAggregate:
+          LOG(FATAL) << "Unexpected PhysicalType.";
+        default:
+          project_expressions = plan->getOutputAttributes();
+          break;
+      }
+      break;
+    }
   }
-  DCHECK(!project_expressions.empty());
+
+#ifdef QUICKSTEP_DEBUG
+  {
+    CHECK(!project_expressions.empty());
+
+    std::unordered_set<E::ExprId> unique_expr_ids;
+    unique_expr_ids.reserve(project_expressions.size());
+    for (const auto &project_expression : project_expressions) {
+      unique_expr_ids.insert(project_expression->id());
+    }
+    CHECK_EQ(project_expressions.size(), unique_expr_ids.size());
+  }
+#endif
 
   auto output = Apply(plan);
   if (output == plan) {
@@ -329,23 +367,37 @@ P::PhysicalPtr EliminateEmptyNode::apply(const P::PhysicalPtr &input) {
 
   switch (plan_type) {
     case P::PhysicalType::kAggregate:
-    case P::PhysicalType::kCrossReferenceCoalesceAggregate:
+    case P::PhysicalType::kCopyTo:
+    case P::PhysicalType::kWindowAggregate:
+      output = plan->copyWithNewChildren({ temp_table });
+      break;
     case P::PhysicalType::kFilterJoin:
     case P::PhysicalType::kHashJoin:
     case P::PhysicalType::kNestedLoopsJoin:
     case P::PhysicalType::kSample:
-    case P::PhysicalType::kSelection:
     case P::PhysicalType::kSort:
     case P::PhysicalType::kUnionAll:
-    case P::PhysicalType::kWindowAggregate:
       output = P::Selection::Create(temp_table, E::ToNamedExpressions(project_expressions), nullptr);
-      break;
-    case P::PhysicalType::kCopyTo:
-      output = plan->copyWithNewChildren({ temp_table });
       break;
     case P::PhysicalType::kInsertSelection:
       output = plan->copyWithNewChildren({ plan->children().front(), temp_table });
       break;
+    case P::PhysicalType::kSelection: {
+      const P::PhysicalPtr &selection_input = selection->input();
+      switch (selection_input->getPhysicalType()) {
+        case P::PhysicalType::kAggregate:
+        case P::PhysicalType::kWindowAggregate:
+          output = selection_input->copyWithNewChildren({ temp_table });
+          break;
+        case P::PhysicalType::kCrossReferenceCoalesceAggregate:
+          LOG(FATAL) << "Unexpected PhysicalType.";
+        default:
+          output = temp_table;
+          break;
+      }
+      output = selection->copyWithNewChildren({ output });
+      break;
+    }
     default:
       LOG(FATAL) << "Unexpected PhysicalType.";
   }

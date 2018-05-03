@@ -1956,6 +1956,9 @@ void ExecutionGenerator::convertAggregate(
     execution_plan_->addDirectDependency(aggregation_operator_index,
                                          input_relation_info->producer_operator_index,
                                          false /* is_pipeline_breaker */);
+  } else if (input_relation.isTemporary()) {
+    // NOTE(zuyu): drop the temp relation created by EliminateEmptyNode rule.
+    temporary_relation_info_vec_.emplace_back(aggregation_operator_index, &input_relation);
   }
 
   if (use_parallel_initialization) {
@@ -2451,6 +2454,9 @@ void ExecutionGenerator::convertWindowAggregate(
     execution_plan_->addDirectDependency(window_aggregation_operator_index,
                                          input_relation_info->producer_operator_index,
                                          true /* is_pipeline_breaker */);
+  } else if (input_relation.isTemporary()) {
+    // NOTE(zuyu): drop the temp relation created by EliminateEmptyNode rule.
+    temporary_relation_info_vec_.emplace_back(window_aggregation_operator_index, &input_relation);
   }
 
   insert_destination_proto->set_relational_op_index(window_aggregation_operator_index);

@@ -27,11 +27,38 @@ INSERT INTO t VALUES(0, 0);
 --
 ==
 
+SELECT COUNT(*) FROM r;
+--
++--------------------+
+|COUNT(*)            |
++--------------------+
+|                   0|
++--------------------+
+==
+
 \analyze
 --
 Analyzing r ... done
 Analyzing s ... done
 Analyzing t ... done
+==
+
+SELECT COUNT(*) FROM r;
+--
++--------------------+
+|COUNT(*)            |
++--------------------+
+|                   0|
++--------------------+
+==
+
+SELECT MIN(src) FROM r;
+--
++-----------+
+|MIN(src)   |
++-----------+
+|       NULL|
++-----------+
 ==
 
 SELECT r.src, r.dst FROM r;
