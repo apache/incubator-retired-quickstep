@@ -61,11 +61,15 @@ SELECT MIN(src) FROM r;
 +-----------+
 ==
 
+INSERT INTO r SELECT * FROM s;
 SELECT r.src, r.dst FROM r;
+DELETE FROM r;
 --
 +-----------+-----------+
 |src        |dst        |
 +-----------+-----------+
+|          0|          0|
+|          1|          5|
 +-----------+-----------+
 ==
 

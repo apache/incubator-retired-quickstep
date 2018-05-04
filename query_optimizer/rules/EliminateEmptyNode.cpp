@@ -208,12 +208,21 @@ P::PhysicalPtr Apply(const P::PhysicalPtr &node) {
   for (const auto &child : new_node->children()) {
     const auto new_child = Apply(child);
     if (new_child == nullptr) {
-      if (P::SomeUnionAll::Matches(node)) {
-        has_changed_children = true;
-        continue;
+      switch (node->getPhysicalType()) {
+        case P::PhysicalType::kUnionAll:
+          has_changed_children = true;
+          break;
+        case P::PhysicalType::kInsertSelection:
+          if (!new_children.empty()) {
+            // The actual input is empty.
+            return nullptr;
+          }
+          new_children.push_back(child);
+          break;
+        default:
+          return nullptr;
       }
-
-      return nullptr;
+      continue;
     } else if (child != new_child && !has_changed_children) {
       has_changed_children = true;
     }
