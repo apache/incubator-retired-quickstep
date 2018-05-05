@@ -92,7 +92,7 @@ class CatalogRelationStatistics {
    * @return True if the number of tuples statistic is available, false otherwise.
    */
   bool hasNumTuples() const {
-    return !num_tuples_.isNull();
+    return is_exact_ && !num_tuples_.isNull();
   }
 
   /**
@@ -123,6 +123,10 @@ class CatalogRelationStatistics {
    *         false otherwise.
    */
   bool hasNumDistinctValues(const attribute_id attr_id) const {
+    if (!is_exact_) {
+      return false;
+    }
+
     const ColumnStats *stats = getColumnStats(attr_id);
     return (stats != nullptr && !stats->num_distinct_values.isNull());
   }
@@ -157,6 +161,10 @@ class CatalogRelationStatistics {
    * @return True if the minimum value statistic is available, false otherwise.
    */
   bool hasMinValue(const attribute_id attr_id) const {
+    if (!is_exact_) {
+      return false;
+    }
+
     const ColumnStats *stats = getColumnStats(attr_id);
     return (stats != nullptr && !stats->min_value.isNull());
   }
@@ -190,6 +198,10 @@ class CatalogRelationStatistics {
    * @return True if the maximum value statistic is available, false otherwise.
    */
   bool hasMaxValue(const attribute_id attr_id) const {
+    if (!is_exact_) {
+      return false;
+    }
+
     const ColumnStats *stats = getColumnStats(attr_id);
     return (stats != nullptr && !stats->max_value.isNull());
   }
