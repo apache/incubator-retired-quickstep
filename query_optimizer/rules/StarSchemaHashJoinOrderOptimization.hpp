@@ -109,15 +109,20 @@ class StarSchemaHashJoinOrderOptimization : public Rule<physical::Physical> {
 
     inline bool isBetterThan(const JoinPair &rhs) const {
       const auto &lhs = *this;
+      const TableInfo &lhs_probe = *(lhs.probe);
+      const TableInfo &lhs_build = *(lhs.build);
+
+      const TableInfo &rhs_probe = *(rhs.probe);
+      const TableInfo &rhs_build = *(rhs.build);
 
       // Avoid carrying too many output attributes all the way through a long
       // chain of hash joins.
       const bool lhs_has_large_output =
-          lhs.build->estimated_num_output_attributes
-              + lhs.probe->estimated_num_output_attributes > 5;
+          lhs_build.estimated_num_output_attributes
+              + lhs_probe.estimated_num_output_attributes > 5;
       const bool rhs_has_large_output =
-          rhs.build->estimated_num_output_attributes
-              + rhs.probe->estimated_num_output_attributes > 5;
+          rhs_build.estimated_num_output_attributes
+              + rhs_probe.estimated_num_output_attributes > 5;
       if (lhs_has_large_output != rhs_has_large_output) {
         return rhs_has_large_output;
       }
@@ -127,33 +132,43 @@ class StarSchemaHashJoinOrderOptimization : public Rule<physical::Physical> {
         return lhs.build_side_unique;
       }
 
+      // Prefer hash joins where the build side table has no output attributes.
+      const bool lhs_build_has_no_output = lhs_build.estimated_num_output_attributes == 0u;
+      const bool rhs_build_has_no_output = rhs_build.estimated_num_output_attributes == 0u;
+      if (lhs_build_has_no_output != rhs_build_has_no_output) {
+        return lhs_build_has_no_output;
+      }
+
       // Prefer hash joins where the build side table is small.
-      const bool lhs_has_small_build = lhs.build->estimated_cardinality < 0x100;
-      const bool rhs_has_small_build = rhs.build->estimated_cardinality < 0x100;
+      const bool lhs_has_small_build = lhs_build.estimated_cardinality < 0x100;
+      const bool rhs_has_small_build = rhs_build.estimated_cardinality < 0x100;
       if (lhs_has_small_build != rhs_has_small_build) {
         return lhs_has_small_build;
       }
 
       // Prefer hash joins where the probe side table is small. This is effective
       // for TPCH style (snowflake schema) queries, with the help of LIPFilters.
-      if (lhs.probe->estimated_cardinality != rhs.probe->estimated_cardinality) {
-        return lhs.probe->estimated_cardinality < rhs.probe->estimated_cardinality;
+      if (lhs_probe.estimated_cardinality != rhs_probe.estimated_cardinality) {
+        return lhs_probe.estimated_cardinality < rhs_probe.estimated_cardinality;
       }
 
       // Prefer build side tables with better selectivity. This is effective
       // for SSB style queries.
-      if (lhs.build->estimated_selectivity != rhs.build->estimated_selectivity) {
-        return lhs.build->estimated_selectivity < rhs.build->estimated_selectivity;
+      if (lhs_build.estimated_selectivity != rhs_build.estimated_selectivity) {
+        return lhs_build.estimated_selectivity < rhs_build.estimated_selectivity;
       }
 
       // Residual rules that help provide a total order.
-      if (lhs.build->estimated_cardinality != rhs.build->estimated_cardinality) {
-        return lhs.build->estimated_cardinality < rhs.build->estimated_cardinality;
+      if (lhs_build.estimated_cardinality != rhs_build.estimated_cardinality) {
+        return lhs_build.estimated_cardinality < rhs_build.estimated_cardinality;
       }
-      if (lhs.probe->table != rhs.probe->table) {
-        return lhs.probe->table < rhs.probe->table;
+
+      const std::size_t lhs_probe_table_info_id = lhs_probe.table_info_id;
+      const std::size_t rhs_probe_table_info_id = rhs_probe.table_info_id;
+      if (lhs_probe_table_info_id != rhs_probe_table_info_id) {
+        return lhs_probe_table_info_id < rhs_probe_table_info_id;
       } else {
-        return lhs.build->table < rhs.build->table;
+        return lhs_build.table_info_id < rhs_build.table_info_id;
       }
     }
 

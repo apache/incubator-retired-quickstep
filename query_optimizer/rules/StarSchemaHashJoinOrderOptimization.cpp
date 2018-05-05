@@ -30,6 +30,7 @@
 
 #include "query_optimizer/cost_model/StarSchemaSimpleCostModel.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"
+#include "query_optimizer/expressions/ExprId.hpp"
 #include "query_optimizer/expressions/NamedExpression.hpp"
 #include "query_optimizer/expressions/PatternMatcher.hpp"
 #include "query_optimizer/physical/Aggregate.hpp"
@@ -68,7 +69,7 @@ P::PhysicalPtr StarSchemaHashJoinOrderOptimization::applyInternal(const P::Physi
     bool is_valid_cascading_hash_join = false;
     if (hash_join->residual_predicate() == nullptr) {
       is_valid_cascading_hash_join = true;
-      for (const E::NamedExpressionPtr expr : hash_join->project_expressions()) {
+      for (const E::NamedExpressionPtr &expr : hash_join->project_expressions()) {
         if (!E::SomeAttributeReference::Matches(expr)) {
           is_valid_cascading_hash_join = false;
           break;
@@ -95,8 +96,8 @@ P::PhysicalPtr StarSchemaHashJoinOrderOptimization::applyInternal(const P::Physi
 
     // Gather join attribute pairs.
     for (std::size_t i = 0; i < hash_join->left_join_attributes().size(); ++i) {
-      const std::size_t left_attr_id = hash_join->left_join_attributes()[i]->id();
-      const std::size_t right_attr_id = hash_join->right_join_attributes()[i]->id();
+      const E::ExprId left_attr_id = hash_join->left_join_attributes()[i]->id();
+      const E::ExprId right_attr_id = hash_join->right_join_attributes()[i]->id();
 
       join_group->join_attribute_pairs.emplace_back(left_attr_id, right_attr_id);
     }
@@ -150,7 +151,7 @@ physical::PhysicalPtr StarSchemaHashJoinOrderOptimization::generatePlan(
 
   std::vector<TableInfo> table_info_storage;
   const std::vector<P::PhysicalPtr> &tables = join_group.tables;
-  for (std::size_t i = 0; i < join_group.tables.size(); ++i) {
+  for (std::size_t i = 0; i < tables.size(); ++i) {
     table_info_storage.emplace_back(
         i,
         tables[i],
@@ -279,16 +280,8 @@ physical::PhysicalPtr StarSchemaHashJoinOrderOptimization::generatePlan(
     remaining_tables.erase(selected_probe_table_info);
     remaining_tables.erase(selected_build_table_info);
 
-    // Figure out the output attributes.
     const P::PhysicalPtr &probe_child = selected_probe_table_info->table;
     const P::PhysicalPtr &build_child = selected_build_table_info->table;
-    std::vector<E::NamedExpressionPtr> output_attributes;
-    for (const E::AttributeReferencePtr &probe_attr : probe_child->getOutputAttributes()) {
-      output_attributes.emplace_back(probe_attr);
-    }
-    for (const E::AttributeReferencePtr &build_attr : build_child->getOutputAttributes()) {
-      output_attributes.emplace_back(build_attr);
-    }
 
     // Figure out the join attributes.
     std::vector<E::AttributeReferencePtr> probe_attributes;
@@ -311,6 +304,19 @@ physical::PhysicalPtr StarSchemaHashJoinOrderOptimization::generatePlan(
     // the table pool. Return the last table in the table pool if there is only
     // one table left.
     if (remaining_tables.size() > 0) {
+      const auto probe_output_attributes = probe_child->getOutputAttributes();
+      const auto build_output_attributes = build_child->getOutputAttributes();
+
+      // Figure out the output attributes.
+      std::vector<E::NamedExpressionPtr> output_attributes;
+      output_attributes.reserve(probe_output_attributes.size() + build_output_attributes.size());
+      for (const E::AttributeReferencePtr &probe_attr : probe_output_attributes) {
+        output_attributes.emplace_back(probe_attr);
+      }
+      for (const E::AttributeReferencePtr &build_attr : build_output_attributes) {
+        output_attributes.emplace_back(build_attr);
+      }
+
       P::PhysicalPtr output =
           P::HashJoin::Create(probe_child,
                               build_child,
