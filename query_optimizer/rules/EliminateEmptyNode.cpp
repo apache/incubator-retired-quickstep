@@ -328,6 +328,15 @@ P::PhysicalPtr EliminateEmptyNode::apply(const P::PhysicalPtr &input) {
     }
   }
 
+  auto output = Apply(plan);
+  if (output == plan) {
+    return input;
+  }
+
+  if (output) {
+    return input->copyWithNewChildren({output});
+  }
+
 #ifdef QUICKSTEP_DEBUG
   {
     CHECK(!project_expressions.empty());
@@ -340,15 +349,6 @@ P::PhysicalPtr EliminateEmptyNode::apply(const P::PhysicalPtr &input) {
     CHECK_EQ(project_expressions.size(), unique_expr_ids.size());
   }
 #endif
-
-  auto output = Apply(plan);
-  if (output == plan) {
-    return input;
-  }
-
-  if (output) {
-    return input->copyWithNewChildren({output});
-  }
 
   auto catalog_relation = std::make_unique<CatalogRelation>(
       catalog_database_, GetNewRelationName(catalog_database_->size()), -1, true);
