@@ -259,7 +259,6 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_BLOCKPROPERTIES;
 %token TOKEN_BLOCKSAMPLE;
 %token TOKEN_BLOOM_FILTER;
-%token TOKEN_CSB_TREE;
 %token TOKEN_BY;
 %token TOKEN_CASE;
 %token TOKEN_CHARACTER;
@@ -268,6 +267,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_CONSTRAINT;
 %token TOKEN_COPY;
 %token TOKEN_CREATE;
+%token TOKEN_CSB_TREE;
 %token TOKEN_CURRENT;
 %token TOKEN_DATE;
 %token TOKEN_DATETIME;
@@ -281,6 +281,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_DROP;
 %token TOKEN_ELSE;
 %token TOKEN_END;
+%token TOKEN_EOF;
 %token TOKEN_EXISTS;
 %token TOKEN_EXTRACT;
 %token TOKEN_FALSE;
@@ -307,6 +308,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_KEY;
 %token TOKEN_LAST;
 %token TOKEN_LEFT;
+%token TOKEN_LEX_ERROR;
 %token TOKEN_LIMIT;
 %token TOKEN_LONG;
 %token TOKEN_MINUTE;
@@ -333,8 +335,8 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_REGEXP;
 %token TOKEN_RIGHT;
 %token TOKEN_ROW;
-%token TOKEN_ROW_DELIMITER;
 %token TOKEN_ROWS;
+%token TOKEN_ROW_DELIMITER;
 %token TOKEN_SECOND;
 %token TOKEN_SELECT;
 %token TOKEN_SET;
@@ -363,8 +365,6 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_WITH;
 %token TOKEN_YEAR;
 %token TOKEN_YEARMONTH;
-%token TOKEN_EOF;
-%token TOKEN_LEX_ERROR;
 
 %type <string_value_>
   any_name

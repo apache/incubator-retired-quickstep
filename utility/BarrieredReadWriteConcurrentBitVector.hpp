@@ -42,7 +42,7 @@ namespace quickstep {
  * @brief A bit vector that supports concurrent read/write operations, with a
  *        RESTRICTED CONCURRENCY LEVEL that the read operations and the write
  *        operations must be isolated with a (mostly implicit) barrier.
- * 
+ *
  * In other words, when using this bit vector, the read operations and write
  * operations must be grouped into phases. Within a phase there can be either
  * concurrent read operations or concurrent write operations, but not both (or

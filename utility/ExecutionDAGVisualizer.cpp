@@ -292,19 +292,17 @@ void ExecutionDAGVisualizer::bindProfilingStats(
       node_info.labels.emplace_back(
           "effective concurrency: " + FormatDigits(concurrency, 2));
 
-      DCHECK(workorders_count.find(node_index) != workorders_count.end());
-      const std::size_t workorders_count_for_node = workorders_count.at(node_index);
-      if (workorders_count_for_node > 0) {
-        mean_time_per_workorder[node_index] =
-            mean_time_per_workorder[node_index] /
+      const auto cit = workorders_count.find(node_index);
+      if (cit != workorders_count.end()) {
+        const std::size_t workorders_count_for_node = cit->second;
+        mean_time_per_workorder[node_index] /=
             (1000 * static_cast<float>(workorders_count_for_node));
-      } else {
-        mean_time_per_workorder[node_index] = 0;
+
+        node_info.labels.emplace_back(std::to_string(workorders_count_for_node) + " work orders");
+        node_info.labels.emplace_back(
+            "Mean work order execution time: " +
+            FormatDigits(mean_time_per_workorder[node_index], 2) + " ms");
       }
-      node_info.labels.emplace_back(std::to_string(workorders_count_for_node) + " work orders");
-      node_info.labels.emplace_back(
-          "Mean work order execution time: " +
-          FormatDigits(mean_time_per_workorder[node_index], 2) + " ms");
     }
   }
 }

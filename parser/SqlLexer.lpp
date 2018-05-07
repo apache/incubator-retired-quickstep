@@ -183,9 +183,8 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
   "blockproperties"  return TOKEN_BLOCKPROPERTIES;
   "blocksample"      return TOKEN_BLOCKSAMPLE;
   "bloomfilter"      return TOKEN_BLOOM_FILTER;
-  "case"             return TOKEN_CASE;
-  "csbtree"          return TOKEN_CSB_TREE;
   "by"               return TOKEN_BY;
+  "case"             return TOKEN_CASE;
   "char"             return TOKEN_CHARACTER;
   "character"        return TOKEN_CHARACTER;
   "check"            return TOKEN_CHECK;
@@ -193,6 +192,7 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
   "constraint"       return TOKEN_CONSTRAINT;
   "copy"             return TOKEN_COPY;
   "create"           return TOKEN_CREATE;
+  "csbtree"          return TOKEN_CSB_TREE;
   "current"          return TOKEN_CURRENT;
   "date"             return TOKEN_DATE;
   "datetime"         return TOKEN_DATETIME;

@@ -287,6 +287,7 @@ std::size_t StarSchemaSimpleCostModel::estimateNumDistinctValues(
         return static_cast<std::size_t>(
             left_child_num_distinct_values * right_child_selectivity + 0.5);
       }
+      break;
     }
     case P::PhysicalType::kHashJoin: {
       const P::HashJoinPtr &hash_join =
@@ -447,7 +448,7 @@ double StarSchemaSimpleCostModel::estimateSelectivityForPredicate(
           if (E::ContainsExprId(child->getOutputAttributes(), attr->id())) {
             const std::size_t child_num_distinct_values = estimateNumDistinctValues(attr->id(), child);
             if (comparison_expression->isEqualityComparisonPredicate()) {
-              return 1.0 / child_num_distinct_values;
+              return 1.0 / std::max(child_num_distinct_values, static_cast<std::size_t>(1u));
             } else {
               return 1.0 / std::max(std::min(child_num_distinct_values / 100.0, 10.0), 2.0);
             }

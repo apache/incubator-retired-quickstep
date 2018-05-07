@@ -1523,18 +1523,22 @@ L::LogicalPtr Resolver::resolveSetOperations(
   std::vector<const ParseSetOperation*> operands;
   CollapseSetOperation(parse_set_operations, parse_set_operations, &operands);
 
-  DCHECK_LT(1u, operands.size());
+  const std::size_t num_operands = operands.size();
+  DCHECK_LT(1u, num_operands);
   std::vector<L::LogicalPtr> resolved_operations;
+  resolved_operations.reserve(num_operands);
   std::vector<std::vector<E::AttributeReferencePtr>> attribute_matrix;
+  attribute_matrix.reserve(num_operands);
 
   // Resolve the first operation, and get the output attributes.
   auto iter = operands.begin();
   const ParseSetOperation &operation = static_cast<const ParseSetOperation&>(**iter);
   L::LogicalPtr operation_logical =
       resolveSetOperation(operation, set_operation_name, type_hints, parent_resolver);
-  const std::vector<E::AttributeReferencePtr> operation_attributes =
+  std::vector<E::AttributeReferencePtr> operation_attributes =
       operation_logical->getOutputAttributes();
-  attribute_matrix.push_back(operation_attributes);
+  const std::size_t num_operation_attributes = operation_attributes.size();
+  attribute_matrix.push_back(std::move(operation_attributes));
   resolved_operations.push_back(operation_logical);
 
   // Resolve the rest operations, and check the size of output attributes.
@@ -1547,22 +1551,25 @@ L::LogicalPtr Resolver::resolveSetOperations(
 
     // Check output attributes size.
     // Detailed type check and type cast will perform later.
-    if (attribute_matrix.back().size() != operation_attributes.size()) {
+    if (attribute_matrix.back().size() != num_operation_attributes) {
       THROW_SQL_ERROR_AT(&current_operation)
           << "Can not perform " << parse_set_operations.getName()
           << "opeartion between " << std::to_string(attribute_matrix.back().size())
-          << "and " << std::to_string(operation_attributes.size())
+          << "and " << std::to_string(num_operation_attributes)
           << "columns";
     }
 
     resolved_operations.push_back(current_logical);
   }
+  DCHECK_EQ(num_operands, attribute_matrix.size());
+  DCHECK_EQ(num_operands, resolved_operations.size());
 
   // Get the possible output attributes that the attributes of all operands can cast to.
   std::vector<E::AttributeReferencePtr> possible_attributes;
-  for (std::size_t aid = 0; aid < operation_attributes.size(); ++aid) {
+  possible_attributes.reserve(num_operation_attributes);
+  for (std::size_t aid = 0; aid < num_operation_attributes; ++aid) {
     E::AttributeReferencePtr possible_attribute = attribute_matrix[0][aid];
-    for (std::size_t opid = 1; opid < resolved_operations.size(); ++opid) {
+    for (std::size_t opid = 1; opid < num_operands; ++opid) {
       const Type &current_type = attribute_matrix[opid][aid]->getValueType();
       const Type &possible_type = possible_attribute->getValueType();
       if (!possible_type.equals(current_type)) {
@@ -1593,10 +1600,10 @@ L::LogicalPtr Resolver::resolveSetOperations(
     possible_attributes.push_back(possible_attribute);
   }
 
-  for (std::size_t opid = 0; opid < operation_attributes.size(); ++opid) {
+  for (std::size_t opid = 0; opid < num_operation_attributes; ++opid) {
     // Generate a cast operation if needed.
     std::vector<E::NamedExpressionPtr> cast_expressions;
-    for (std::size_t aid = 0; aid < operation_attributes.size(); ++aid) {
+    for (std::size_t aid = 0; aid < num_operation_attributes; ++aid) {
       const E::AttributeReferencePtr current_attr = attribute_matrix[opid][aid];
       const Type &current_type = current_attr->getValueType();
       const Type &possible_type = possible_attributes[aid]->getValueType();
@@ -1635,10 +1642,11 @@ L::LogicalPtr Resolver::resolveSetOperations(
     case ParseSetOperation::kUnionAll:
       return L::SetOperation::Create(
           L::SetOperation::kUnionAll, resolved_operations, output_attributes);
-    default:
-      LOG(FATAL) << "Unknown operation: " << parse_set_operations.toString();
-      return nullptr;
+    case ParseSetOperation::kSelect:
+      LOG(FATAL) << "Unexpected operation: " << parse_set_operations.toString();
   }
+  LOG(FATAL) << "Unreachable";
+  return nullptr;
 }
 
 L::LogicalPtr Resolver::resolveSetOperation(
@@ -1664,10 +1672,9 @@ L::LogicalPtr Resolver::resolveSetOperation(
                            type_hints,
                            parent_resolver);
     }
-    default:
-      LOG(FATAL) << "Unknown set operation: " << set_operation_query.toString();
-      return nullptr;
   }
+  LOG(FATAL) << "Unreachable";
+  return nullptr;
 }
 
 E::SubqueryExpressionPtr Resolver::resolveSubqueryExpression(
