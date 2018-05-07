@@ -71,7 +71,7 @@ bool IsTableReferenceOnEmptyRelation(const P::PhysicalPtr &node) {
   }
 
   const CatalogRelationStatistics &stat = table_reference->relation()->getStatistics();
-  return stat.isExact() && (stat.getNumTuples() == 0u);
+  return stat.hasNumTuples() && (stat.getNumTuples() == 0u);
 }
 
 P::PhysicalPtr ApplyToHashJoin(const P::HashJoinPtr &hash_join) {
