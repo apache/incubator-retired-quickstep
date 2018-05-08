@@ -153,42 +153,37 @@ P::PhysicalPtr ApplyToNode(const P::PhysicalPtr &node) {
 
 P::PhysicalPtr CopyWithNewProjectExpressions(const P::UnionAllPtr &union_all,
                                              const P::PhysicalPtr &child) {
-  const auto &project_attributes = union_all->project_attributes();
+  const std::vector<E::NamedExpressionPtr> *project_expressions = nullptr;
+
+  switch (child->getPhysicalType()) {
+    case P::PhysicalType::kHashJoin:
+    case P::PhysicalType::kNestedLoopsJoin: {
+      const auto &join = std::static_pointer_cast<const P::Join>(child);
+      project_expressions = &(join->project_expressions());
+      break;
+    }
+    case P::PhysicalType::kSelection: {
+      const auto &selection = std::static_pointer_cast<const P::Selection>(child);
+      project_expressions = &(selection->project_expressions());
+      break;
+    }
+    default:
+      LOG(FATAL) << "Unexpected PhysicalType.";
+  }
+  DCHECK(project_expressions);
 
   std::vector<E::NamedExpressionPtr> alias_expressions;
-  P::AggregatePtr aggregate;
-  if (P::SomeAggregate::MatchesWithConditionalCast(child, &aggregate)) {
-    const auto &aggregate_expressions = aggregate->aggregate_expressions();
-    alias_expressions.reserve(aggregate_expressions.size());
+  alias_expressions.reserve(project_expressions->size());
 
-    int aid = 0;
-    for (const auto &project_attribute : project_attributes) {
-      const auto alias_referenced_attributes =
-          aggregate_expressions[aid]->getReferencedAttributes();
-      DCHECK_EQ(1u, alias_referenced_attributes.size());
-
-      alias_expressions.emplace_back(E::Alias::Create(
-          project_attribute->id(),
-          alias_referenced_attributes.front(),
-          project_attribute->attribute_name(),
-          project_attribute->attribute_alias(),
-          project_attribute->relation_name()));
-      ++aid;
-    }
-  } else {
-    const auto child_output_attributes = child->getOutputAttributes();
-    alias_expressions.reserve(child_output_attributes.size());
-
-    int aid = 0;
-    for (const auto &project_attribute : project_attributes) {
-      alias_expressions.emplace_back(E::Alias::Create(
-          project_attribute->id(),
-          child_output_attributes[aid],
-          project_attribute->attribute_name(),
-          project_attribute->attribute_alias(),
-          project_attribute->relation_name()));
-      ++aid;
-    }
+  int aid = 0;
+  for (const auto &project_attribute : union_all->project_attributes()) {
+    alias_expressions.emplace_back(E::Alias::Create(
+        project_attribute->id(),
+        (*project_expressions)[aid],
+        project_attribute->attribute_name(),
+        project_attribute->attribute_alias(),
+        project_attribute->relation_name()));
+    ++aid;
   }
 
   return child->copyWithNewProjectExpressions(alias_expressions);

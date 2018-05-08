@@ -36,6 +36,7 @@ SELECT COUNT(*) FROM r;
 +--------------------+
 ==
 
+# EliminateEmptyNode applies after having the exact stats.
 \analyze
 --
 Analyzing r ... done
@@ -43,6 +44,7 @@ Analyzing s ... done
 Analyzing t ... done
 ==
 
+# Aggregate on an empty table.
 SELECT COUNT(*) FROM r;
 --
 +--------------------+
@@ -52,6 +54,7 @@ SELECT COUNT(*) FROM r;
 +--------------------+
 ==
 
+# Aggregate on an empty table.
 SELECT MIN(src) FROM r;
 --
 +-----------+
@@ -61,6 +64,7 @@ SELECT MIN(src) FROM r;
 +-----------+
 ==
 
+# InsertSelection on an empty table.
 INSERT INTO r SELECT * FROM s;
 SELECT r.src, r.dst FROM r;
 DELETE FROM r;
@@ -71,6 +75,12 @@ DELETE FROM r;
 |          0|          0|
 |          1|          5|
 +-----------+-----------+
+==
+
+# Compute the exact stats for r after updates.
+\analyze r
+--
+Analyzing r ... done
 ==
 
 # One side of InnerJoin is empty.
@@ -136,9 +146,9 @@ SELECT t.src, t.dst FROM t;
 ==
 
 # Union on two InnerJoins, one of which involves an empty relation.
-SELECT r.src, r.dst FROM r, s WHERE r.src=s.src AND r.dst=s.dst
+SELECT r.src, s.dst FROM r, s WHERE r.src=s.src AND r.dst=s.dst
 UNION
-SELECT s.src, s.dst FROM s, t WHERE s.src=t.src AND s.dst=t.dst;
+SELECT s.src, t.dst FROM s, t WHERE s.src=t.src AND s.dst=t.dst;
 --
 +-----------+-----------+
 |src        |dst        |
@@ -148,15 +158,29 @@ SELECT s.src, s.dst FROM s, t WHERE s.src=t.src AND s.dst=t.dst;
 ==
 
 # Union All on two InnerJoins, one of which involves an empty relation.
-SELECT r.src, r.dst FROM r, s WHERE r.src=s.src AND r.dst=s.dst
+SELECT r.src, s.dst FROM r, s WHERE r.src=s.src AND r.dst=s.dst
 UNION ALL
-SELECT s.src, s.dst FROM s, t WHERE s.src=t.src AND s.dst=t.dst;
+SELECT s.src, t.dst FROM s, t WHERE s.src=t.src AND s.dst=t.dst;
 --
 +-----------+-----------+
 |src        |dst        |
 +-----------+-----------+
 |          0|          0|
 |          0|          0|
++-----------+-----------+
+==
+
+# Union All on two InnerJoins, one of which involves an empty relation.
+# One of the project expressions is a ScalarLiteral.
+SELECT s.src, r.dst FROM r, s WHERE r.src=s.src AND r.dst=s.dst
+UNION ALL
+SELECT 1 AS src, s.dst FROM s, t WHERE s.src=t.src AND s.dst=t.dst;
+--
++-----------+-----------+
+|src        |dst        |
++-----------+-----------+
+|          1|          0|
+|          1|          0|
 +-----------+-----------+
 ==
 
