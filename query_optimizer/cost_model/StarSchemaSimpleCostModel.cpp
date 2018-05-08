@@ -170,7 +170,7 @@ std::size_t StarSchemaSimpleCostModel::estimateCardinalityForFilterJoin(
   std::size_t left_cardinality = estimateCardinality(physical_plan->left());
   double right_selectivity = estimateSelectivity(physical_plan->right());
   return static_cast<std::size_t>(
-      left_cardinality * build_side_filter_selectivity * right_selectivity + 0.5);
+      left_cardinality * build_side_filter_selectivity * std::min(right_selectivity, 0.01) + 0.5);
 }
 
 std::size_t StarSchemaSimpleCostModel::estimateCardinalityForHashJoin(
@@ -179,7 +179,7 @@ std::size_t StarSchemaSimpleCostModel::estimateCardinalityForHashJoin(
   std::size_t right_cardinality = estimateCardinality(physical_plan->right());
   double left_selectivity = estimateSelectivity(physical_plan->left());
   double right_selectivity = estimateSelectivity(physical_plan->right());
-  return std::max(static_cast<std::size_t>(left_cardinality * right_selectivity + 0.5),
+  return std::min(static_cast<std::size_t>(left_cardinality * right_selectivity + 0.5),
                   static_cast<std::size_t>(right_cardinality * left_selectivity + 0.5));
 }
 
@@ -344,7 +344,7 @@ double StarSchemaSimpleCostModel::estimateSelectivity(
       double build_side_filter_selectivity =
           estimateSelectivityForPredicate(filter_join->build_side_filter_predicate(),
                                           filter_join->right());
-      return left_selectivity * right_selectivity * build_side_filter_selectivity;
+      return std::min(left_selectivity * right_selectivity, 0.01) * build_side_filter_selectivity;
     }
     case P::PhysicalType::kHashJoin: {
       const P::HashJoinPtr &hash_join =

@@ -40,8 +40,10 @@ namespace quickstep {
 void UnionAllOperator::feedInputBlock(const block_id input_block_id,
                                       const relation_id input_relation_id,
                                       const partition_id part_id) {
-  std::size_t index = relation_id_to_index_.at(input_relation_id);
-  input_relations_block_ids_[index].push_back(input_block_id);
+  const auto it = relation_id_to_index_.find(input_relation_id);
+  if (it != relation_id_to_index_.end()) {
+    input_relations_block_ids_[it->second].push_back(input_block_id);
+  }
 }
 
 void UnionAllOperator::doneFeedingInputBlocks(const relation_id rel_id) {

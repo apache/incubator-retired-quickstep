@@ -440,10 +440,10 @@ void PackedPayloadHashTable::resize(const std::size_t extra_buckets,
 
   // Copy over variable-length key components, if any.
   if (original_variable_storage_used > 0) {
-    DEBUG_ASSERT(original_variable_storage_used ==
-                 key_manager_.getNextVariableLengthKeyOffset());
-    DEBUG_ASSERT(original_variable_storage_used <=
-                 resized_variable_length_key_storage_size);
+//    DEBUG_ASSERT(original_variable_storage_used ==
+//                 key_manager_.getNextVariableLengthKeyOffset());
+//    DEBUG_ASSERT(original_variable_storage_used <=
+//                 resized_variable_length_key_storage_size);
     std::memcpy(resized_variable_length_key_storage,
                 key_manager_.getVariableLengthKeyStorage(),
                 original_variable_storage_used);

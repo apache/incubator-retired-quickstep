@@ -190,7 +190,7 @@ static const volatile bool num_aggregation_partitions_dummy
     = gflags::RegisterFlagValidator(&FLAGS_num_aggregation_partitions, &ValidateNumAggregationPartitions);
 
 DEFINE_uint64(partition_aggregation_num_groups_threshold,
-              100000,
+              10000,
               "The threshold used for deciding whether the aggregation is done "
               "in a partitioned way or not");
 
@@ -204,10 +204,6 @@ bool CheckAggregatePartitioned(const std::size_t num_aggregate_functions,
                                const std::vector<bool> &is_distincts,
                                const std::vector<attribute_id> &group_by_attrs,
                                const std::size_t estimated_num_groups) {
-  // If there's no aggregation, return false.
-  if (num_aggregate_functions == 0) {
-    return false;
-  }
   // If there is only only aggregate function, we allow distinct aggregation.
   // Otherwise it can't be partitioned with distinct aggregation.
   if (num_aggregate_functions > 1) {

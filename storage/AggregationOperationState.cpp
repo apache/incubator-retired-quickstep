@@ -113,7 +113,7 @@ AggregationOperationState::AggregationOperationState(
     }
   }
 
-  std::vector<AggregationHandle *> group_by_handles;
+  std::vector<AggregationHandle*> group_by_handles;
 
   // Set up each individual aggregate in this operation.
   std::vector<const AggregateFunction *>::const_iterator agg_func_it =

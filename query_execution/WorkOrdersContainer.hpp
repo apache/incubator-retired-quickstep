@@ -362,7 +362,13 @@ class WorkOrdersContainer {
         return nullptr;
       }
 
-      std::cerr << "# work orders: " << workorders_.size() << "        \r";
+      /*
+      const std::size_t num_remaining_workorders = workorders_.size();
+      if (num_remaining_workorders % 1000 == 0) {
+        std::cerr << "# work orders: " << num_remaining_workorders
+                  << "        \r";
+      }
+      */
 
       WorkOrder *work_order = workorders_.front().release();
       workorders_.pop();

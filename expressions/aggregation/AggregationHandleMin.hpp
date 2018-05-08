@@ -191,6 +191,7 @@ class AggregationHandleMin : public AggregationConcreteHandle {
     if (state->min_.isNull() ||
         fast_comparator_->compareTypedValues(value, state->min_)) {
       state->min_ = value;
+      state->min_.ensureNotReference();
     }
   }
 
@@ -200,6 +201,7 @@ class AggregationHandleMin : public AggregationConcreteHandle {
     if (min_ptr->isNull() ||
         fast_comparator_->compareTypedValues(value, *min_ptr)) {
       *min_ptr = value;
+      min_ptr->ensureNotReference();
     }
   }
 

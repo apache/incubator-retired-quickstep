@@ -191,6 +191,7 @@ class AggregationHandleMax : public AggregationConcreteHandle {
     if (state->max_.isNull() ||
         fast_comparator_->compareTypedValues(value, state->max_)) {
       state->max_ = value;
+      state->max_.ensureNotReference();
     }
   }
 
@@ -200,6 +201,7 @@ class AggregationHandleMax : public AggregationConcreteHandle {
     if (max_ptr->isNull() ||
         fast_comparator_->compareTypedValues(value, *max_ptr)) {
       *max_ptr = value;
+      max_ptr->ensureNotReference();
     }
   }
 
