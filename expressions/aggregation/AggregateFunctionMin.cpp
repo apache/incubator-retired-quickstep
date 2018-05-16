@@ -45,14 +45,16 @@ bool AggregateFunctionMin::canApplyToTypes(
 }
 
 const Type* AggregateFunctionMin::resultTypeForArgumentTypes(
-    const std::vector<const Type*> &argument_types) const {
+    const std::vector<const Type*> &argument_types,
+    const bool is_vector_aggregate) const {
   if (!canApplyToTypes(argument_types)) {
     return nullptr;
   }
 
-  // FIXME(jianqiao): The result type can be nullable when it is NOT a group-by
-  // aggregation.
-  return argument_types.front();
+  const Type *argument_type = argument_types.front();
+  const bool nullable = argument_type->isNullable() || !is_vector_aggregate;
+
+  return &argument_type->getInstance(nullable);
 }
 
 AggregationHandle* AggregateFunctionMin::createHandle(

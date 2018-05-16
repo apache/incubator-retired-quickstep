@@ -112,7 +112,8 @@ class AggregateFunction {
    *         applicable to the specified Type(s).
    **/
   virtual const Type* resultTypeForArgumentTypes(
-      const std::vector<const Type*> &argument_types) const = 0;
+      const std::vector<const Type*> &argument_types,
+      const bool is_vector_aggregate) const = 0;
 
   /**
    * @brief Create an AggregationHandle to compute aggregates.

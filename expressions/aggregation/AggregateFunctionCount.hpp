@@ -54,7 +54,8 @@ class AggregateFunctionCount : public AggregateFunction {
       const std::vector<const Type*> &argument_types) const override;
 
   const Type* resultTypeForArgumentTypes(
-      const std::vector<const Type*> &argument_types) const override;
+      const std::vector<const Type*> &argument_types,
+      const bool is_vector_aggregate) const override;
 
   AggregationHandle* createHandle(
       const std::vector<const Type*> &argument_types) const override;

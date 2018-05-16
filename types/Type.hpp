@@ -183,6 +183,8 @@ class Type {
    **/
   virtual const Type& getNonNullableVersion() const = 0;
 
+  virtual const Type& getInstance(const bool nullable) const;
+
   /**
    * @brief Determine whether data items of this type have variable
    *        byte-length.

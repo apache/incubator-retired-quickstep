@@ -48,22 +48,27 @@ bool AggregateFunctionAvg::canApplyToTypes(
 }
 
 const Type* AggregateFunctionAvg::resultTypeForArgumentTypes(
-    const std::vector<const Type*> &argument_types) const {
+    const std::vector<const Type*> &argument_types,
+    const bool is_vector_aggregate) const {
   if (!canApplyToTypes(argument_types)) {
     return nullptr;
   }
 
-  // The type used to sum values is nullable, and we automatically widen int to
-  // long and float to double to have more headroom when adding up many values.
-  const Type *sum_type = &(argument_types.front()->getNullableVersion());
-  switch (sum_type->getTypeID()) {
+  // We automatically widen int to long and float to double to have more
+  // headroom when adding up many values.
+  const Type *argument_type = argument_types.front();
+  const bool nullable = argument_type->isNullable() || !is_vector_aggregate;
+
+  const Type *sum_type;
+  switch (argument_type->getTypeID()) {
     case kInt:
-      sum_type = &TypeFactory::GetType(kLong, true);
+      sum_type = &TypeFactory::GetType(kLong, nullable);
       break;
     case kFloat:
-      sum_type = &TypeFactory::GetType(kDouble, true);
+      sum_type = &TypeFactory::GetType(kDouble, nullable);
       break;
     default:
+      sum_type = &TypeFactory::GetType(argument_type->getTypeID(), nullable);
       break;
   }
 

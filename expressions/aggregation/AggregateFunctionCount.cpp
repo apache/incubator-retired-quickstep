@@ -37,7 +37,8 @@ bool AggregateFunctionCount::canApplyToTypes(
 }
 
 const Type* AggregateFunctionCount::resultTypeForArgumentTypes(
-    const std::vector<const Type*> &argument_types) const {
+    const std::vector<const Type*> &argument_types,
+    const bool is_vector_aggregate) const {
   if (!canApplyToTypes(argument_types)) {
     return nullptr;
   }

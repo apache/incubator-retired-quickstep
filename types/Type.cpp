@@ -67,6 +67,10 @@ serialization::Type Type::getProto() const {
   return proto;
 }
 
+const Type& Type::getInstance(const bool nullable) const {
+  return nullable ? getNullableVersion() : getNonNullableVersion();
+}
+
 TypedValue Type::coerceValue(const TypedValue &original_value,
                              const Type &original_type) const {
   DCHECK(isCoercibleFrom(original_type))

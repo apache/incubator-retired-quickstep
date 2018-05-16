@@ -43,7 +43,8 @@ bool AggregateFunction::isNullable() const {
     argument_types.emplace_back(&argument->getValueType());
   }
 
-  const Type *return_type = aggregate_.resultTypeForArgumentTypes(argument_types);
+  const Type *return_type =
+      aggregate_.resultTypeForArgumentTypes(argument_types, is_vector_aggregate_);
   DCHECK(return_type != nullptr);
   return return_type->isNullable();
 }
@@ -54,7 +55,8 @@ const Type& AggregateFunction::getValueType() const {
     argument_types.emplace_back(&argument->getValueType());
   }
 
-  const Type *return_type = aggregate_.resultTypeForArgumentTypes(argument_types);
+  const Type *return_type =
+      aggregate_.resultTypeForArgumentTypes(argument_types, is_vector_aggregate_);
   DCHECK(return_type != nullptr);
   return *return_type;
 }

@@ -96,8 +96,8 @@ class AggregationHandleCountTest : public ::testing::Test {
                                             TypeID output_type_id) {
     const Type *result_type =
         AggregateFunctionFactory::Get(AggregationID::kCount)
-            .resultTypeForArgumentTypes(std::vector<const Type *>(
-                1, &TypeFactory::GetType(input_type_id)));
+            .resultTypeForArgumentTypes({&TypeFactory::GetType(input_type_id)},
+                                        true /* is_vector_aggregate */);
     return (result_type->getTypeID() == output_type_id);
   }
 
