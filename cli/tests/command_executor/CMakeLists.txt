@@ -32,6 +32,11 @@ add_test(quickstep_cli_tests_commandexecutor_dt
          "${CMAKE_CURRENT_BINARY_DIR}/Dt/")
 
 if (ENABLE_DISTRIBUTED)
+  add_test(quickstep_cli_tests_commandexecutor_analyze_distributed
+           "../quickstep_cli_tests_CommandExecutorTest"
+           "${CMAKE_CURRENT_SOURCE_DIR}/Analyze.test"
+           "${CMAKE_CURRENT_BINARY_DIR}/AnalyzeDistributed.test"
+           "${CMAKE_CURRENT_BINARY_DIR}/AnalyzeDistributed/")
   add_test(quickstep_cli_tests_commandexecutor_d_distributed
            "../quickstep_cli_tests_DistributedCommandExecutorTest"
            "${CMAKE_CURRENT_SOURCE_DIR}/D.test"
@@ -51,6 +56,7 @@ file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/D)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Dt)
 
 if (ENABLE_DISTRIBUTED)
+  file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/AnalyzeDistributed)
   file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/DDistributed)
   file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/DtDistributed)
 endif(ENABLE_DISTRIBUTED)

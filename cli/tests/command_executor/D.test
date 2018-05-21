@@ -58,7 +58,6 @@ INSERT INTO foo3 values(5, 1, 1.0, 1.0, 'XYZZ');
 --
 ==
 
-
 \d foo
 --
  Table "foo"
@@ -139,23 +138,17 @@ INSERT INTO foo3 values(5, 1, 1.0, 1.0, 'XYZZ');
 
 ==
 
-\d
---
-       List of relations
-
- Name                                  | Type  | Blocks 
-+--------------------------------------+-------+---------+
- foo                                   | table | 1      
- foo2                                  | table | 1      
- foo3                                  | table | 1      
- foo4                                  | table | 0      
- foo_hash_part                         | table | 4      
- averylongtablenamethatseemstoneverend | table | 1      
-
-==
-
 \d invalidtable
 --
 ERROR:  Unrecognized relation invalidtable (1 : 4)
 \d invalidtable
    ^
+==
+
+DROP TABLE foo;
+DROP TABLE foo2;
+DROP TABLE foo3;
+DROP TABLE foo4;
+DROP TABLE foo_hash_part;
+--
+==

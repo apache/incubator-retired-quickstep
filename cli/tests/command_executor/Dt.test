@@ -80,3 +80,11 @@ INSERT INTO foo3 values(5, 1, 1.0, 1.0, 'XYZZ');
 ERROR:  Unrecognized relation invalidtable (1 : 5)
 \dt invalidtable
     ^
+==
+
+DROP TABLE foo;
+DROP TABLE foo2;
+DROP TABLE foo3;
+DROP TABLE foo4;
+DROP TABLE averylongtablenamethatseemstoneverend;
+--

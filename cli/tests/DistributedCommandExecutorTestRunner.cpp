@@ -20,6 +20,7 @@
 #include "cli/tests/DistributedCommandExecutorTestRunner.hpp"
 
 #include <cstdio>
+#include <cstdlib>
 #include <memory>
 #include <set>
 #include <string>
@@ -27,8 +28,9 @@
 #include <vector>
 
 #include "catalog/CatalogTypedefs.hpp"
-#include "cli/CommandExecutorUtil.hpp"
+#include "cli/CommandExecutor.hpp"
 #include "cli/Constants.hpp"
+#include "cli/DefaultsConfigurator.hpp"
 #include "cli/DropRelation.hpp"
 #include "cli/PrintToScreen.hpp"
 #include "parser/ParseStatement.hpp"
@@ -37,11 +39,10 @@
 #include "query_execution/ForemanDistributed.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/QueryExecutionUtil.hpp"
-#include "query_optimizer/Optimizer.hpp"
-#include "query_optimizer/OptimizerContext.hpp"
 #include "query_optimizer/QueryHandle.hpp"
-#include "query_optimizer/tests/TestDatabaseLoader.hpp"
+#include "query_optimizer/QueryProcessor.hpp"
 #include "storage/DataExchangerAsync.hpp"
+#include "storage/StorageConstants.hpp"
 #include "storage/StorageManager.hpp"
 #include "utility/MemStream.hpp"
 #include "utility/SqlError.hpp"
@@ -62,13 +63,9 @@ namespace quickstep {
 
 class CatalogRelation;
 
-namespace C = cli;
-
-const char *DistributedCommandExecutorTestRunner::kResetOption =
-    "reset_before_execution";
-
 DistributedCommandExecutorTestRunner::DistributedCommandExecutorTestRunner(const string &storage_path)
-    : query_id_(0) {
+    : catalog_path_(storage_path + kCatalogFilename),
+      query_id_(0) {
   bus_.Initialize();
 
   cli_id_ = bus_.Connect();
@@ -82,23 +79,13 @@ DistributedCommandExecutorTestRunner::DistributedCommandExecutorTestRunner(const
   block_locator_ = make_unique<BlockLocator>(&bus_);
   block_locator_->start();
 
-  test_database_loader_ = make_unique<optimizer::TestDatabaseLoader>(
-      storage_path,
-      block_locator::getBlockDomain(
-          test_database_loader_data_exchanger_.network_address(), cli_id_, &locator_client_id_, &bus_),
-      locator_client_id_,
-      &bus_);
-  DCHECK_EQ(block_locator_->getBusClientID(), locator_client_id_);
-  test_database_loader_data_exchanger_.set_storage_manager(test_database_loader_->storage_manager());
-  test_database_loader_data_exchanger_.start();
-
-  test_database_loader_->createTestRelation(false /* allow_vchar */);
-  test_database_loader_->loadTestRelation();
+  DefaultsConfigurator::InitializeDefaultDatabase(storage_path, catalog_path_);
+  query_processor_ = std::make_unique<QueryProcessor>(std::string(catalog_path_));
 
   // NOTE(zuyu): Foreman should initialize before Shiftboss so that the former
   // could receive a registration message from the latter.
-  foreman_ = make_unique<ForemanDistributed>(*block_locator_, &bus_, test_database_loader_->catalog_database(),
-                                             nullptr /* query_processor */);
+  foreman_ = make_unique<ForemanDistributed>(*block_locator_, &bus_, query_processor_->getDefaultDatabase(),
+                                             query_processor_.get());
   foreman_->start();
 
   // We don't use the NUMA aware version of worker code.
@@ -139,17 +126,18 @@ DistributedCommandExecutorTestRunner::~DistributedCommandExecutorTestRunner() {
 
   foreman_->join();
 
-  test_database_loader_data_exchanger_.shutdown();
-  test_database_loader_.reset();
   data_exchanger_.shutdown();
   storage_manager_.reset();
 
   CHECK(MessageBus::SendStatus::kOK ==
       QueryExecutionUtil::SendTMBMessage(&bus_, cli_id_, locator_client_id_, TaggedMessage(kPoisonMessage)));
 
-  test_database_loader_data_exchanger_.join();
   data_exchanger_.join();
   block_locator_->join();
+
+  const std::string command = "rm -f " + catalog_path_;
+  CHECK(!std::system(command.c_str()))
+      << "Failed when attempting to remove catalog proto file: " << catalog_path_;
 }
 
 void DistributedCommandExecutorTestRunner::runTestCase(
@@ -157,12 +145,6 @@ void DistributedCommandExecutorTestRunner::runTestCase(
   // TODO(qzeng): Test multi-threaded query execution when we have a Sort operator.
 
   VLOG(4) << "Test SQL(s): " << input;
-
-  if (options.find(kResetOption) != options.end()) {
-    test_database_loader_->clear();
-    test_database_loader_->createTestRelation(false /* allow_vchar */);
-    test_database_loader_->loadTestRelation();
-  }
 
   MemStream output_stream;
   sql_parser_.feedNextBuffer(new string(input));
@@ -181,32 +163,19 @@ void DistributedCommandExecutorTestRunner::runTestCase(
 
     try {
       if (parse_statement.getStatementType() == ParseStatement::kCommand) {
-        const ParseCommand &command = static_cast<const ParseCommand &>(parse_statement);
-        const PtrVector<ParseString> &arguments = *(command.arguments());
-        const string &command_str = command.command()->value();
-
-        string command_response;
-        if (command_str == C::kDescribeDatabaseCommand) {
-          command_response = C::ExecuteDescribeDatabase(arguments, *test_database_loader_->catalog_database());
-        } else if (command_str == C::kDescribeTableCommand) {
-          if (arguments.empty()) {
-            command_response = C::ExecuteDescribeDatabase(arguments, *test_database_loader_->catalog_database());
-          } else {
-            command_response = C::ExecuteDescribeTable(arguments, *test_database_loader_->catalog_database());
-          }
-        } else {
-          THROW_SQL_ERROR_AT(command.command()) << "Unsupported command";
-        }
-
-        std::fprintf(output_stream.file(), "%s", command_response.c_str());
+        cli::executeCommand(
+            *result.parsed_statement,
+            *query_processor_->getDefaultDatabase(),
+            cli_id_,
+            foreman_->getBusClientID(),
+            &bus_,
+            storage_manager_.get(),
+            query_processor_.get(),
+            output_stream.file());
       } else {
-        optimizer::OptimizerContext optimizer_context;
         auto query_handle = std::make_unique<QueryHandle>(query_id_++, cli_id_);
+        query_processor_->generateQueryHandle(parse_statement, query_handle.get());
 
-        optimizer_.generateQueryHandle(parse_statement,
-                                       test_database_loader_->catalog_database(),
-                                       &optimizer_context,
-                                       query_handle.get());
         const CatalogRelation *query_result_relation = query_handle->getQueryResultRelation();
 
         QueryExecutionUtil::ConstructAndSendAdmitRequestMessage(
@@ -217,11 +186,11 @@ void DistributedCommandExecutorTestRunner::runTestCase(
 
         if (query_result_relation) {
           PrintToScreen::PrintRelation(*query_result_relation,
-                                       test_database_loader_->storage_manager(),
+                                       storage_manager_.get(),
                                        output_stream.file());
           DropRelation::Drop(*query_result_relation,
-                             test_database_loader_->catalog_database(),
-                             test_database_loader_->storage_manager());
+                             query_processor_->getDefaultDatabase(),
+                             storage_manager_.get());
         }
       }
     } catch (const SqlError &error) {

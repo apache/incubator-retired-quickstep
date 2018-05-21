@@ -76,8 +76,9 @@ if (ENABLE_DISTRIBUTED)
                         glog
                         gtest
                         quickstep_catalog_CatalogTypedefs
-                        quickstep_cli_CommandExecutorUtil
+                        quickstep_cli_CommandExecutor
                         quickstep_cli_Constants
+                        quickstep_cli_DefaultsConfigurator
                         quickstep_cli_DropRelation
                         quickstep_cli_PrintToScreen
                         quickstep_parser_ParseStatement
@@ -90,11 +91,10 @@ if (ENABLE_DISTRIBUTED)
                         quickstep_queryexecution_Shiftboss
                         quickstep_queryexecution_Worker
                         quickstep_queryexecution_WorkerDirectory
-                        quickstep_queryoptimizer_Optimizer
-                        quickstep_queryoptimizer_OptimizerContext
                         quickstep_queryoptimizer_QueryHandle
-                        quickstep_queryoptimizer_tests_TestDatabaseLoader
+                        quickstep_queryoptimizer_QueryProcessor
                         quickstep_storage_DataExchangerAsync
+                        quickstep_storage_StorageConstants
                         quickstep_storage_StorageManager
                         quickstep_utility_Macros
                         quickstep_utility_MemStream

@@ -69,7 +69,7 @@ void CommandExecutorTestRunner::runTestCase(
       std::printf("%s\n", parse_statement.toString().c_str());
       try {
         if (parse_statement.getStatementType() == ParseStatement::kCommand) {
-          quickstep::cli::executeCommand(
+          cli::executeCommand(
               *result.parsed_statement,
               *query_processor_->getDefaultDatabase(),
               main_thread_client_id_,
