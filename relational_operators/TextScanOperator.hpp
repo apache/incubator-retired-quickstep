@@ -138,7 +138,7 @@ class TextScanOperator : public RelationalOperator {
         options_(options),
         output_relation_(output_relation),
         output_destination_index_(output_destination_index),
-        serial_bulk_insert_(mem_data != nullptr),
+        serial_bulk_insert_(mem_data != nullptr && file_pattern == "$stdin"),
         num_remaining_chunks_(0),
         serial_worker_ready_(true),
         work_generated_(false) {}
