@@ -66,7 +66,7 @@ class NetworkCliClient {
     } else {
       std::cout << "RPC call failed with code " << status.error_code()
                 << " and message: " << status.error_message() << "\n";
-      return "RPC failed";
+      std::exit(-1);
     }
   }
 
