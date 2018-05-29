@@ -77,36 +77,37 @@ std::vector<int> InputParserUtil::ParseWorkerAffinities(
     // This code is inspired from the print_node_cpus() function of numactl.
     // WARNING - If some NUMA sockets are disabled, we can't detect it.
     const int num_sockets = numa_num_configured_nodes();
-    CHECK_GT(num_sockets, 0);
-    // A vector V where V[i] denotes a vector of CPU cores that belong to the
-    // socket i.
-    std::vector<std::vector<int>> cpus_from_sockets;
-    cpus_from_sockets.resize(num_sockets);
-    for (int curr_socket = 0; curr_socket < num_sockets; ++curr_socket) {
-      std::unique_ptr<struct bitmask> cpus(numa_allocate_cpumask());
-      const int err = numa_node_to_cpus(curr_socket, cpus.get());
-      if (err >= 0) {
-        for (int i = 0; i < static_cast<int>(cpus->size); i++) {
-          if (numa_bitmask_isbitset(cpus.get(), i)) {
-            // The current CPU belongs to curr_socket.
-            cpus_from_sockets[curr_socket].push_back(i);
+    if (num_sockets > 0) {
+      // A vector V where V[i] denotes a vector of CPU cores that belong to the
+      // socket i.
+      std::vector<std::vector<int>> cpus_from_sockets;
+      cpus_from_sockets.resize(num_sockets);
+      for (int curr_socket = 0; curr_socket < num_sockets; ++curr_socket) {
+        std::unique_ptr<struct bitmask> cpus(numa_allocate_cpumask());
+        const int err = numa_node_to_cpus(curr_socket, cpus.get());
+        if (err >= 0) {
+          for (int i = 0; i < static_cast<int>(cpus->size); i++) {
+            if (numa_bitmask_isbitset(cpus.get(), i)) {
+              // The current CPU belongs to curr_socket.
+              cpus_from_sockets[curr_socket].push_back(i);
+            }
           }
         }
       }
-    }
-    // Now assign affinity to each worker, picking one CPU from each socket in a
-    // round robin manner.
-    int curr_socket = 0;
-    std::size_t iteration = 0;
-    for (int curr_worker = 0; curr_worker < num_workers; ++curr_worker) {
-      if (iteration < cpus_from_sockets[curr_socket].size()) {
-        const int curr_worker_affinity =
-            cpus_from_sockets[curr_socket][iteration];
-        affinities.push_back(curr_worker_affinity);
+      // Now assign affinity to each worker, picking one CPU from each socket in a
+      // round robin manner.
+      int curr_socket = 0;
+      std::size_t iteration = 0;
+      for (int curr_worker = 0; curr_worker < num_workers; ++curr_worker) {
+        if (iteration < cpus_from_sockets[curr_socket].size()) {
+          const int curr_worker_affinity =
+              cpus_from_sockets[curr_socket][iteration];
+          affinities.push_back(curr_worker_affinity);
+        }
+        // Increase iteration number only when we are at the last socket.
+        iteration = iteration + ((curr_socket + 1) / num_sockets);
+        curr_socket = (curr_socket + 1) % num_sockets;
       }
-      // Increase iteration number only when we are at the last socket.
-      iteration = iteration + ((curr_socket + 1) / num_sockets);
-      curr_socket = (curr_socket + 1) % num_sockets;
     }
 #endif
   }
