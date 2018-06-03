@@ -19,6 +19,7 @@
 
 import os
 import re
+import sys
 
 from collections import defaultdict
 
@@ -1356,7 +1357,7 @@ class CMakeLists:
     self.path = path
 
     if "CMakeLists.txt" in os.listdir(path):
-      with open(self.path + "/CMakeLists.txt", "rb") as file:
+      with open(self.path + "/CMakeLists.txt", "r") as file:
         self.root = CMakeGroup(LineStream(file.readlines()))
         self.newfile = False
     else:
@@ -1524,8 +1525,8 @@ class CMakeLists:
           continue
 
       if name in subdirectories:
-        print "Warning: Possibly duplicated add_subdirectory(" + \
-              name + ") in", self.path
+        sys.stdout.write("Warning: Possibly duplicated add_subdirectory(" +
+                         name + ") in" + self.path)
 
       subdirectories[name] = node
 
@@ -1690,7 +1691,7 @@ class CMakeLists:
     if len(output) == 0:
       return
 
-    with open(self.path + "/CMakeLists.txt", "wb") as file:
+    with open(self.path + "/CMakeLists.txt", "w") as file:
       file.write("".join(output))
       file.close()
 
@@ -1754,7 +1755,7 @@ class SourceFile:
     self.includes = []
 
     # Parse include items
-    with open(self.path + "/" + self.name, "rb") as file:
+    with open(self.path + "/" + self.name, "r") as file:
       dependencies = []
 
       for line in file:

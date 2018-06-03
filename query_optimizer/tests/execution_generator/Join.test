@@ -231,3 +231,62 @@ WHERE b.x > 10
 +-----------+--------------------+------------------------+----------------+
 |          6|                  61|                     601|              C6|
 +-----------+--------------------+------------------------+----------------+
+==
+
+# Semi-join w/o residual predicates
+SELECT SUM(x)
+FROM a
+WHERE w IN (SELECT w FROM b);
+--
++--------------------+
+|SUM(x)              |
++--------------------+
+|                 900|
++--------------------+
+==
+
+# Semi-join w/ residual predicates
+SELECT SUM(x)
+FROM a
+WHERE EXISTS (
+  SELECT *
+  FROM b
+  WHERE a.w = b.w
+    AND a.x < b.x
+);
+--
++--------------------+
+|SUM(x)              |
++--------------------+
+|                 500|
++--------------------+
+==
+
+# Anti-join w/o residual predicates
+SELECT SUM(x)
+FROM a
+WHERE w NOT IN (SELECT w FROM b);
+--
++--------------------+
+|SUM(x)              |
++--------------------+
+|                1000|
++--------------------+
+==
+
+# Anti-join w residual predicates
+SELECT SUM(x)
+FROM a
+WHERE NOT EXISTS (
+  SELECT *
+  FROM b
+  WHERE a.w = b.w
+    AND a.x < b.x
+);
+--
++--------------------+
+|SUM(x)              |
++--------------------+
+|                1400|
++--------------------+
+==

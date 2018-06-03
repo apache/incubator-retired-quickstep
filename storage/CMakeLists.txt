@@ -360,10 +360,6 @@ target_link_libraries(quickstep_storage_BasicColumnStoreValueAccessor
                       quickstep_utility_BitVector
                       quickstep_utility_Macros
                       quickstep_utility_PtrVector)
-if (ENABLE_NETWORK_CLI)
-  target_link_libraries(quickstep_storage_BlockWire_proto
-                        ${PROTOBUF_LIBRARY})
-endif()
 target_link_libraries(quickstep_storage_BloomFilterIndexSubBlock
                       glog
                       quickstep_catalog_CatalogAttribute
@@ -1102,7 +1098,10 @@ if (ENABLE_DISTRIBUTED)
 endif()
 
 if (ENABLE_NETWORK_CLI)
+  target_link_libraries(quickstep_storage_BlockWire_proto
+                        ${PROTOBUF_LIBRARY})
   target_link_libraries(quickstep_storage_DataProviderThread
+                        ${GRPCPLUSPLUS_LIBRARIES}
                         glog
                         quickstep_catalog_CatalogDatabase
                         quickstep_catalog_CatalogRelation
@@ -1118,12 +1117,12 @@ if (ENABLE_NETWORK_CLI)
                         quickstep_threading_Thread
                         quickstep_threading_ThreadUtil
                         quickstep_utility_Macros
-                        tmb
-                        ${GRPCPLUSPLUS_LIBRARIES})
+                        tmb)
   target_link_libraries(quickstep_storage_StorageManager
                         ${GRPCPLUSPLUS_LIBRARIES}
                         quickstep_storage_BlockWire_proto)
 endif()
+
 if (QUICKSTEP_HAVE_FILE_MANAGER_HDFS)
   target_link_libraries(quickstep_storage_FileManagerHdfs
                         ${LIBHDFS3_LIBRARIES}
@@ -1581,9 +1580,9 @@ if (ENABLE_NETWORK_CLI)
                         quickstep_queryexecution_WorkerDirectory
                         quickstep_queryoptimizer_QueryProcessor
                         quickstep_queryoptimizer_tests_TestDatabaseLoader
+                        quickstep_storage_BlockWire_proto
                         quickstep_storage_DataProviderThread
                         quickstep_storage_StorageConstants
-                        quickstep_storage_BlockWire_proto 
                         tmb)
   add_test(DataProviderThread_unittest DataProviderThread_unittest)
   file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/data_provider_thread_test_data)

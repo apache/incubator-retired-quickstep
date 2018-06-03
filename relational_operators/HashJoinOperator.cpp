@@ -733,9 +733,9 @@ void HashSemiJoinWorkOrder::executeWithResidualPredicate() {
         build_store.createValueAccessor());
     for (const std::pair<tuple_id, tuple_id> &hash_match
          : build_block_entry.second) {
-      // For each pair, 1st element is a tuple ID from the build relation in the
-      // given build block, 2nd element is a tuple ID from the probe relation.
-      if (filter.get(hash_match.second)) {
+      // For each pair, 1st element is a tuple ID from the probe relation, 2nd
+      // element is a tuple ID from the build relation in the given build block.
+      if (filter.get(hash_match.first)) {
         // We have already found matches for this tuple that belongs to the
         // probe side, skip it.
         continue;
@@ -744,7 +744,7 @@ void HashSemiJoinWorkOrder::executeWithResidualPredicate() {
                                                       hash_match.first,
                                                       *build_accessor,
                                                       hash_match.second)) {
-        filter.set(hash_match.second);
+        filter.set(hash_match.first);
       }
     }
   }
@@ -949,7 +949,7 @@ void HashAntiJoinWorkOrder::executeWithResidualPredicate() {
     std::unique_ptr<ValueAccessor> build_accessor(build_store.createValueAccessor());
     for (const std::pair<tuple_id, tuple_id> &hash_match
          : build_block_entry.second) {
-      if (!existence_map->get(hash_match.second)) {
+      if (!existence_map->get(hash_match.first)) {
         // We have already seen this tuple, skip it.
         continue;
       }
@@ -959,7 +959,7 @@ void HashAntiJoinWorkOrder::executeWithResidualPredicate() {
                                                       hash_match.second)) {
         // Note that the existence map marks a match as false, as needed by the
         // anti join definition.
-        existence_map->set(hash_match.second, false);
+        existence_map->set(hash_match.first, false);
       }
     }
   }
