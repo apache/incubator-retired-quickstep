@@ -109,32 +109,32 @@ target_link_libraries(tmbbench
 add_executable(oneway_throughput src/oneway_throughput.cc)
 target_link_libraries(oneway_throughput
                       gflags_nothreads-static
-                      tcmalloc_minimal
                       tmb
-                      tmbbench)
+                      tmbbench
+                      ${LIBS})
 
 add_executable(oneway_throughput_numa src/oneway_throughput_numa.cc)
 target_link_libraries(oneway_throughput_numa
                       gflags_nothreads-static
-                      tcmalloc_minimal
                       tmb
-                      tmbbench)
+                      tmbbench
+                      ${LIBS})
 
 add_executable(oneway_throughput_distributed
                src/oneway_throughput_distributed.cc)
 target_link_libraries(oneway_throughput_distributed
                       gflags_nothreads-static
-                      tcmalloc_minimal
                       tmb
-                      tmbbench)
+                      tmbbench
+                      ${LIBS})
 
 add_executable(oneway_throughput_distributed_coordinator
                src/oneway_throughput_distributed_coordinator.cc)
 target_link_libraries(oneway_throughput_distributed_coordinator
                       gflags_nothreads-static
-                      tcmalloc_minimal
                       tmb
-                      tmbbench)
+                      tmbbench
+                      ${LIBS})
 
 add_executable(reset_bus src/reset_bus.cc)
 target_link_libraries(reset_bus
