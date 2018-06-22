@@ -17,8 +17,8 @@
  * under the License.
  **/
 
-#ifndef QUICKSTEP_QUERY_EXECUTION_FOREMAN_HPP_
-#define QUICKSTEP_QUERY_EXECUTION_FOREMAN_HPP_
+#ifndef QUICKSTEP_QUERY_EXECUTION_FOREMAN_SINGLE_NODE_HPP_
+#define QUICKSTEP_QUERY_EXECUTION_FOREMAN_SINGLE_NODE_HPP_
 
 #include <cstddef>
 #include <cstdio>
@@ -120,4 +120,4 @@ class ForemanSingleNode final : public ForemanBase {
 
 }  // namespace quickstep
 
-#endif  // QUICKSTEP_QUERY_EXECUTION_FOREMAN_HPP_
+#endif  // QUICKSTEP_QUERY_EXECUTION_FOREMAN_SINGLE_NODE_HPP_
