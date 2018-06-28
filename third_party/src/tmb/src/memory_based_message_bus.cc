@@ -298,14 +298,14 @@ void MemoryBasedMessageBus<enable_deletion_support, memory_mirror>::FinishSend(
     const typename ClientMap::ReadHandle &clients_read_handle,
     const std::vector<client_id> &receivers,
     QueuedMessage &&msg) const {  // NOLINT(whitespace/operators)
-  for (std::vector<client_id>::size_type idx = 0;
-       idx < receivers.size() - 1;
+  for (std::vector<client_id>::size_type idx = 1;
+       idx < receivers.size();
        ++idx) {
     clients_read_handle->find(receivers[idx])->second->incoming_messages_.Push(
         msg);
   }
-  // For the very last receiver, move rather than copy.
-  clients_read_handle->find(receivers.back())->second->incoming_messages_.Push(
+  // For the very first receiver, move rather than copy.
+  clients_read_handle->find(receivers.front())->second->incoming_messages_.Push(
       std::move(msg));
 }
 
