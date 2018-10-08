@@ -46,6 +46,8 @@ namespace quickstep {
  */
 class GenerateSeriesHandle : public GeneratorFunctionHandle {
  public:
+  ~GenerateSeriesHandle() override {};
+
   int getNumberOfOutputColumns() const override {
     return 1;
   }

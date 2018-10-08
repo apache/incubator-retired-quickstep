@@ -53,6 +53,8 @@ class SomeArgType {
 
 class BaseClass {
  public:
+  virtual ~BaseClass() {}
+
   virtual std::string toString() const = 0;
 };
 
@@ -62,6 +64,8 @@ class SomeClass : public BaseClass {
   SomeClass(const int a1, SomeArgType &&a2)
       : a1_(a1), a2_(std::forward<SomeArgType>(a2)) {
   }
+
+  ~SomeClass() override {};
 
   std::string toString() const override {
     std::ostringstream oss;

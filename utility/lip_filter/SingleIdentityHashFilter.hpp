@@ -66,6 +66,8 @@ class SingleIdentityHashFilter : public LIPFilter {
     DCHECK_GE(filter_cardinality, 1u);
   }
 
+  ~SingleIdentityHashFilter() override {};
+
   void insertValueAccessor(ValueAccessor *accessor,
                            const attribute_id attr_id,
                            const Type *attr_type) override {

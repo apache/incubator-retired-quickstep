@@ -69,6 +69,8 @@ class BitVectorExactFilter : public LIPFilter {
     DCHECK_GE(max_value_, min_value_);
   }
 
+  ~BitVectorExactFilter() override {};
+
   void insertValueAccessor(ValueAccessor *accessor,
                            const attribute_id attr_id,
                            const Type *attr_type) override {

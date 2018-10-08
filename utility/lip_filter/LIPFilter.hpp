@@ -47,6 +47,8 @@ enum class LIPFilterType {
  */
 class LIPFilter {
  public:
+  virtual ~LIPFilter() {}
+
   /**
    * @breif Get the type of this LIPFilter.
    *

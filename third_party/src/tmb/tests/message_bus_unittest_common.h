@@ -61,6 +61,8 @@ class Thread {
   Thread() {
   }
 
+  virtual ~Thread() {}
+
   void Start() {
     internal_thread_ = std::thread(Thread::ExecuteRunMethodOfThread, this);
   }
@@ -196,6 +198,8 @@ class ConnectorThread : public Thread {
         num_clients_(num_clients) {
   }
 
+  ~ConnectorThread() override {};
+
   const std::unordered_set<client_id>& assigned_ids() const {
     return assigned_ids_;
   }
@@ -205,7 +209,7 @@ class ConnectorThread : public Thread {
   }
 
  protected:
-  void Run() {
+  void Run() override {
     for (std::size_t client_idx = 0; client_idx < num_clients_; ++client_idx) {
       client_id current_client = message_bus_ptr_->Connect();
       EXPECT_EQ(assigned_ids_.end(), assigned_ids_.find(current_client));
@@ -656,6 +660,8 @@ class SimpleReceiverThread : public Thread {
         receiver_id_(sender_id) {
   }
 
+  ~SimpleReceiverThread() override {};
+
   // Spins until the receiver id is actually available.
   client_id GetReceiverID() const {
     client_id receiver_id = receiver_id_.load();
@@ -671,7 +677,7 @@ class SimpleReceiverThread : public Thread {
   }
 
  protected:
-  void Run() {
+  void Run() override {
     const client_id receiver_id = message_bus_ptr_->Connect();
     EXPECT_TRUE(message_bus_ptr_->RegisterClientAsReceiver(receiver_id, 0));
     receiver_id_.store(receiver_id);
@@ -780,6 +786,8 @@ class SimpleSenderThread : public Thread {
         sender_id_(receiver_id) {
   }
 
+  ~SimpleSenderThread() override {}
+
   // Spins until the sender id is actually available.
   client_id GetSenderID() const {
     client_id sender_id = sender_id_.load();
@@ -791,7 +799,7 @@ class SimpleSenderThread : public Thread {
   }
 
  protected:
-  void Run() {
+  void Run() override {
     const client_id sender_id = message_bus_ptr_->Connect();
     EXPECT_TRUE(message_bus_ptr_->RegisterClientAsSender(sender_id, 0));
     sender_id_.store(sender_id);
@@ -2219,8 +2227,10 @@ class ClientThread : public Thread {
     EXPECT_TRUE(message_bus_ptr_->RegisterClientAsReceiver(me_, 1));
   }
 
+  ~ClientThread() override {};
+
  protected:
-  void Run() {
+  void Run() override {
     Address addr;
     addr.AddRecipient(server_);
     MessageStyle style;
@@ -2258,12 +2268,14 @@ class ServerThread : public Thread {
     EXPECT_TRUE(message_bus_ptr_->RegisterClientAsReceiver(me_, 0));
   }
 
+  ~ServerThread() override {};
+
   client_id GetID() const {
     return me_;
   }
 
  protected:
-  void Run() {
+  void Run() override {
     MessageStyle style;
     for (int i = 0; i < num_messages_; ++i) {
       AnnotatedMessage request = message_bus_ptr_->Receive(me_);
