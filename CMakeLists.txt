@@ -320,7 +320,7 @@ else()
   # builds to fail. As a short-term workaround for now, we turn off deprecated
   # warnings so that they do not cause build failures anymore.
   # TODO: Remove this workaround by fixing the protobuf_cmake and glog_cmake.
-  if (${CMAKE_SYSTEM} MATCHES "Darwin-1[67].[0-9]*.[0-9]*")
+  if (${CMAKE_SYSTEM} MATCHES "Darwin-1[678].[0-9]*.[0-9]*")
     if (${CMAKE_CXX_COMPILER_ID} MATCHES "Clang")
       CHECK_CXX_COMPILER_FLAG("-Wno-error=deprecated-declarations" COMPILER_HAS_WNO_DEPRECATED)
       if (COMPILER_HAS_WNO_DEPRECATED)
