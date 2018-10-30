@@ -734,6 +734,7 @@ target_link_libraries(quickstep_cli_shell
                       quickstep_cli_LineReader
                       quickstep_cli_LocalIO
                       quickstep_cli_PrintToScreen
+                      quickstep_cli_SocketIO
                       quickstep_parser_ParseStatement
                       quickstep_parser_SqlParserWrapper
                       quickstep_queryexecution_ForemanSingleNode

@@ -42,6 +42,7 @@
 #include "types/TypeID.hpp"
 #include "utility/BulkIoConfiguration.hpp"
 #include "utility/MemStream.hpp"
+#include "utility/StringUtil.hpp"
 
 #include "gflags/gflags.h"
 #include "glog/logging.h"
@@ -200,7 +201,7 @@ TEST_F(TextScanOperatorTest, ScanTest) {
   std::unique_ptr<TextScanOperator> text_scan_op(
       new TextScanOperator(kQueryId,
                            input_filename,
-                           nullptr /* mem_data */,
+                           StringPiece(nullptr, 0) /* mem_data */,
                            BulkIoConfigurationPtr(options.release()),
                            *relation_,
                            output_destination_index));

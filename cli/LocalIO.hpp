@@ -34,6 +34,7 @@ typedef quickstep::LineReaderLineNoise LineReaderImpl;
 typedef quickstep::LineReaderDumb LineReaderImpl;
 #endif
 #include "utility/Macros.hpp"
+#include "utility/StringUtil.hpp"
 
 namespace quickstep {
 
@@ -46,8 +47,8 @@ class LocalIOHandle final : public IOHandle {
 
   ~LocalIOHandle() override {}
 
-  const std::string* data() const override {
-    return nullptr;
+  StringPiece data() const override {
+    return StringPiece(nullptr, 0);
   }
 
   FILE *out() override {
@@ -58,8 +59,8 @@ class LocalIOHandle final : public IOHandle {
     return stderr;
   }
 
-  std::string getCommand() const override {
-    return command_;
+  std::vector<std::string> getCommands() const override {
+    return {command_};
   }
 
  private:

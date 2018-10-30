@@ -65,6 +65,9 @@ if (ENABLE_NETWORK_CLI)
                     NetworkCli.proto)
 endif()
 
+# Sub-directories:
+add_subdirectory(simple_socket)
+
 # Declare micro-libs and link dependencies:
 add_library(quickstep_cli_CommandExecutor CommandExecutor.cpp CommandExecutor.hpp)
 add_library(quickstep_cli_CommandExecutorUtil CommandExecutorUtil.cpp CommandExecutorUtil.hpp)
@@ -74,6 +77,7 @@ add_library(quickstep_cli_DropRelation DropRelation.cpp DropRelation.hpp)
 add_library(quickstep_cli_Flags Flags.cpp Flags.hpp)
 add_library(quickstep_cli_IOInterface ../empty_src.cpp IOInterface.hpp)
 add_library(quickstep_cli_InputParserUtil InputParserUtil.cpp InputParserUtil.hpp)
+add_library(quickstep_cli_SocketIO SocketIO.cpp SocketIO.hpp)
 
 if(USE_LINENOISE)
   add_library(quickstep_cli_LineReader
@@ -178,7 +182,8 @@ target_link_libraries(quickstep_cli_Flags
                       quickstep_storage_StorageConstants
                       ${GFLAGS_LIB_NAME})
 target_link_libraries(quickstep_cli_IOInterface
-                      quickstep_utility_Macros)
+                      quickstep_utility_Macros
+                      quickstep_utility_StringUtil)
 target_link_libraries(quickstep_cli_InputParserUtil
                       glog
                       quickstep_utility_Macros
@@ -203,7 +208,8 @@ target_link_libraries(quickstep_cli_LineReaderBuffered
 target_link_libraries(quickstep_cli_LocalIO
                       quickstep_cli_LineReader
                       quickstep_cli_IOInterface
-                      quickstep_utility_Macros)
+                      quickstep_utility_Macros
+                      quickstep_utility_StringUtil)
 if (ENABLE_NETWORK_CLI)
   target_link_libraries(quickstep_cli_NetworkCli_proto
                         ${GRPCPLUSPLUS_LIBRARIES}
@@ -226,6 +232,7 @@ if (ENABLE_NETWORK_CLI)
                         quickstep_threading_SpinSharedMutex
                         quickstep_utility_Macros
                         quickstep_utility_MemStream
+                        quickstep_utility_StringUtil
                         quickstep_utility_ThreadSafeQueue)
 endif()
 target_link_libraries(quickstep_cli_PrintToScreen
@@ -241,6 +248,17 @@ target_link_libraries(quickstep_cli_PrintToScreen
                       quickstep_types_Type
                       quickstep_types_TypedValue
                       quickstep_utility_Macros)
+target_link_libraries(quickstep_cli_SocketIO
+                      glog
+                      quickstep_cli_IOInterface
+                      quickstep_cli_LineReaderBuffered
+                      quickstep_cli_simplesocket_SimpleSocketConnection
+                      quickstep_cli_simplesocket_SimpleSocketContent
+                      quickstep_cli_simplesocket_SimpleSocketServer
+                      quickstep_utility_Macros
+                      quickstep_utility_MemStream
+                      quickstep_utility_StringUtil
+                      quickstep_utility_ThreadSafeQueue)
 
 # Module all-in-one library:
 add_library(quickstep_cli ../empty_src.cpp CliModule.hpp)
@@ -257,7 +275,8 @@ target_link_libraries(quickstep_cli
                       quickstep_cli_LineReader
                       quickstep_cli_LineReaderBuffered
                       quickstep_cli_LocalIO
-                      quickstep_cli_PrintToScreen)
+                      quickstep_cli_PrintToScreen
+                      quickstep_cli_SocketIO)
 if (ENABLE_NETWORK_CLI)
   target_link_libraries(quickstep_cli
                         quickstep_cli_NetworkCli_proto

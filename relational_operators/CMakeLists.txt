@@ -532,6 +532,8 @@ target_link_libraries(quickstep_relationaloperators_TextScanOperator
                       quickstep_utility_BulkIoConfiguration
                       quickstep_utility_Glob
                       quickstep_utility_Macros
+                      quickstep_utility_ScopedBuffer
+                      quickstep_utility_StringUtil
                       tmb)
 if (QUICKSTEP_HAVE_FILE_MANAGER_HDFS)
   target_link_libraries(quickstep_relationaloperators_TextScanOperator
@@ -626,6 +628,7 @@ target_link_libraries(quickstep_relationaloperators_WorkOrderFactory
                       quickstep_relationaloperators_WorkOrder_proto
                       quickstep_storage_StorageBlockInfo
                       quickstep_utility_Macros
+                      quickstep_utility_StringUtil
                       quickstep_utility_lipfilter_LIPFilterUtil
                       tmb)
 target_link_libraries(quickstep_relationaloperators_WorkOrder_proto

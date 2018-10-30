@@ -126,7 +126,7 @@ class ThreadSafeQueue {
       queue_nonempty_condition_->await();
     }
     num_waiters_.fetch_sub(initially_empty, std::memory_order_relaxed);
-    T popped_value(internal_queue_.front());
+    T popped_value(std::move(internal_queue_.front()));
     internal_queue_.pop();
     return popped_value;
   }

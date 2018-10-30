@@ -46,6 +46,7 @@
 #include "cli/NetworkIO.hpp"
 #endif
 #include "cli/PrintToScreen.hpp"
+#include "cli/SocketIO.hpp"
 #include "parser/ParseStatement.hpp"
 #include "parser/SqlParserWrapper.hpp"
 #include "query_execution/ForemanSingleNode.hpp"
@@ -290,6 +291,8 @@ int main(int argc, char* argv[]) {
 #else
     LOG(FATAL) << "Quickstep must be compiled with '-D ENABLE_NETWORK_CLI=true' to use this feature.";
 #endif
+  } else if (quickstep::FLAGS_mode == "socket") {
+    io.reset(new quickstep::SocketIO);
   } else if (quickstep::FLAGS_mode == "local") {
     io.reset(new quickstep::LocalIO);
   } else {
@@ -302,158 +305,161 @@ int main(int argc, char* argv[]) {
 #ifdef QUICKSTEP_ENABLE_GOOGLE_PROFILER
   bool started_profiling = false;
 #endif
-  for (;;) {
-    string *command_string = new string();
+  bool quitting = false;
+  while (!quitting) {
     std::unique_ptr<quickstep::IOHandle> io_handle(io->getNextIOHandle());
     ScopedReassignment<FILE*> reassign_stdout(&stdout, io_handle->out());
-//    ScopedReassignment<FILE*> reassign_stderr(&stderr, io_handle->err());
+    ScopedReassignment<FILE*> reassign_stderr(&stderr, io_handle->err());
 
-    *command_string = io_handle->getCommand();
-    LOG(INFO) << "Command received: " << *command_string;
-    if (command_string->size() == 0) {
-      delete command_string;
-      break;
-    }
+    const std::vector<std::string> cmds = io_handle->getCommands();
+    for (const std::string &cmd : cmds) {
+      string *command_string = new string(cmd);
+      LOG(INFO) << "Command received: " << *command_string;
+      if (command_string->size() == 0) {
+        delete command_string;
+        quitting = true;
+        break;
+      }
 
-    if (quickstep::FLAGS_print_query) {
-      fprintf(io_handle->out(), "\n%s\n", command_string->c_str());
-    }
+      if (quickstep::FLAGS_print_query) {
+        fprintf(io_handle->out(), "\n%s\n", command_string->c_str());
+      }
 
-    parser_wrapper->feedNextBuffer(command_string);
+      parser_wrapper->feedNextBuffer(command_string);
 
-    bool quitting = false;
-    // A parse error should reset the parser. This is because the thrown quickstep
-    // SqlError does not do the proper reset work of the YYABORT macro.
-    bool reset_parser = false;
-    for (;;) {
-      ParseResult result = parser_wrapper->getNextStatement();
-      const ParseStatement &statement = *result.parsed_statement;
-      if (result.condition == ParseResult::kSuccess) {
-        if (statement.getStatementType() == ParseStatement::kQuit) {
-          quitting = true;
-          break;
-        } else if (statement.getStatementType() == ParseStatement::kCommand) {
+      // A parse error should reset the parser. This is because the thrown quickstep
+      // SqlError does not do the proper reset work of the YYABORT macro.
+      bool reset_parser = false;
+      for (;;) {
+        ParseResult result = parser_wrapper->getNextStatement();
+        const ParseStatement &statement = *result.parsed_statement;
+        if (result.condition == ParseResult::kSuccess) {
+          if (statement.getStatementType() == ParseStatement::kQuit) {
+            quitting = true;
+            break;
+          } else if (statement.getStatementType() == ParseStatement::kCommand) {
+            try {
+              quickstep::cli::executeCommand(
+                  statement,
+                  *(query_processor->getDefaultDatabase()),
+                  main_thread_client_id,
+                  foreman.getBusClientID(),
+                  &bus,
+                  &storage_manager,
+                  query_processor.get(),
+                  io_handle->out());
+            } catch (const quickstep::SqlError &sql_error) {
+              fprintf(io_handle->err(), "%s",
+                      sql_error.formatMessage(*command_string).c_str());
+              reset_parser = true;
+              break;
+            }
+            continue;
+          }
+          // Here the statement is presumed to be a query.
+          const std::size_t query_id = query_processor->query_id();
+          const CatalogRelation *query_result_relation = nullptr;
+          std::unique_ptr<quickstep::ExecutionDAGVisualizer> dag_visualizer;
+
           try {
-            quickstep::cli::executeCommand(
-                statement,
-                *(query_processor->getDefaultDatabase()),
+            auto query_handle = std::make_unique<QueryHandle>(query_id,
+                                                              main_thread_client_id,
+                                                              statement.getPriority());
+            query_handle->setMemData(io_handle->data());
+            query_processor->generateQueryHandle(statement, query_handle.get());
+            DCHECK(query_handle->getQueryPlanMutable() != nullptr);
+
+            if (quickstep::FLAGS_visualize_execution_dag) {
+              dag_visualizer =
+                  std::make_unique<quickstep::ExecutionDAGVisualizer>(query_handle->getQueryPlan());
+            }
+
+            query_result_relation = query_handle->getQueryResultRelation();
+
+            start = std::chrono::steady_clock::now();
+            QueryExecutionUtil::ConstructAndSendAdmitRequestMessage(
                 main_thread_client_id,
                 foreman.getBusClientID(),
-                &bus,
-                &storage_manager,
-                query_processor.get(),
-                io_handle->out());
+                query_handle.release(),
+                &bus);
           } catch (const quickstep::SqlError &sql_error) {
-            fprintf(io_handle->err(), "%s",
-                    sql_error.formatMessage(*command_string).c_str());
+            switch (statement.getStatementType()) {
+              case ParseStatement::kDropTable:
+                // Quick hack for QuickGrail for cleaner log information
+                // since we don't have DROP TABLE IF EXISTS yet.
+                break;
+              default:
+                fprintf(io_handle->err(), "%s",
+                        sql_error.formatMessage(*command_string).c_str());
+            }
             reset_parser = true;
             break;
           }
-          continue;
-        }
-        // Here the statement is presumed to be a query.
-        const std::size_t query_id = query_processor->query_id();
-        const CatalogRelation *query_result_relation = nullptr;
-        std::unique_ptr<quickstep::ExecutionDAGVisualizer> dag_visualizer;
 
-        try {
-          auto query_handle = std::make_unique<QueryHandle>(query_id,
-                                                            main_thread_client_id,
-                                                            statement.getPriority());
-          query_handle->setMemData(io_handle->data());
-          query_processor->generateQueryHandle(statement, query_handle.get());
-          DCHECK(query_handle->getQueryPlanMutable() != nullptr);
+          try {
+            QueryExecutionUtil::ReceiveQueryCompletionMessage(
+                main_thread_client_id, &bus);
+            end = std::chrono::steady_clock::now();
 
-          if (quickstep::FLAGS_visualize_execution_dag) {
-            dag_visualizer =
-                std::make_unique<quickstep::ExecutionDAGVisualizer>(query_handle->getQueryPlan());
+            if (query_result_relation) {
+              PrintToScreen::PrintRelation(*query_result_relation,
+                                           &storage_manager,
+                                           io_handle->out());
+              PrintToScreen::PrintOutputSize(
+                  *query_result_relation,
+                  &storage_manager,
+                  io_handle->err());
+
+              DropRelation::Drop(*query_result_relation,
+                                 query_processor->getDefaultDatabase(),
+                                 &storage_manager);
+            }
+
+            query_processor->saveCatalog();
+            if (quickstep::FLAGS_display_timing) {
+              std::chrono::duration<double, std::milli> time_ms = end - start;
+              fprintf(io_handle->out(), "Time: %s ms\n",
+                     quickstep::DoubleToStringWithSignificantDigits(
+                         time_ms.count(), 3).c_str());
+            }
+            if (quickstep::FLAGS_profile_and_report_workorder_perf) {
+              // TODO(harshad) - Allow user specified file instead of stdout.
+              foreman.printWorkOrderProfilingResults(query_id, stdout);
+            }
+            if (quickstep::FLAGS_visualize_execution_dag) {
+              const auto *profiling_stats =
+                  foreman.getWorkOrderProfilingResults(query_id);
+              if (profiling_stats) {
+                dag_visualizer->bindProfilingStats(*profiling_stats);
+              }
+              std::cerr << "\n" << dag_visualizer->toDOT() << "\n";
+            }
+          } catch (const std::exception &e) {
+            fprintf(io_handle->err(), "QUERY EXECUTION ERROR: %s\n", e.what());
+            break;
           }
-
-          query_result_relation = query_handle->getQueryResultRelation();
-
-          start = std::chrono::steady_clock::now();
-          QueryExecutionUtil::ConstructAndSendAdmitRequestMessage(
-              main_thread_client_id,
-              foreman.getBusClientID(),
-              query_handle.release(),
-              &bus);
-        } catch (const quickstep::SqlError &sql_error) {
-          switch (statement.getStatementType()) {
-            case ParseStatement::kDropTable:
-              // Quick hack for QuickGrail for cleaner log information
-              // since we don't have DROP TABLE IF EXISTS yet.
-              break;
-            default:
-              fprintf(io_handle->err(), "%s",
-                      sql_error.formatMessage(*command_string).c_str());
+        } else {
+          if (result.condition == ParseResult::kError) {
+            fprintf(io_handle->err(), "%s", result.error_message.c_str());
           }
           reset_parser = true;
           break;
         }
-
-        try {
-          QueryExecutionUtil::ReceiveQueryCompletionMessage(
-              main_thread_client_id, &bus);
-          end = std::chrono::steady_clock::now();
-
-          if (query_result_relation) {
-            PrintToScreen::PrintRelation(*query_result_relation,
-                                         &storage_manager,
-                                         io_handle->out());
-            PrintToScreen::PrintOutputSize(
-                *query_result_relation,
-                &storage_manager,
-                io_handle->err());
-
-            DropRelation::Drop(*query_result_relation,
-                               query_processor->getDefaultDatabase(),
-                               &storage_manager);
-          }
-
-          query_processor->saveCatalog();
-          if (quickstep::FLAGS_display_timing) {
-            std::chrono::duration<double, std::milli> time_ms = end - start;
-            fprintf(io_handle->out(), "Time: %s ms\n",
-                   quickstep::DoubleToStringWithSignificantDigits(
-                       time_ms.count(), 3).c_str());
-          }
-          if (quickstep::FLAGS_profile_and_report_workorder_perf) {
-            // TODO(harshad) - Allow user specified file instead of stdout.
-            foreman.printWorkOrderProfilingResults(query_id, stdout);
-          }
-          if (quickstep::FLAGS_visualize_execution_dag) {
-            const auto *profiling_stats =
-                foreman.getWorkOrderProfilingResults(query_id);
-            if (profiling_stats) {
-              dag_visualizer->bindProfilingStats(*profiling_stats);
-            }
-            std::cerr << "\n" << dag_visualizer->toDOT() << "\n";
-          }
-        } catch (const std::exception &e) {
-          fprintf(io_handle->err(), "QUERY EXECUTION ERROR: %s\n", e.what());
-          break;
+  #ifdef QUICKSTEP_ENABLE_GOOGLE_PROFILER
+        // Profile only if profile_file_name flag is set
+        if (!started_profiling && !quickstep::FLAGS_profile_file_name.empty()) {
+          started_profiling = true;
+          ProfilerStart(quickstep::FLAGS_profile_file_name.c_str());
         }
-      } else {
-        if (result.condition == ParseResult::kError) {
-          fprintf(io_handle->err(), "%s", result.error_message.c_str());
-        }
-        reset_parser = true;
+  #endif
+      }
+
+      if (quitting) {
         break;
+      } else if (reset_parser) {
+        parser_wrapper.reset(new SqlParserWrapper());
+        reset_parser = false;
       }
-#ifdef QUICKSTEP_ENABLE_GOOGLE_PROFILER
-      // Profile only if profile_file_name flag is set
-      if (!started_profiling && !quickstep::FLAGS_profile_file_name.empty()) {
-        started_profiling = true;
-        ProfilerStart(quickstep::FLAGS_profile_file_name.c_str());
-      }
-#endif
-    }
-
-    if (quitting) {
-      break;
-    } else if (reset_parser) {
-      parser_wrapper.reset(new SqlParserWrapper());
-      reset_parser = false;
     }
   }
 

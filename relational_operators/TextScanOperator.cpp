@@ -125,11 +125,11 @@ bool TextScanOperator::getAllWorkOrders(
     std::vector<std::size_t> file_sizes;
 
     if (file_pattern_ == "$stdin") {
-      if (mem_data_ == nullptr) {
+      if (mem_data_.first == nullptr) {
         container->addNormalWorkOrder(
             new TextScanWorkOrder(query_id_,
                                   file_pattern_,
-                                  nullptr /* mem_data */,
+                                  mem_data_,
                                   0,
                                   -1 /* text_segment_size */,
                                   options_->getDelimiter(),
@@ -143,7 +143,7 @@ bool TextScanOperator::getAllWorkOrders(
         return true;
       }
       files.emplace_back(file_pattern_);
-      file_sizes.emplace_back(mem_data_->size());
+      file_sizes.emplace_back(mem_data_.second);
     } else {
       DCHECK_EQ('@', file_pattern_.front());
       files = utility::file::GlobExpand(file_pattern_.substr(1));
@@ -282,7 +282,7 @@ serialization::WorkOrder* TextScanOperator::createWorkOrderProto(
 void TextScanWorkOrder::execute() {
   DCHECK(!filename_.empty());
   if (filename_ == "$stdin") {
-    if (mem_data_ == nullptr) {
+    if (mem_data_.first == nullptr) {
       executeInputStream();
     } else {
       executeMemData();
@@ -512,7 +512,7 @@ void TextScanWorkOrder::executeMemData() {
   bool is_faulty;
 
   // Locate the first newline character.
-  const char *row_ptr = mem_data_->c_str() + text_offset_;
+  const char *row_ptr = mem_data_.first + text_offset_;
   const char *segment_end = row_ptr + text_segment_size_;
   if (text_offset_ != 0) {
     while (row_ptr < segment_end && *row_ptr != '\n') {
@@ -558,7 +558,7 @@ void TextScanWorkOrder::executeMemData() {
     }
   }
   // Process the tuple that is right after the last newline character.
-  const char *data_end = mem_data_->c_str() + mem_data_->size();
+  const char *data_end = mem_data_.first + mem_data_.second;
   while (end_ptr < data_end && *end_ptr != '\n') {
     ++end_ptr;
   }

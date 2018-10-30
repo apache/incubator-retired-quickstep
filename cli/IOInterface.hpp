@@ -22,8 +22,10 @@
 
 #include <cstdio>
 #include <string>
+#include <vector>
 
 #include "utility/Macros.hpp"
+#include "utility/StringUtil.hpp"
 
 namespace quickstep {
 
@@ -42,7 +44,7 @@ class IOHandle {
   /**
    * @return Input data.
    */
-  virtual const std::string* data() const = 0;
+  virtual StringPiece data() const = 0;
 
   /**
    * @return A file handle for standard output.
@@ -54,7 +56,7 @@ class IOHandle {
    */
   virtual FILE* err() = 0;
 
-  virtual std::string getCommand() const = 0;
+  virtual std::vector<std::string> getCommands() const = 0;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(IOHandle);

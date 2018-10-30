@@ -55,6 +55,7 @@
 #include "relational_operators/WindowAggregationOperator.hpp"
 #include "relational_operators/WorkOrder.pb.h"
 #include "storage/StorageBlockInfo.hpp"
+#include "utility/StringUtil.hpp"
 #include "utility/lip_filter/LIPFilterUtil.hpp"
 
 #include "glog/logging.h"
@@ -554,7 +555,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
       return new TextScanWorkOrder(
           query_id,
           proto.GetExtension(serialization::TextScanWorkOrder::filename),
-          nullptr /* TODO */,
+          StringPiece(nullptr, 0) /* TODO */,
           proto.GetExtension(serialization::TextScanWorkOrder::text_offset),
           proto.GetExtension(serialization::TextScanWorkOrder::text_segment_size),
           proto.GetExtension(serialization::TextScanWorkOrder::field_terminator),

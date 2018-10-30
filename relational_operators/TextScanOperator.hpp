@@ -35,6 +35,7 @@
 #include "types/containers/Tuple.hpp"
 #include "utility/BulkIoConfiguration.hpp"
 #include "utility/Macros.hpp"
+#include "utility/StringUtil.hpp"
 
 #include "glog/logging.h"
 
@@ -127,7 +128,7 @@ class TextScanOperator : public RelationalOperator {
    **/
   TextScanOperator(const std::size_t query_id,
                    const std::string &file_pattern,
-                   const std::string *mem_data,
+                   const StringPiece &mem_data,
                    const BulkIoConfigurationPtr &options,
                    const CatalogRelation &output_relation,
                    const QueryContext::insert_destination_id output_destination_index)
@@ -138,7 +139,7 @@ class TextScanOperator : public RelationalOperator {
         options_(options),
         output_relation_(output_relation),
         output_destination_index_(output_destination_index),
-        serial_bulk_insert_(mem_data != nullptr),
+        serial_bulk_insert_(mem_data.first != nullptr),
         num_remaining_chunks_(0),
         serial_worker_ready_(true),
         work_generated_(false) {}
@@ -177,7 +178,7 @@ class TextScanOperator : public RelationalOperator {
                                                  const std::size_t text_segment_size);
 
   const std::string file_pattern_;
-  const std::string *mem_data_;
+  const StringPiece mem_data_;
   const BulkIoConfigurationPtr options_;
 
   const CatalogRelation &output_relation_;
@@ -215,7 +216,7 @@ class TextScanWorkOrder : public WorkOrder {
   TextScanWorkOrder(
       const std::size_t query_id,
       const std::string &filename,
-      const std::string *mem_data,
+      const StringPiece &mem_data,
       const std::size_t text_offset,
       const std::size_t text_segment_size,
       const char field_terminator,
@@ -360,7 +361,7 @@ class TextScanWorkOrder : public WorkOrder {
   }
 
   const std::string filename_;
-  const std::string *mem_data_;
+  const StringPiece mem_data_;
   const std::size_t text_offset_;
   const std::size_t text_segment_size_;
   const char field_terminator_;

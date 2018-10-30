@@ -20,9 +20,11 @@
 #ifndef QUICKSTEP_UTILITY_STRING_UTIL_HPP_
 #define QUICKSTEP_UTILITY_STRING_UTIL_HPP_
 
+#include <cstddef>
 #include <cstdint>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace quickstep {
@@ -119,6 +121,8 @@ extern std::string ToZeroPaddedString(std::uint64_t val, int pad_width);
 extern std::string
 DoubleToStringWithSignificantDigits(double val,
                                     std::uint64_t significant_digits);
+
+typedef std::pair<const char*, std::size_t> StringPiece;
 
 /** @} */
 

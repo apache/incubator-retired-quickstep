@@ -31,6 +31,7 @@
 #include "query_optimizer/QueryOptimizerConfig.h"  // For QUICKSTEP_DISTRIBUTED.
 #include "query_optimizer/QueryPlan.hpp"
 #include "utility/Macros.hpp"
+#include "utility/StringUtil.hpp"
 
 #include "tmb/id_typedefs.h"
 
@@ -90,7 +91,7 @@ class QueryHandle {
         analyze_query_info_(analyze_query_info),
         query_plan_(new QueryPlan()),
         query_result_relation_(nullptr),
-        mem_data_(nullptr) {}
+        mem_data_(nullptr, 0) {}
 
   ~QueryHandle() {}
 
@@ -180,11 +181,11 @@ class QueryHandle {
     query_result_relation_ = relation;
   }
 
-  const std::string* getMemData() const {
+  const StringPiece& getMemData() const {
     return mem_data_;
   }
 
-  void setMemData(const std::string *mem_data) {
+  void setMemData(const StringPiece &mem_data) {
     mem_data_ = mem_data;
   }
 
@@ -224,7 +225,7 @@ class QueryHandle {
   //             and deleted by the Cli shell.
   const CatalogRelation *query_result_relation_;
 
-  const std::string *mem_data_;
+  StringPiece mem_data_;
 
 #ifdef QUICKSTEP_DISTRIBUTED
   // Indicate whether the query should be executed on the default Shiftboss for

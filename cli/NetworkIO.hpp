@@ -26,6 +26,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "cli/IOInterface.hpp"
 #include "cli/NetworkCli.grpc.pb.h"
@@ -34,6 +35,7 @@
 #include "threading/SpinSharedMutex.hpp"
 #include "utility/Macros.hpp"
 #include "utility/MemStream.hpp"
+#include "utility/StringUtil.hpp"
 #include "utility/ThreadSafeQueue.hpp"
 
 #include "gflags/gflags.h"
@@ -223,8 +225,9 @@ class NetworkIOHandle final : public IOHandle {
     request_state_->responseReady(out_stream_.str(), err_stream_.str());
   }
 
-  const std::string* data() const override {
-    return &request_state_->getRequest().data();
+  StringPiece data() const override {
+    const std::string &data = request_state_->getRequest().data();
+    return StringPiece(data.c_str(), data.length());
   }
 
   FILE* out() override {
@@ -235,8 +238,8 @@ class NetworkIOHandle final : public IOHandle {
     return err_stream_.file();
   }
 
-  std::string getCommand() const override {
-    return request_state_->getRequest().query();
+  std::vector<std::string> getCommands() const override {
+    return {request_state_->getRequest().query()};
   }
 
  private:
