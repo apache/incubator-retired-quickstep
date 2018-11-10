@@ -20,6 +20,7 @@
 #ifndef QUICKSTEP_CLI_SIMPLE_SOCKET_SIMPLE_SOCKET_CONNECTION_HPP_
 #define QUICKSTEP_CLI_SIMPLE_SOCKET_SIMPLE_SOCKET_CONNECTION_HPP_
 
+#include <arpa/inet.h>
 #include <sys/socket.h>
 
 #include <cstdint>
@@ -72,12 +73,12 @@ class SimpleSocketConnection {
     // Decode request data.
     const std::uint64_t *size_ptr =
         static_cast<const std::uint64_t*>(request_data_);
-    const std::uint64_t num_fields = ntohll(*size_ptr++);
+    const std::uint64_t num_fields = Ntohll(*size_ptr++);
 
     std::vector<std::pair<std::uint64_t, std::uint64_t>> field_sizes;
     for (std::size_t i = 0; i < num_fields; ++i) {
-      const std::uint64_t key_size = ntohll(*size_ptr++);
-      const std::uint64_t value_size = ntohll(*size_ptr++);
+      const std::uint64_t key_size = Ntohll(*size_ptr++);
+      const std::uint64_t value_size = Ntohll(*size_ptr++);
       field_sizes.emplace_back(key_size, value_size);
     }
 
@@ -108,11 +109,11 @@ class SimpleSocketConnection {
   inline std::uint64_t receiveUInt64() const {
     std::uint64_t code;
     receiveData(&code, sizeof(std::uint64_t));
-    return ntohll(code);
+    return Ntohll(code);
   }
 
   inline void writeUInt64(const std::uint64_t value) const {
-    const uint64_t code = htonll(value);
+    const uint64_t code = Htonll(value);
     write(socket_fd_, &code, sizeof(std::uint64_t));
   }
 
@@ -144,6 +145,20 @@ class SimpleSocketConnection {
       write(socket_fd_, fp.first, fs.first);
       write(socket_fd_, fp.second, fs.second);
     }
+  }
+
+  inline static std::uint64_t Ntohll(const std::uint64_t code) {
+    const std::uint32_t lo32 = static_cast<std::uint32_t>(code);
+    const std::uint32_t hi32 = static_cast<std::uint32_t>(code >> 32);
+    return (static_cast<std::uint64_t>(ntohl(lo32)) << 32)
+               | static_cast<std::uint64_t>(ntohl(hi32));
+  }
+
+  inline static std::uint64_t Htonll(const std::uint64_t code) {
+    const std::uint32_t lo32 = static_cast<std::uint32_t>(code);
+    const std::uint32_t hi32 = static_cast<std::uint32_t>(code >> 32);
+    return (static_cast<std::uint64_t>(htonl(lo32)) << 32)
+               | static_cast<std::uint64_t>(htonl(hi32));
   }
 
   const int socket_fd_;
