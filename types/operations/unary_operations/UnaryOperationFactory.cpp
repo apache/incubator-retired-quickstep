@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -24,6 +26,7 @@
 #include "types/operations/unary_operations/ArithmeticUnaryOperations.hpp"
 #include "types/operations/unary_operations/NumericCastOperation.hpp"
 #include "types/operations/unary_operations/DateExtractOperation.hpp"
+#include "types/operations/unary_operations/SubstringOperation.hpp"
 #include "types/operations/unary_operations/UnaryOperationID.hpp"
 #include "utility/Macros.hpp"
 
@@ -39,6 +42,8 @@ const UnaryOperation& UnaryOperationFactory::GetUnaryOperation(const UnaryOperat
       FATAL_ERROR("Getting a CastOperation through GetUnaryOperation is not supported");
     case UnaryOperationID::kDateExtract:
       FATAL_ERROR("Getting a DateExtractOperation through GetUnaryOperation is not supported");
+    case UnaryOperationID::kSubstring:
+      FATAL_ERROR("Getting a SubstringOperation through GetUnaryOperation is not supported");
     default:
       FATAL_ERROR("Unknown UnaryOperationID");
   }
@@ -64,6 +69,9 @@ bool UnaryOperationFactory::ProtoIsValid(const serialization::UnaryOperation &pr
     case serialization::UnaryOperation::DATE_EXTRACT:
       return proto.HasExtension(serialization::DateExtractOperation::unit)
           && DateExtractOperation_Unit_IsValid(proto.GetExtension(serialization::DateExtractOperation::unit));
+    case serialization::UnaryOperation::SUBSTRING:
+      return proto.HasExtension(serialization::SubstringOperation::start_position)
+          && proto.HasExtension(serialization::SubstringOperation::substring_length);
     default:
       return false;
   }
@@ -100,6 +108,10 @@ const UnaryOperation& UnaryOperationFactory::ReconstructFromProto(
         default:
           FATAL_ERROR("Unrecognized DateExtractOperation unit in UnaryOperation::ReconstructFromProto");
       }
+    case serialization::UnaryOperation::SUBSTRING:
+      return SubstringOperation::Instance(
+          proto.GetExtension(serialization::SubstringOperation::start_position),
+          proto.GetExtension(serialization::SubstringOperation::substring_length));
     default:
       FATAL_ERROR("Unrecognized UnaryOperationID in UnaryOperation::ReconstructFromProto");
   }

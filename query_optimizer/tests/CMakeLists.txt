@@ -18,6 +18,12 @@ add_subdirectory(logical_generator)
 add_subdirectory(physical_generator)
 add_subdirectory(resolver)
 
+if (BUILD_SHARED_LIBS)
+  set(GFLAGS_LIB_NAME gflags_nothreads-shared)
+else()
+  set(GFLAGS_LIB_NAME gflags_nothreads-static)
+endif()
+
 add_library(quickstep_queryoptimizer_tests_OptimizerTest OptimizerTest.cpp OptimizerTest.hpp)
 add_library(quickstep_queryoptimizer_tests_TestDatabaseLoader TestDatabaseLoader.cpp TestDatabaseLoader.hpp)
 
@@ -78,6 +84,22 @@ add_executable(quickstep_queryoptimizer_tests_ExecutionGeneratorTest
                ExecutionGeneratorTestRunner.hpp
                "${PROJECT_SOURCE_DIR}/utility/textbased_test/TextBasedTest.cpp"
                "${PROJECT_SOURCE_DIR}/utility/textbased_test/TextBasedTest.hpp")
+add_executable(ExecutionHeuristics_unittest ExecutionHeuristics_unittest.cpp)
+target_link_libraries(ExecutionHeuristics_unittest
+                      gtest
+                      gtest_main
+                      quickstep_catalog_Catalog
+                      quickstep_catalog_CatalogDatabase
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_queryexecution_QueryContext
+                      quickstep_queryexecution_QueryContext_proto
+                      quickstep_queryoptimizer_ExecutionHeuristics
+                      quickstep_queryoptimizer_QueryPlan
+                      quickstep_relationaloperators_BuildHashOperator
+                      quickstep_relationaloperators_HashJoinOperator
+                      quickstep_utility_Macros)
+add_test(ExecutionHeuristics_unittest ExecutionHeuristics_unittest)
+
 add_executable(quickstep_queryoptimizer_tests_OptimizerTextTest
                OptimizerTextTest.cpp
                OptimizerTextTestRunner.cpp
@@ -86,17 +108,19 @@ add_executable(quickstep_queryoptimizer_tests_OptimizerTextTest
                "${PROJECT_SOURCE_DIR}/utility/textbased_test/TextBasedTest.hpp")
 
 target_link_libraries(quickstep_queryoptimizer_tests_ExecutionGeneratorTest
+                      ${GFLAGS_LIB_NAME}
                       glog
                       gtest
-                      gtest_main
                       quickstep_catalog_CatalogDatabase
                       quickstep_cli_DropRelation
                       quickstep_cli_PrintToScreen
                       quickstep_parser_ParseStatement
                       quickstep_parser_SqlParserWrapper
+                      quickstep_queryexecution_AdmitRequestMessage
                       quickstep_queryexecution_Foreman
                       quickstep_queryexecution_QueryContext
                       quickstep_queryexecution_QueryExecutionTypedefs
+                      quickstep_queryexecution_QueryExecutionUtil
                       quickstep_queryexecution_Worker
                       quickstep_queryexecution_WorkerDirectory
                       quickstep_queryexecution_WorkerMessage
@@ -116,6 +140,7 @@ target_link_libraries(quickstep_queryoptimizer_tests_ExecutionGeneratorTest
                       tmb
                       ${LIBS})
 target_link_libraries(quickstep_queryoptimizer_tests_OptimizerTextTest
+                      ${GFLAGS_LIB_NAME}
                       glog
                       gtest
                       gtest_main

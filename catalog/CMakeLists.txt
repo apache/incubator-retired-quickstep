@@ -1,5 +1,7 @@
 #   Copyright 2011-2015 Quickstep Technologies LLC.
 #   Copyright 2015-2016 Pivotal Software, Inc.
+#   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+#     University of Wisconsin—Madison.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -36,6 +38,9 @@ add_library(quickstep_catalog_CatalogRelation CatalogRelation.cpp CatalogRelatio
 add_library(quickstep_catalog_CatalogRelationSchema
             CatalogRelationSchema.cpp
             CatalogRelationSchema.hpp)
+add_library(quickstep_catalog_CatalogRelationStatistics
+            CatalogRelationStatistics.cpp
+            CatalogRelationStatistics.hpp)
 add_library(quickstep_catalog_CatalogTypedefs ../empty_src.cpp CatalogTypedefs.hpp)
 add_library(quickstep_catalog_IndexScheme IndexScheme.cpp IndexScheme.hpp)
 if(QUICKSTEP_HAVE_LIBNUMA)
@@ -98,6 +103,7 @@ target_link_libraries(quickstep_catalog_CatalogRelation
                       glog
                       quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogRelationSchema
+                      quickstep_catalog_CatalogRelationStatistics
                       quickstep_catalog_CatalogTypedefs
                       quickstep_catalog_Catalog_proto
                       quickstep_catalog_IndexScheme
@@ -111,6 +117,10 @@ target_link_libraries(quickstep_catalog_CatalogRelation
                       quickstep_threading_SpinSharedMutex
                       quickstep_utility_Macros
                       quickstep_utility_PtrVector)
+target_link_libraries(quickstep_catalog_CatalogRelationStatistics
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_catalog_Catalog_proto
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_catalog_IndexScheme
                       glog
                       quickstep_catalog_Catalog_proto
@@ -173,11 +183,15 @@ target_link_libraries(quickstep_catalog
                       quickstep_catalog_CatalogErrors
                       quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogRelationSchema
+                      quickstep_catalog_CatalogRelationStatistics
                       quickstep_catalog_CatalogTypedefs
                       quickstep_catalog_IndexScheme
-                      quickstep_catalog_NUMAPlacementScheme
                       quickstep_catalog_PartitionScheme
                       quickstep_catalog_PartitionSchemeHeader)
+if(QUICKSTEP_HAVE_LIBNUMA)
+target_link_libraries(quickstep_catalog
+                      quickstep_catalog_NUMAPlacementScheme)
+endif()
 
 # Tests:
 add_executable(Catalog_unittest "${CMAKE_CURRENT_SOURCE_DIR}/tests/Catalog_unittest.cpp")

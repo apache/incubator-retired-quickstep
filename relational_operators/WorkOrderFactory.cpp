@@ -16,6 +16,7 @@
 
 #include "relational_operators/WorkOrderFactory.hpp"
 
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -41,7 +42,6 @@
 #include "relational_operators/SortRunGenerationOperator.hpp"
 #include "relational_operators/TableGeneratorOperator.hpp"
 #include "relational_operators/TextScanOperator.hpp"
-#include "relational_operators/TextScanOperator.pb.h"
 #include "relational_operators/UpdateOperator.hpp"
 #include "relational_operators/WorkOrder.pb.h"
 #include "storage/StorageBlockInfo.hpp"
@@ -54,6 +54,10 @@ using std::move;
 using std::vector;
 
 namespace quickstep {
+
+class InsertDestination;
+class Predicate;
+class Scalar;
 
 WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder &proto,
                                                   CatalogDatabaseLite *catalog_database,
@@ -70,6 +74,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
     case serialization::AGGREGATION: {
       LOG(INFO) << "Creating AggregationWorkOrder";
       return new AggregationWorkOrder(
+          proto.query_id(),
           proto.GetExtension(serialization::AggregationWorkOrder::block_id),
           query_context->getAggregationState(
               proto.GetExtension(serialization::AggregationWorkOrder::aggr_state_index)));
@@ -83,6 +88,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
       }
 
       return new BuildHashWorkOrder(
+          proto.query_id(),
           catalog_database->getRelationSchemaById(
               proto.GetExtension(serialization::BuildHashWorkOrder::relation_id)),
           move(join_key_attributes),
@@ -95,6 +101,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
     case serialization::DELETE: {
       LOG(INFO) << "Creating DeleteWorkOrder";
       return new DeleteWorkOrder(
+          proto.query_id(),
           catalog_database->getRelationSchemaById(
               proto.GetExtension(serialization::DeleteWorkOrder::relation_id)),
           proto.GetExtension(serialization::DeleteWorkOrder::block_id),
@@ -108,7 +115,9 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
     case serialization::DESTROY_HASH: {
       LOG(INFO) << "Creating DestroyHashWorkOrder";
       return new DestroyHashWorkOrder(
-          proto.GetExtension(serialization::DestroyHashWorkOrder::join_hash_table_index),
+          proto.query_id(),
+          proto.GetExtension(
+              serialization::DestroyHashWorkOrder::join_hash_table_index),
           query_context);
     }
     case serialization::DROP_TABLE: {
@@ -120,6 +129,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
       }
 
       return new DropTableWorkOrder(
+          proto.query_id(),
           move(blocks),
           storage_manager,
           proto.HasExtension(serialization::DropTableWorkOrder::relation_id)
@@ -130,132 +140,131 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
     case serialization::FINALIZE_AGGREGATION: {
       LOG(INFO) << "Creating FinalizeAggregationWorkOrder";
       return new FinalizeAggregationWorkOrder(
-          query_context->releaseAggregationState(
-              proto.GetExtension(serialization::FinalizeAggregationWorkOrder::aggr_state_index)),
+          proto.query_id(),
+          query_context->releaseAggregationState(proto.GetExtension(
+              serialization::FinalizeAggregationWorkOrder::aggr_state_index)),
           query_context->getInsertDestination(
-              proto.GetExtension(serialization::FinalizeAggregationWorkOrder::insert_destination_index)));
+              proto.GetExtension(serialization::FinalizeAggregationWorkOrder::
+                                     insert_destination_index)));
     }
-    case serialization::HASH_ANTI_JOIN: {
-      LOG(INFO) << "Creating HashAntiJoinWorkOrder";
+    case serialization::HASH_JOIN: {
+      const auto hash_join_work_order_type =
+          proto.GetExtension(serialization::HashJoinWorkOrder::hash_join_work_order_type);
+
+      const CatalogRelationSchema &build_relation =
+          catalog_database->getRelationSchemaById(
+              proto.GetExtension(serialization::HashJoinWorkOrder::build_relation_id));
+      const CatalogRelationSchema &probe_relation =
+          catalog_database->getRelationSchemaById(
+              proto.GetExtension(serialization::HashJoinWorkOrder::probe_relation_id));
+
       vector<attribute_id> join_key_attributes;
       const int join_key_attributes_size =
-          proto.ExtensionSize(serialization::HashAntiJoinWorkOrder::join_key_attributes);
+          proto.ExtensionSize(serialization::HashJoinWorkOrder::join_key_attributes);
       for (int i = 0; i < join_key_attributes_size; ++i) {
         join_key_attributes.push_back(
-            proto.GetExtension(serialization::HashAntiJoinWorkOrder::join_key_attributes, i));
+            proto.GetExtension(serialization::HashJoinWorkOrder::join_key_attributes, i));
       }
 
-      return new HashAntiJoinWorkOrder(
-          catalog_database->getRelationSchemaById(
-              proto.GetExtension(serialization::HashAntiJoinWorkOrder::build_relation_id)),
-          catalog_database->getRelationSchemaById(
-              proto.GetExtension(serialization::HashAntiJoinWorkOrder::probe_relation_id)),
-          move(join_key_attributes),
-          proto.GetExtension(serialization::HashAntiJoinWorkOrder::any_join_key_attributes_nullable),
-          proto.GetExtension(serialization::HashAntiJoinWorkOrder::block_id),
-          query_context->getPredicate(
-              proto.GetExtension(serialization::HashAntiJoinWorkOrder::residual_predicate_index)),
-          query_context->getScalarGroup(
-              proto.GetExtension(serialization::HashAntiJoinWorkOrder::selection_index)),
-          *query_context->getJoinHashTable(
-              proto.GetExtension(serialization::HashAntiJoinWorkOrder::join_hash_table_index)),
-          query_context->getInsertDestination(
-              proto.GetExtension(serialization::HashAntiJoinWorkOrder::insert_destination_index)),
-          storage_manager);
-    }
-    case serialization::HASH_INNER_JOIN: {
-      LOG(INFO) << "Creating HashInnerJoinWorkOrder";
-      vector<attribute_id> join_key_attributes;
-      const int join_key_attributes_size =
-          proto.ExtensionSize(serialization::HashInnerJoinWorkOrder::join_key_attributes);
-      for (int i = 0; i < join_key_attributes_size; ++i) {
-        join_key_attributes.push_back(
-            proto.GetExtension(serialization::HashInnerJoinWorkOrder::join_key_attributes, i));
+      const bool any_join_key_attributes_nullable =
+          proto.GetExtension(serialization::HashJoinWorkOrder::any_join_key_attributes_nullable);
+      const block_id lookup_block_id =
+          proto.GetExtension(serialization::HashJoinWorkOrder::block_id);
+
+      const Predicate *residual_predicate = nullptr;
+      if (hash_join_work_order_type != serialization::HashJoinWorkOrder::HASH_OUTER_JOIN) {
+        residual_predicate =
+            query_context->getPredicate(
+                proto.GetExtension(serialization::HashJoinWorkOrder::residual_predicate_index));
       }
 
-      return new HashInnerJoinWorkOrder(
-          catalog_database->getRelationSchemaById(
-              proto.GetExtension(serialization::HashInnerJoinWorkOrder::build_relation_id)),
-          catalog_database->getRelationSchemaById(
-              proto.GetExtension(serialization::HashInnerJoinWorkOrder::probe_relation_id)),
-          move(join_key_attributes),
-          proto.GetExtension(serialization::HashInnerJoinWorkOrder::any_join_key_attributes_nullable),
-          proto.GetExtension(serialization::HashInnerJoinWorkOrder::block_id),
-          query_context->getPredicate(
-              proto.GetExtension(serialization::HashInnerJoinWorkOrder::residual_predicate_index)),
+      const std::vector<std::unique_ptr<const Scalar>> &selection =
           query_context->getScalarGroup(
-              proto.GetExtension(serialization::HashInnerJoinWorkOrder::selection_index)),
+              proto.GetExtension(serialization::HashJoinWorkOrder::selection_index));
+      const JoinHashTable &hash_table =
           *query_context->getJoinHashTable(
-              proto.GetExtension(serialization::HashInnerJoinWorkOrder::join_hash_table_index)),
+              proto.GetExtension(serialization::HashJoinWorkOrder::join_hash_table_index));
+      InsertDestination *output_destination =
           query_context->getInsertDestination(
-              proto.GetExtension(serialization::HashInnerJoinWorkOrder::insert_destination_index)),
-          storage_manager);
-    }
-    case serialization::HASH_OUTER_JOIN: {
-      LOG(INFO) << "Creating HashOuterJoinWorkOrder";
-      vector<attribute_id> join_key_attributes;
-      const int join_key_attributes_size =
-          proto.ExtensionSize(serialization::HashOuterJoinWorkOrder::join_key_attributes);
-      for (int i = 0; i < join_key_attributes_size; ++i) {
-        join_key_attributes.push_back(
-            proto.GetExtension(serialization::HashOuterJoinWorkOrder::join_key_attributes, i));
-      }
-      vector<bool> is_selection_on_build;
-      const int is_selection_on_build_size =
-          proto.ExtensionSize(serialization::HashOuterJoinWorkOrder::is_selection_on_build);
-      for (int i = 0; i < is_selection_on_build_size; ++i) {
-        is_selection_on_build.push_back(
-            proto.GetExtension(serialization::HashOuterJoinWorkOrder::is_selection_on_build, i));
-      }
+              proto.GetExtension(serialization::HashJoinWorkOrder::insert_destination_index));
 
-      return new HashOuterJoinWorkOrder(
-          catalog_database->getRelationSchemaById(
-              proto.GetExtension(serialization::HashOuterJoinWorkOrder::build_relation_id)),
-          catalog_database->getRelationSchemaById(
-              proto.GetExtension(serialization::HashOuterJoinWorkOrder::probe_relation_id)),
-          move(join_key_attributes),
-          proto.GetExtension(serialization::HashOuterJoinWorkOrder::any_join_key_attributes_nullable),
-          proto.GetExtension(serialization::HashOuterJoinWorkOrder::block_id),
-          query_context->getScalarGroup(
-              proto.GetExtension(serialization::HashOuterJoinWorkOrder::selection_index)),
-          move(is_selection_on_build),
-          *query_context->getJoinHashTable(
-              proto.GetExtension(serialization::HashOuterJoinWorkOrder::join_hash_table_index)),
-          query_context->getInsertDestination(
-              proto.GetExtension(serialization::HashOuterJoinWorkOrder::insert_destination_index)),
-          storage_manager);
-    }
-    case serialization::HASH_SEMI_JOIN: {
-      LOG(INFO) << "Creating HashSemiJoinWorkOrder";
-      vector<attribute_id> join_key_attributes;
-      const int join_key_attributes_size =
-          proto.ExtensionSize(serialization::HashSemiJoinWorkOrder::join_key_attributes);
-      for (int i = 0; i < join_key_attributes_size; ++i) {
-        join_key_attributes.push_back(
-            proto.GetExtension(serialization::HashSemiJoinWorkOrder::join_key_attributes, i));
-      }
+      switch (hash_join_work_order_type) {
+        case serialization::HashJoinWorkOrder::HASH_ANTI_JOIN: {
+          LOG(INFO) << "Creating HashAntiJoinWorkOrder";
+          return new HashAntiJoinWorkOrder(
+              proto.query_id(),
+              build_relation,
+              probe_relation,
+              move(join_key_attributes),
+              any_join_key_attributes_nullable,
+              lookup_block_id,
+              residual_predicate,
+              selection,
+              hash_table,
+              output_destination,
+              storage_manager);
+        }
+        case serialization::HashJoinWorkOrder::HASH_INNER_JOIN: {
+          LOG(INFO) << "Creating HashInnerJoinWorkOrder";
+          return new HashInnerJoinWorkOrder(
+              proto.query_id(),
+              build_relation,
+              probe_relation,
+              move(join_key_attributes),
+              any_join_key_attributes_nullable,
+              lookup_block_id,
+              residual_predicate,
+              selection,
+              hash_table,
+              output_destination,
+              storage_manager);
+        }
+        case serialization::HashJoinWorkOrder::HASH_OUTER_JOIN: {
+          vector<bool> is_selection_on_build;
+          const int is_selection_on_build_size =
+              proto.ExtensionSize(serialization::HashJoinWorkOrder::is_selection_on_build);
+          for (int i = 0; i < is_selection_on_build_size; ++i) {
+            is_selection_on_build.push_back(
+                proto.GetExtension(serialization::HashJoinWorkOrder::is_selection_on_build, i));
+          }
 
-      return new HashSemiJoinWorkOrder(
-          catalog_database->getRelationSchemaById(
-              proto.GetExtension(serialization::HashSemiJoinWorkOrder::build_relation_id)),
-          catalog_database->getRelationSchemaById(
-              proto.GetExtension(serialization::HashSemiJoinWorkOrder::probe_relation_id)),
-          move(join_key_attributes),
-          proto.GetExtension(serialization::HashSemiJoinWorkOrder::any_join_key_attributes_nullable),
-          proto.GetExtension(serialization::HashSemiJoinWorkOrder::block_id),
-          query_context->getPredicate(
-              proto.GetExtension(serialization::HashSemiJoinWorkOrder::residual_predicate_index)),
-          query_context->getScalarGroup(
-              proto.GetExtension(serialization::HashSemiJoinWorkOrder::selection_index)),
-          *query_context->getJoinHashTable(
-              proto.GetExtension(serialization::HashSemiJoinWorkOrder::join_hash_table_index)),
-          query_context->getInsertDestination(
-              proto.GetExtension(serialization::HashSemiJoinWorkOrder::insert_destination_index)),
-          storage_manager);
+          LOG(INFO) << "Creating HashOuterJoinWorkOrder";
+          return new HashOuterJoinWorkOrder(
+              proto.query_id(),
+              build_relation,
+              probe_relation,
+              move(join_key_attributes),
+              any_join_key_attributes_nullable,
+              lookup_block_id,
+              selection,
+              move(is_selection_on_build),
+              hash_table,
+              output_destination,
+              storage_manager);
+        }
+        case serialization::HashJoinWorkOrder::HASH_SEMI_JOIN: {
+          LOG(INFO) << "Creating HashSemiJoinWorkOrder";
+          return new HashSemiJoinWorkOrder(
+              proto.query_id(),
+              build_relation,
+              probe_relation,
+              move(join_key_attributes),
+              any_join_key_attributes_nullable,
+              lookup_block_id,
+              residual_predicate,
+              selection,
+              hash_table,
+              output_destination,
+              storage_manager);
+        }
+        default:
+          LOG(FATAL) << "Unknown HashJoinWorkOrder Type in WorkOrderFactory::ReconstructFromProto";
+      }
     }
     case serialization::INSERT: {
       LOG(INFO) << "Creating InsertWorkOrder";
       return new InsertWorkOrder(
+          proto.query_id(),
           query_context->getInsertDestination(
               proto.GetExtension(serialization::InsertWorkOrder::insert_destination_index)),
           query_context->releaseTuple(
@@ -264,6 +273,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
     case serialization::NESTED_LOOP_JOIN: {
       LOG(INFO) << "Creating NestedLoopsJoinWorkOrder";
       return new NestedLoopsJoinWorkOrder(
+          proto.query_id(),
           catalog_database->getRelationSchemaById(
               proto.GetExtension(serialization::NestedLoopsJoinWorkOrder::left_relation_id)),
           catalog_database->getRelationSchemaById(
@@ -281,6 +291,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
     case serialization::SAMPLE: {
       LOG(INFO) << "Creating SampleWorkOrder";
       return new SampleWorkOrder(
+          proto.query_id(),
           catalog_database->getRelationSchemaById(
               proto.GetExtension(serialization::SampleWorkOrder::relation_id)),
           proto.GetExtension(serialization::SampleWorkOrder::block_id),
@@ -293,6 +304,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
     case serialization::SAVE_BLOCKS: {
       LOG(INFO) << "Creating SaveBlocksWorkOrder";
       return new SaveBlocksWorkOrder(
+          proto.query_id(),
           proto.GetExtension(serialization::SaveBlocksWorkOrder::block_id),
           proto.GetExtension(serialization::SaveBlocksWorkOrder::force),
           storage_manager);
@@ -308,6 +320,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
       }
 
       return new SelectWorkOrder(
+          proto.query_id(),
           catalog_database->getRelationSchemaById(
               proto.GetExtension(serialization::SelectWorkOrder::relation_id)),
           proto.GetExtension(serialization::SelectWorkOrder::block_id),
@@ -336,6 +349,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
       }
 
       return new SortMergeRunWorkOrder(
+          proto.query_id(),
           query_context->getSortConfig(
               proto.GetExtension(serialization::SortMergeRunWorkOrder::sort_config_index)),
           catalog_database->getRelationSchemaById(
@@ -353,6 +367,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
     case serialization::SORT_RUN_GENERATION: {
       LOG(INFO) << "Creating SortRunGenerationWorkOrder";
       return new SortRunGenerationWorkOrder(
+          proto.query_id(),
           catalog_database->getRelationSchemaById(
               proto.GetExtension(serialization::SortRunGenerationWorkOrder::relation_id)),
           proto.GetExtension(serialization::SortRunGenerationWorkOrder::block_id),
@@ -365,6 +380,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
     case serialization::TABLE_GENERATOR: {
       LOG(INFO) << "Creating SortRunGenerationWorkOrder";
       return new TableGeneratorWorkOrder(
+          proto.query_id(),
           query_context->getGeneratorFunctionHandle(
               proto.GetExtension(serialization::TableGeneratorWorkOrder::generator_function_index)),
           query_context->getInsertDestination(
@@ -372,41 +388,20 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
     }
     case serialization::TEXT_SCAN: {
       LOG(INFO) << "Creating TextScanWorkOrder";
-      if (proto.HasExtension(serialization::TextScanWorkOrder::filename)) {
-        return new TextScanWorkOrder(
-            proto.GetExtension(serialization::TextScanWorkOrder::filename),
-            proto.GetExtension(serialization::TextScanWorkOrder::field_terminator),
-            proto.GetExtension(serialization::TextScanWorkOrder::process_escape_sequences),
-            query_context->getInsertDestination(
-                proto.GetExtension(serialization::TextScanWorkOrder::insert_destination_index)),
-            storage_manager);
-      } else {
-        const serialization::TextBlob &text_blob_proto =
-            proto.GetExtension(serialization::TextScanWorkOrder::text_blob);
-
-        return new TextScanWorkOrder(
-            text_blob_proto.blob_id(),
-            text_blob_proto.size(),
-            proto.GetExtension(serialization::TextScanWorkOrder::field_terminator),
-            proto.GetExtension(serialization::TextScanWorkOrder::process_escape_sequences),
-            query_context->getInsertDestination(
-                proto.GetExtension(serialization::TextScanWorkOrder::insert_destination_index)),
-            storage_manager);
-      }
-    }
-    case serialization::TEXT_SPLIT: {
-      LOG(INFO) << "Creating TextSplitWorkOrder";
-      return new TextSplitWorkOrder(
-          proto.GetExtension(serialization::TextSplitWorkOrder::filename),
-          proto.GetExtension(serialization::TextSplitWorkOrder::process_escape_sequences),
-          storage_manager,
-          proto.GetExtension(serialization::TextSplitWorkOrder::operator_index),
-          shiftboss_client_id,
-          bus);
+      return new TextScanWorkOrder(
+          proto.query_id(),
+          proto.GetExtension(serialization::TextScanWorkOrder::filename),
+          proto.GetExtension(serialization::TextScanWorkOrder::text_offset),
+          proto.GetExtension(serialization::TextScanWorkOrder::text_segment_size),
+          proto.GetExtension(serialization::TextScanWorkOrder::field_terminator),
+          proto.GetExtension(serialization::TextScanWorkOrder::process_escape_sequences),
+          query_context->getInsertDestination(
+              proto.GetExtension(serialization::TextScanWorkOrder::insert_destination_index)));
     }
     case serialization::UPDATE: {
       LOG(INFO) << "Creating UpdateWorkOrder";
       return new UpdateWorkOrder(
+          proto.query_id(),
           catalog_database->getRelationSchemaById(
               proto.GetExtension(serialization::UpdateWorkOrder::relation_id)),
           proto.GetExtension(serialization::UpdateWorkOrder::block_id),
@@ -429,6 +424,10 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
 bool WorkOrderFactory::ProtoIsValid(const serialization::WorkOrder &proto,
                                     const CatalogDatabaseLite &catalog_database,
                                     const QueryContext &query_context) {
+  if (!proto.IsInitialized()) {
+    return false;
+  }
+
   switch (proto.work_order_type()) {
     case serialization::AGGREGATION: {
       return proto.HasExtension(serialization::AggregationWorkOrder::block_id) &&
@@ -486,179 +485,68 @@ bool WorkOrderFactory::ProtoIsValid(const serialization::WorkOrder &proto,
              query_context.isValidInsertDestinationId(
                  proto.GetExtension(serialization::FinalizeAggregationWorkOrder::insert_destination_index));
     }
-    case serialization::HASH_ANTI_JOIN: {
-      if (!proto.HasExtension(serialization::HashAntiJoinWorkOrder::build_relation_id) ||
-          !proto.HasExtension(serialization::HashAntiJoinWorkOrder::probe_relation_id)) {
+    case serialization::HASH_JOIN: {
+      if (!proto.HasExtension(serialization::HashJoinWorkOrder::hash_join_work_order_type)) {
+        return false;
+      }
+
+      const auto hash_join_work_order_type =
+          proto.GetExtension(serialization::HashJoinWorkOrder::hash_join_work_order_type);
+      if (!serialization::HashJoinWorkOrder_HashJoinWorkOrderType_IsValid(hash_join_work_order_type)) {
+        return false;
+      }
+
+      if (!proto.HasExtension(serialization::HashJoinWorkOrder::build_relation_id) ||
+          !proto.HasExtension(serialization::HashJoinWorkOrder::probe_relation_id)) {
         return false;
       }
 
       const relation_id build_relation_id =
-          proto.GetExtension(serialization::HashAntiJoinWorkOrder::build_relation_id);
+          proto.GetExtension(serialization::HashJoinWorkOrder::build_relation_id);
       if (!catalog_database.hasRelationWithId(build_relation_id)) {
         return false;
       }
 
       const relation_id probe_relation_id =
-          proto.GetExtension(serialization::HashAntiJoinWorkOrder::probe_relation_id);
+          proto.GetExtension(serialization::HashJoinWorkOrder::probe_relation_id);
       if (!catalog_database.hasRelationWithId(probe_relation_id)) {
         return false;
       }
 
       const CatalogRelationSchema &build_relation = catalog_database.getRelationSchemaById(build_relation_id);
       const CatalogRelationSchema &probe_relation = catalog_database.getRelationSchemaById(probe_relation_id);
-      for (int i = 0; i < proto.ExtensionSize(serialization::HashAntiJoinWorkOrder::join_key_attributes); ++i) {
+      for (int i = 0; i < proto.ExtensionSize(serialization::HashJoinWorkOrder::join_key_attributes); ++i) {
         const attribute_id attr_id =
-            proto.GetExtension(serialization::HashAntiJoinWorkOrder::join_key_attributes, i);
+            proto.GetExtension(serialization::HashJoinWorkOrder::join_key_attributes, i);
         if (!build_relation.hasAttributeWithId(attr_id) ||
             !probe_relation.hasAttributeWithId(attr_id)) {
           return false;
         }
       }
 
-      return proto.HasExtension(serialization::HashAntiJoinWorkOrder::any_join_key_attributes_nullable) &&
-             proto.HasExtension(serialization::HashAntiJoinWorkOrder::insert_destination_index) &&
-             query_context.isValidInsertDestinationId(
-                 proto.GetExtension(serialization::HashAntiJoinWorkOrder::insert_destination_index)) &&
-             proto.HasExtension(serialization::HashAntiJoinWorkOrder::join_hash_table_index) &&
-             query_context.isValidJoinHashTableId(
-                 proto.GetExtension(serialization::HashAntiJoinWorkOrder::join_hash_table_index)) &&
-             proto.HasExtension(serialization::HashAntiJoinWorkOrder::residual_predicate_index) &&
-             query_context.isValidPredicate(
-                 proto.GetExtension(serialization::HashAntiJoinWorkOrder::residual_predicate_index)) &&
-             proto.HasExtension(serialization::HashAntiJoinWorkOrder::selection_index) &&
-             query_context.isValidScalarGroupId(
-                 proto.GetExtension(serialization::HashAntiJoinWorkOrder::selection_index)) &&
-             proto.HasExtension(serialization::HashAntiJoinWorkOrder::block_id);
-    }
-    case serialization::HASH_INNER_JOIN: {
-      if (!proto.HasExtension(serialization::HashInnerJoinWorkOrder::build_relation_id) ||
-          !proto.HasExtension(serialization::HashInnerJoinWorkOrder::probe_relation_id)) {
-        return false;
-      }
-
-      const relation_id build_relation_id =
-          proto.GetExtension(serialization::HashInnerJoinWorkOrder::build_relation_id);
-      if (!catalog_database.hasRelationWithId(build_relation_id)) {
-        return false;
-      }
-
-      const relation_id probe_relation_id =
-          proto.GetExtension(serialization::HashInnerJoinWorkOrder::probe_relation_id);
-      if (!catalog_database.hasRelationWithId(probe_relation_id)) {
-        return false;
-      }
-
-      const CatalogRelationSchema &build_relation = catalog_database.getRelationSchemaById(build_relation_id);
-      const CatalogRelationSchema &probe_relation = catalog_database.getRelationSchemaById(probe_relation_id);
-      for (int i = 0; i < proto.ExtensionSize(serialization::HashInnerJoinWorkOrder::join_key_attributes); ++i) {
-        const attribute_id attr_id =
-            proto.GetExtension(serialization::HashInnerJoinWorkOrder::join_key_attributes, i);
-        if (!build_relation.hasAttributeWithId(attr_id) ||
-            !probe_relation.hasAttributeWithId(attr_id)) {
+      if (hash_join_work_order_type == serialization::HashJoinWorkOrder::HASH_OUTER_JOIN) {
+        if (!proto.HasExtension(serialization::HashJoinWorkOrder::is_selection_on_build)) {
+          return false;
+        }
+      } else {
+        if (!proto.HasExtension(serialization::HashJoinWorkOrder::residual_predicate_index) ||
+            !query_context.isValidPredicate(
+                 proto.GetExtension(serialization::HashJoinWorkOrder::residual_predicate_index))) {
           return false;
         }
       }
 
-      return proto.HasExtension(serialization::HashInnerJoinWorkOrder::any_join_key_attributes_nullable) &&
-             proto.HasExtension(serialization::HashInnerJoinWorkOrder::insert_destination_index) &&
+      return proto.HasExtension(serialization::HashJoinWorkOrder::any_join_key_attributes_nullable) &&
+             proto.HasExtension(serialization::HashJoinWorkOrder::insert_destination_index) &&
              query_context.isValidInsertDestinationId(
-                 proto.GetExtension(serialization::HashInnerJoinWorkOrder::insert_destination_index)) &&
-             proto.HasExtension(serialization::HashInnerJoinWorkOrder::join_hash_table_index) &&
+                 proto.GetExtension(serialization::HashJoinWorkOrder::insert_destination_index)) &&
+             proto.HasExtension(serialization::HashJoinWorkOrder::join_hash_table_index) &&
              query_context.isValidJoinHashTableId(
-                 proto.GetExtension(serialization::HashInnerJoinWorkOrder::join_hash_table_index)) &&
-             proto.HasExtension(serialization::HashInnerJoinWorkOrder::residual_predicate_index) &&
-             query_context.isValidPredicate(
-                 proto.GetExtension(serialization::HashInnerJoinWorkOrder::residual_predicate_index)) &&
-             proto.HasExtension(serialization::HashInnerJoinWorkOrder::selection_index) &&
+                 proto.GetExtension(serialization::HashJoinWorkOrder::join_hash_table_index)) &&
+             proto.HasExtension(serialization::HashJoinWorkOrder::selection_index) &&
              query_context.isValidScalarGroupId(
-                 proto.GetExtension(serialization::HashInnerJoinWorkOrder::selection_index)) &&
-             proto.HasExtension(serialization::HashInnerJoinWorkOrder::block_id);
-    }
-    case serialization::HASH_OUTER_JOIN: {
-      if (!proto.HasExtension(serialization::HashOuterJoinWorkOrder::build_relation_id) ||
-          !proto.HasExtension(serialization::HashOuterJoinWorkOrder::probe_relation_id)) {
-        return false;
-      }
-
-      const relation_id build_relation_id =
-          proto.GetExtension(serialization::HashOuterJoinWorkOrder::build_relation_id);
-      if (!catalog_database.hasRelationWithId(build_relation_id)) {
-        return false;
-      }
-
-      const relation_id probe_relation_id =
-          proto.GetExtension(serialization::HashOuterJoinWorkOrder::probe_relation_id);
-      if (!catalog_database.hasRelationWithId(probe_relation_id)) {
-        return false;
-      }
-
-      const CatalogRelationSchema &build_relation = catalog_database.getRelationSchemaById(build_relation_id);
-      const CatalogRelationSchema &probe_relation = catalog_database.getRelationSchemaById(probe_relation_id);
-      for (int i = 0; i < proto.ExtensionSize(serialization::HashOuterJoinWorkOrder::join_key_attributes); ++i) {
-        const attribute_id attr_id =
-            proto.GetExtension(serialization::HashOuterJoinWorkOrder::join_key_attributes, i);
-        if (!build_relation.hasAttributeWithId(attr_id) ||
-            !probe_relation.hasAttributeWithId(attr_id)) {
-          return false;
-        }
-      }
-
-      return proto.HasExtension(serialization::HashOuterJoinWorkOrder::any_join_key_attributes_nullable) &&
-             proto.HasExtension(serialization::HashOuterJoinWorkOrder::insert_destination_index) &&
-             query_context.isValidInsertDestinationId(
-                 proto.GetExtension(serialization::HashOuterJoinWorkOrder::insert_destination_index)) &&
-             proto.HasExtension(serialization::HashOuterJoinWorkOrder::join_hash_table_index) &&
-             query_context.isValidJoinHashTableId(
-                 proto.GetExtension(serialization::HashOuterJoinWorkOrder::join_hash_table_index)) &&
-             proto.HasExtension(serialization::HashOuterJoinWorkOrder::selection_index) &&
-             query_context.isValidScalarGroupId(
-                 proto.GetExtension(serialization::HashOuterJoinWorkOrder::selection_index)) &&
-             proto.HasExtension(serialization::HashOuterJoinWorkOrder::is_selection_on_build) &&
-             proto.HasExtension(serialization::HashOuterJoinWorkOrder::block_id);
-    }
-    case serialization::HASH_SEMI_JOIN: {
-      if (!proto.HasExtension(serialization::HashSemiJoinWorkOrder::build_relation_id) ||
-          !proto.HasExtension(serialization::HashSemiJoinWorkOrder::probe_relation_id)) {
-        return false;
-      }
-
-      const relation_id build_relation_id =
-          proto.GetExtension(serialization::HashSemiJoinWorkOrder::build_relation_id);
-      if (!catalog_database.hasRelationWithId(build_relation_id)) {
-        return false;
-      }
-
-      const relation_id probe_relation_id =
-          proto.GetExtension(serialization::HashSemiJoinWorkOrder::probe_relation_id);
-      if (!catalog_database.hasRelationWithId(probe_relation_id)) {
-        return false;
-      }
-
-      const CatalogRelationSchema &build_relation = catalog_database.getRelationSchemaById(build_relation_id);
-      const CatalogRelationSchema &probe_relation = catalog_database.getRelationSchemaById(probe_relation_id);
-      for (int i = 0; i < proto.ExtensionSize(serialization::HashSemiJoinWorkOrder::join_key_attributes); ++i) {
-        const attribute_id attr_id =
-            proto.GetExtension(serialization::HashSemiJoinWorkOrder::join_key_attributes, i);
-        if (!build_relation.hasAttributeWithId(attr_id) ||
-            !probe_relation.hasAttributeWithId(attr_id)) {
-          return false;
-        }
-      }
-
-      return proto.HasExtension(serialization::HashSemiJoinWorkOrder::any_join_key_attributes_nullable) &&
-             proto.HasExtension(serialization::HashSemiJoinWorkOrder::insert_destination_index) &&
-             query_context.isValidInsertDestinationId(
-                 proto.GetExtension(serialization::HashSemiJoinWorkOrder::insert_destination_index)) &&
-             proto.HasExtension(serialization::HashSemiJoinWorkOrder::join_hash_table_index) &&
-             query_context.isValidJoinHashTableId(
-                 proto.GetExtension(serialization::HashSemiJoinWorkOrder::join_hash_table_index)) &&
-             proto.HasExtension(serialization::HashSemiJoinWorkOrder::residual_predicate_index) &&
-             query_context.isValidPredicate(
-                 proto.GetExtension(serialization::HashSemiJoinWorkOrder::residual_predicate_index)) &&
-             proto.HasExtension(serialization::HashSemiJoinWorkOrder::selection_index) &&
-             query_context.isValidScalarGroupId(
-                 proto.GetExtension(serialization::HashSemiJoinWorkOrder::selection_index)) &&
-             proto.HasExtension(serialization::HashSemiJoinWorkOrder::block_id);
+                 proto.GetExtension(serialization::HashJoinWorkOrder::selection_index)) &&
+             proto.HasExtension(serialization::HashJoinWorkOrder::block_id);
     }
     case serialization::INSERT: {
       return proto.HasExtension(serialization::InsertWorkOrder::insert_destination_index) &&
@@ -781,27 +669,14 @@ bool WorkOrderFactory::ProtoIsValid(const serialization::WorkOrder &proto,
                  proto.GetExtension(serialization::TableGeneratorWorkOrder::insert_destination_index));
     }
     case serialization::TEXT_SCAN: {
-      if (!proto.HasExtension(serialization::TextScanWorkOrder::field_terminator) ||
-          !proto.HasExtension(serialization::TextScanWorkOrder::process_escape_sequences) ||
-          !proto.HasExtension(serialization::TextScanWorkOrder::insert_destination_index) ||
-          !query_context.isValidInsertDestinationId(
-              proto.GetExtension(serialization::TextScanWorkOrder::insert_destination_index))) {
-        return false;
-      }
-
-      // Two fields are exclusive.
-      if (proto.HasExtension(serialization::TextScanWorkOrder::filename) ==
-              proto.HasExtension(serialization::TextScanWorkOrder::text_blob)) {
-        return false;
-      }
-
-      return proto.HasExtension(serialization::TextScanWorkOrder::filename) ||
-             proto.GetExtension(serialization::TextScanWorkOrder::text_blob).IsInitialized();
-    }
-    case serialization::TEXT_SPLIT: {
-      return proto.HasExtension(serialization::TextSplitWorkOrder::filename) &&
-             proto.HasExtension(serialization::TextSplitWorkOrder::process_escape_sequences) &&
-             proto.HasExtension(serialization::TextSplitWorkOrder::operator_index);
+      return proto.HasExtension(serialization::TextScanWorkOrder::filename) &&
+             proto.HasExtension(serialization::TextScanWorkOrder::text_offset) &&
+             proto.HasExtension(serialization::TextScanWorkOrder::text_segment_size) &&
+             proto.HasExtension(serialization::TextScanWorkOrder::field_terminator) &&
+             proto.HasExtension(serialization::TextScanWorkOrder::process_escape_sequences) &&
+             proto.HasExtension(serialization::TextScanWorkOrder::insert_destination_index) &&
+             query_context.isValidInsertDestinationId(
+                 proto.GetExtension(serialization::TextScanWorkOrder::insert_destination_index));
     }
     case serialization::UPDATE: {
       return proto.HasExtension(serialization::UpdateWorkOrder::relation_id) &&

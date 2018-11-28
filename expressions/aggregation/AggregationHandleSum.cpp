@@ -144,7 +144,7 @@ void AggregationHandleSum::mergeStates(
   const AggregationStateSum &sum_source = static_cast<const AggregationStateSum&>(source);
   AggregationStateSum *sum_destination = static_cast<AggregationStateSum*>(destination);
 
-  SpinMutexLock(sum_destination->mutex_);
+  SpinMutexLock lock(sum_destination->mutex_);
   sum_destination->sum_ = merge_operator_->applyToTypedValues(sum_destination->sum_,
                                                               sum_source.sum_);
   sum_destination->null_ = sum_destination->null_ && sum_source.null_;
@@ -188,6 +188,15 @@ void AggregationHandleSum::aggregateOnDistinctifyHashTableForGroupBy(
           distinctify_hash_table,
           blank_state_,
           aggregation_hash_table);
+}
+
+void AggregationHandleSum::mergeGroupByHashTables(
+    const AggregationStateHashTableBase &source_hash_table,
+    AggregationStateHashTableBase *destination_hash_table) const {
+  mergeGroupByHashTablesHelper<AggregationHandleSum,
+                               AggregationStateSum,
+                               AggregationStateHashTable<AggregationStateSum>>(
+      source_hash_table, destination_hash_table);
 }
 
 }  // namespace quickstep

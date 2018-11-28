@@ -33,21 +33,41 @@ CREATE TABLE foo4 (col1 INT,
                    col3 DOUBLE,
                    col4 FLOAT,
                    col5 CHAR(5));
+DROP TABLE TEST;
 CREATE TABLE averylongtablenamethatseemstoneverend (col1 INT);
+INSERT INTO averylongtablenamethatseemstoneverend VALUES (1);
+INSERT INTO averylongtablenamethatseemstoneverend VALUES (2);
+INSERT INTO averylongtablenamethatseemstoneverend VALUES (3);
+INSERT INTO foo values(1, 1, 1.0, 1.0, 'XYZ');
+INSERT INTO foo values(2, 1, 1.0, 1.0, 'XYZ');
+INSERT INTO foo values(3, 1, 1.0, 1.0, 'XYZ');
+INSERT INTO foo values(4, 1, 1.0, 1.0, 'XYZ');
+INSERT INTO foo values(5, 1, 1.0, 1.0, 'XYZ');
+INSERT INTO foo2 values(5, 1, 1.0, 1.0, 'XYZ');
+INSERT INTO foo2 values(5, 1, 1.0, 1.0, 'XYZ');
+INSERT INTO foo3 values(5, 1, 1.0, 1.0, 'XYZZ');
 --
 ==
 \dt
 --
        List of relations
 
- Name                                  | Type 
-+--------------------------------------+-------+
- Test                                  | table 
- foo                                   | table 
- foo2                                  | table 
- foo3                                  | table 
- foo4                                  | table 
- averylongtablenamethatseemstoneverend | table 
+ Name                                  | Type  | Blocks 
++--------------------------------------+-------+---------+
+ foo                                   | table | 1      
+ foo2                                  | table | 1      
+ foo3                                  | table | 1      
+ foo4                                  | table | 0      
+ averylongtablenamethatseemstoneverend | table | 1      
+
+==
+\dt foo
+--
+       List of relations
+
+ Name   | Type  | Blocks 
++-------+-------+---------+
+ foo    | table | 1      
 
 ==
 \dt invalidtable

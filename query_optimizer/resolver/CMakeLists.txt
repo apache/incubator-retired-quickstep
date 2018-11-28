@@ -62,6 +62,7 @@ target_link_libraries(quickstep_queryoptimizer_resolver_Resolver
                       quickstep_parser_ParseSubqueryExpression
                       quickstep_parser_ParseSubqueryTableReference
                       quickstep_parser_ParseTableReference
+                      quickstep_parser_ParseWindow
                       quickstep_queryoptimizer_OptimizerContext
                       quickstep_queryoptimizer_Validator
                       quickstep_queryoptimizer_expressions_AggregateFunction
@@ -120,6 +121,7 @@ target_link_libraries(quickstep_queryoptimizer_resolver_Resolver
                       quickstep_types_operations_comparisons_ComparisonFactory
                       quickstep_types_operations_comparisons_ComparisonID
                       quickstep_types_operations_unaryoperations_DateExtractOperation
+                      quickstep_types_operations_unaryoperations_SubstringOperation
                       quickstep_types_operations_unaryoperations_UnaryOperation
                       quickstep_utility_Macros
                       quickstep_utility_PtrList

@@ -45,6 +45,7 @@ class InsertDestination;
 class Predicate;
 class Scalar;
 class StorageManager;
+class WorkOrderProtosContainer;
 class WorkOrdersContainer;
 
 /** \addtogroup RelationalOperators
@@ -62,6 +63,7 @@ class UpdateOperator : public RelationalOperator {
   /**
    * @brief Constructor
    *
+   * @param query_id The ID of the query to which this operator belongs.
    * @param relation The relation to perform the UPDATE over.
    * @param relocation_destination_index The index of the InsertDestination in
    *        the QueryContext to relocate tuples which can not be updated
@@ -76,11 +78,14 @@ class UpdateOperator : public RelationalOperator {
    * @warning The constructed InsertDestination should belong to relation, but
    *          must NOT contain any pre-existing blocks.
    **/
-  UpdateOperator(const CatalogRelation &relation,
-                 const QueryContext::insert_destination_id relocation_destination_index,
-                 const QueryContext::predicate_id predicate_index,
-                 const QueryContext::update_group_id update_group_index)
-      : relation_(relation),
+  UpdateOperator(
+      const std::size_t query_id,
+      const CatalogRelation &relation,
+      const QueryContext::insert_destination_id relocation_destination_index,
+      const QueryContext::predicate_id predicate_index,
+      const QueryContext::update_group_id update_group_index)
+      : RelationalOperator(query_id),
+        relation_(relation),
         relocation_destination_index_(relocation_destination_index),
         predicate_index_(predicate_index),
         update_group_index_(update_group_index),
@@ -94,6 +99,8 @@ class UpdateOperator : public RelationalOperator {
                         StorageManager *storage_manager,
                         const tmb::client_id scheduler_client_id,
                         tmb::MessageBus *bus) override;
+
+  bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override;
 
   QueryContext::insert_destination_id getInsertDestinationID() const override {
     return relocation_destination_index_;
@@ -124,6 +131,7 @@ class UpdateWorkOrder : public WorkOrder {
   /**
    * @brief Constructor
    *
+   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param relation The relation to perform the UPDATE over.
    * @param predicate All tuples matching \c predicate will be updated (or NULL
    *        to update all tuples).
@@ -139,16 +147,20 @@ class UpdateWorkOrder : public WorkOrder {
    * @param scheduler_client_id The TMB client ID of the scheduler thread.
    * @param bus A pointer to the TMB.
    **/
-  UpdateWorkOrder(const CatalogRelationSchema &relation,
-                  const block_id input_block_id,
-                  const Predicate *predicate,
-                  const std::unordered_map<attribute_id, std::unique_ptr<const Scalar>> &assignments,
-                  InsertDestination *relocation_destination,
-                  StorageManager *storage_manager,
-                  const std::size_t update_operator_index,
-                  const tmb::client_id scheduler_client_id,
-                  MessageBus *bus)
-      : relation_(relation),
+  UpdateWorkOrder(
+      const std::size_t query_id,
+      const CatalogRelationSchema &relation,
+      const block_id input_block_id,
+      const Predicate *predicate,
+      const std::unordered_map<attribute_id, std::unique_ptr<const Scalar>>
+          &assignments,
+      InsertDestination *relocation_destination,
+      StorageManager *storage_manager,
+      const std::size_t update_operator_index,
+      const tmb::client_id scheduler_client_id,
+      MessageBus *bus)
+      : WorkOrder(query_id),
+        relation_(relation),
         input_block_id_(input_block_id),
         predicate_(predicate),
         assignments_(assignments),
@@ -172,6 +184,7 @@ class UpdateWorkOrder : public WorkOrder {
   StorageManager *storage_manager_;
 
   const std::size_t update_operator_index_;
+
   const tmb::client_id scheduler_client_id_;
   MessageBus *bus_;
 

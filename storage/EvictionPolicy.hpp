@@ -32,6 +32,12 @@
 
 namespace quickstep {
 
+/**
+ * @brief Base class for classes with the responsibility of selecting blocks
+ *        to evict from the buffer pool.
+ * @note  In this class, and its subclasses, block refers to both blocks and
+ *        blobs. From the eviction policy's perspective, they are the same.
+ */
 class EvictionPolicy {
  public:
   enum class Status {

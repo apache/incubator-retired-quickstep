@@ -20,12 +20,20 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
+#include "catalog/CatalogTypedefs.hpp"
+#include "query_optimizer/QueryOptimizerConfig.h"  // For QUICKSTEP_DISTRIBUTED
 #include "storage/CountedReference.hpp"
+
+#ifdef QUICKSTEP_DISTRIBUTED
+#include "storage/DataExchange.grpc.pb.h"
+#endif
+
 #include "storage/EvictionPolicy.hpp"
 #include "storage/FileManager.hpp"
 #include "storage/StorageBlob.hpp"
@@ -40,6 +48,14 @@
 #include "gflags/gflags.h"
 #include "gtest/gtest_prod.h"
 
+#include "tmb/id_typedefs.h"
+
+#ifdef QUICKSTEP_DISTRIBUTED
+namespace grpc { class Channel; }
+#endif
+
+namespace tmb { class MessageBus; }
+
 namespace quickstep {
 
 DECLARE_int32(block_domain);
@@ -50,6 +66,11 @@ DECLARE_bool(use_hdfs);
 #endif
 
 class CatalogRelationSchema;
+
+#ifdef QUICKSTEP_DISTRIBUTED
+class PullResponse;
+#endif
+
 class StorageBlockLayout;
 
 /** \addtogroup Storage
@@ -84,7 +105,7 @@ class StorageManager {
    *        storage.
    * @param max_memory_usage The maximum amount of memory that the storage
    *                         manager should use for cached blocks in slots. If
-   *                         a block is requested that is not currently in
+   *                         an block is requested that is not currently in
    *                         memory and there are already max_memory_usage slots
    *                         in use in memory, then the storage manager will
    *                         attempt to evict enough blocks to make room for the
@@ -104,6 +125,33 @@ class StorageManager {
                            std::chrono::milliseconds(200))) {
   }
 
+#ifdef QUICKSTEP_DISTRIBUTED
+  /**
+   * @brief Constructor.
+   * @param storage_path The filesystem directory where blocks have persistent
+   *        storage.
+   * @param block_domain The unique block domain.
+   * @param block_locator_client_id The TMB client ID of the block locator.
+   * @param bus A pointer to the TMB.
+   *
+   * @exception CorruptPersistentStorage The storage directory layout is not
+   *            in the expected format.
+   **/
+  StorageManager(const std::string &storage_path,
+                 const block_id_domain block_domain,
+                 const tmb::client_id block_locator_client_id,
+                 tmb::MessageBus *bus)
+      : StorageManager(storage_path,
+                       block_domain,
+                       FLAGS_buffer_pool_slots,
+                       LRUKEvictionPolicyFactory::ConstructLRUKEvictionPolicy(
+                           2,
+                           std::chrono::milliseconds(200)),
+                       block_locator_client_id,
+                       bus) {
+  }
+#endif
+
   /**
    * @brief Constructor.
    * @param storage_path The filesystem directory where blocks have persistent
@@ -121,13 +169,18 @@ class StorageManager {
    * @param eviction_policy The eviction policy that the storage manager should
    *                        use to manage the cache. The storage manager takes
    *                        ownership of *eviction_policy.
+   * @param block_locator_client_id The TMB client ID of the block locator.
+   * @param bus A pointer to the TMB.
+   *
    * @exception CorruptPersistentStorage The storage directory layout is not
    *            in the expected format.
    **/
   StorageManager(const std::string &storage_path,
                  const block_id_domain block_domain,
                  const size_t max_memory_usage,
-                 EvictionPolicy *eviction_policy);
+                 EvictionPolicy *eviction_policy,
+                 const tmb::client_id block_locator_client_id = tmb::kClientIdNone,
+                 tmb::MessageBus *bus = nullptr);
 
   /**
    * @brief Destructor which also destroys all managed blocks.
@@ -163,6 +216,22 @@ class StorageManager {
    **/
   std::size_t getMemorySize() const {
     return kSlotSizeBytes * total_memory_usage_;
+  }
+
+  /**
+   * @brief Return the upper limit on the number of buffer pool slots that the
+   *        StorageManager can allocate. This number is specified during the
+   *        initialization of the StorageManager. The size of each slot is
+   *        kSlotSizeBytes.
+   * @note This information is provided for informational purposes. The memory
+   *       pool may grow larger than this upper limite temporarily, depending
+   *       on the path that is followed in a call to createBlock() or
+   *       loadBlock().
+   *
+   * @return The number of buffer pool slots managed by this StorageManager.
+   **/
+  std::size_t getMaxBufferPoolSlots() const {
+    return max_memory_usage_;
   }
 
   /**
@@ -208,7 +277,6 @@ class StorageManager {
 
   /**
    * @brief Save a block or blob in memory to the persistent storage.
-   * @details Obtains a read lock on the shard containing the saved block.
    *
    * @param block The id of the block or blob to save.
    * @param force Force the block to the persistent storage, even if it is not
@@ -310,12 +378,79 @@ class StorageManager {
    **/
   bool blockOrBlobIsLoadedAndDirty(const block_id block);
 
+#ifdef QUICKSTEP_DISTRIBUTED
+  /**
+   * @brief Pull a block or a blob. Used by DataExchangerAsync.
+   *
+   * @param block The id of the block or blob.
+   * @param response Where to store the pulled block content.
+   **/
+  void pullBlockOrBlob(const block_id block, PullResponse *response) const;
+#endif
+
  private:
   struct BlockHandle {
     void *block_memory;
     std::size_t block_memory_size;  // size of block_memory in slots
     StorageBlockBase *block;
   };
+
+#ifdef QUICKSTEP_DISTRIBUTED
+  /**
+   * @brief A class which connects to DataExchangerAsync to exchange data from
+   *        remote peers.
+   **/
+  class DataExchangerClientAsync {
+   public:
+    /**
+     * @brief Constructor.
+     *
+     * @param channel The RPC channel to connect DataExchangerAsync.
+     * @param storage_manager The StorageManager to use.
+     */
+    DataExchangerClientAsync(const std::shared_ptr<grpc::Channel> &channel,
+                             StorageManager *storage_manager);
+
+    /**
+     * @brief Pull a block or blob from a remote StorageManager.
+     *
+     * @param block The block or blob to pull.
+     * @param numa_node The NUMA node for placing this block.
+     * @param block_handle Where the pulled block or blob stores.
+     *
+     * @return Whether the pull operation is successful or not.
+     */
+    bool Pull(const block_id block,
+              const numa_node_id numa_node,
+              BlockHandle *block_handle);
+
+   private:
+    std::unique_ptr<DataExchange::Stub> stub_;
+
+    StorageManager *storage_manager_;
+
+    DISALLOW_COPY_AND_ASSIGN(DataExchangerClientAsync);
+  };
+
+  /**
+   * @brief Get the network info of all the remote StorageManagers which may
+   *        load the given block in the buffer pool.
+   *
+   * @param block The block or blob to pull.
+   *
+   * @return The network info of all the possible peers to pull.
+   **/
+  std::vector<std::string> getPeerDomainNetworkAddresses(const block_id block);
+
+  /**
+   * @brief Update the block location info in BlockLocator.
+   *
+   * @param block The given block or blob.
+   * @param message_type Indicate whether to add or delete a block location.
+   **/
+  void sendBlockLocationMessage(const block_id block,
+                                const tmb::message_type_id message_type);
+#endif
 
   // Helper for createBlock() and createBlob(). Allocates a block ID and memory
   // slots for a new StorageBlock or StorageBlob. Returns the allocated ID and
@@ -342,40 +477,14 @@ class StorageManager {
   // Allocate a buffer to hold the specified number of slots. The memory
   // returned will be zeroed-out, and mapped using large pages if the system
   // supports it.
-  // Note if the last parameter "locked_block_id" is set to something other than
-  // "kInvalidBlockId," then it means that the caller has acquired
-  // a lock in the sharded lock manager for that block. Thus, if a block needs
-  // to be evicted by the EvictionPolicy in the "makeRoomForBlock" call, and
-  // if the block to be evicted happens to hash to the same entry in the
-  // sharded lock manager, then the Eviction policy needs to pick a different
-  // block for eviction.
-  // The key point is that if "locked_block_id" is not "kInvalidBlockId," then
-  // the caller of allocateSlots, e.g. loadBlock, will have acquired a lock
-  // in the sharded lock manager for the block "locked_block_id."
   void* allocateSlots(const std::size_t num_slots,
-                      const int numa_node,
-                      // const block_id locked_block_id = kInvalidBlockId);
-                      const block_id locked_block_id);
+                      const int numa_node);
 
   // Deallocate a buffer allocated by allocateSlots(). This must be used
   // instead of free(), because the underlying implementation of
   // allocateSlots() may use mmap instead of malloc.
   void deallocateSlots(void *slots,
                        const std::size_t num_slots);
-
-  /**
-   * @brief Save a block or blob in memory to the persistent storage.
-   * 
-   * @param block The id of the block or blob to save.
-   * @param force Force the block to the persistent storage, even if it is not
-   *        dirty (by default, only actually write dirty blocks to the
-   *        persistent storage).
-   * 
-   * @return False if the block is not found in the memory. True if the block is
-   *         successfully saved to the persistent storage OR the block is clean
-   *         and force is false.
-   */
-  bool saveBlockOrBlobInternal(const block_id block, const bool force);
 
   /**
    * @brief Evict a block or blob from memory.
@@ -413,12 +522,16 @@ class StorageManager {
                                        const int numa_node);
 
   /**
-   * @brief Evict blocks until there is enough space for a new block of the
-   *        requested size.
+   * @brief Evict blocks or blobs until there is enough space for a new block
+   *        or blob of the requested size.
+   *
+   * @note This non-blocking method gives up evictions if there is a shard
+   *       collision, and thus the buffer pool size may temporarily go beyond
+   *       the memory limit.
    *
    * @param slots Number of slots to make room for.
    */
-  void makeRoomForBlock(const size_t slots);
+  void makeRoomForBlockOrBlob(const std::size_t slots);
 
   /**
    * @brief Load a block from the persistent storage into memory.
@@ -466,6 +579,15 @@ class StorageManager {
 
   std::unique_ptr<EvictionPolicy> eviction_policy_;
 
+#ifdef QUICKSTEP_DISTRIBUTED
+  const block_id_domain block_domain_;
+
+  tmb::client_id storage_manager_client_id_;
+#endif
+
+  const tmb::client_id block_locator_client_id_;
+  tmb::MessageBus *bus_;
+
   std::unique_ptr<FileManager> file_manager_;
 
   // Used to generate unique IDs in allocateNewBlockOrBlob().
@@ -486,8 +608,16 @@ class StorageManager {
   //   (2) If it is not safe to evict a block, then either that block's
   //       reference count is greater than 0 or a shared lock is held on the
   //       block's lock shard.
-  static constexpr std::size_t kLockManagerNumShards = 256;
+  // TODO(jmp): Would be good to set this more intelligently in the future
+  //            based on the hardware concurrency, the amount of main memory
+  //            and slot size. For now pick the largest prime that is less
+  //            than 8K.
+  static constexpr std::size_t kLockManagerNumShards = 0x2000-1;
   ShardedLockManager<block_id, kLockManagerNumShards, SpinSharedMutex<false>> lock_manager_;
+
+  friend class BlockLocatorTest;
+  FRIEND_TEST(BlockLocatorTest, BlockTest);
+  FRIEND_TEST(BlockLocatorTest, BlobTest);
 
   FRIEND_TEST(StorageManagerTest, DifferentNUMANodeBlobTestWithEviction);
   FRIEND_TEST(StorageManagerTest, EvictFromSameShardTest);

@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@
 #include "query_optimizer/tests/ExecutionGeneratorTestRunner.hpp"
 #include "utility/textbased_test/TextBasedTestDriver.hpp"
 
+#include "gflags/gflags.h"
 #include "glog/logging.h"
 
 using quickstep::TextBasedTest;
@@ -30,6 +31,8 @@ QUICKSTEP_GENERATE_TEXT_TEST(EXECUTION_GENERATOR_TEST);
 
 int main(int argc, char** argv) {
   google::InitGoogleLogging(argv[0]);
+  // Honor FLAGS_buffer_pool_slots in StorageManager.
+  gflags::ParseCommandLineFlags(&argc, &argv, true);
 
   if (argc < 4) {
     LOG(ERROR) << "Must have at least 3 arguments, but " << argc - 1

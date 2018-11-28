@@ -16,13 +16,37 @@ syntax = "proto2";
 
 package quickstep.serialization;
 
-// Used for both Normal WorkOrders and RebuildWorkOrders.
-// NOTE(zuyu): we might need to seperate the completion messages to contain
-// run-time information for Foreman to make better decisions on scheduling
-// WorkOrders.
-message WorkOrderCompletionMessage {
+// Used for any messages that do not carry payloads.
+message EmptyMessage {
+}
+
+// Note: There are different types of completion messages for normal work orders
+// rebuild work orders. This can be potentially helpful when we want to collect
+// different statistics for executing different types of work orders. 
+// e.g. In select normal work order completion message, we could be interested 
+// in the selectivity of the block whose work order got execute. In rebuild work 
+// order completion message, we may be interested in adding the compression 
+// ratio or dictionary size of the rebuilt block.
+
+// TODO(harshad) : If there are different fields in the two message types below, 
+// create a base message class called WorkOrderCompletionMessage and make the
+// two classes below extend the base class. All the common fields in both the
+// classes can be moved to the base class. 
+
+// A message sent upon completion of a normal (not rebuild) WorkOrder execution.
+message NormalWorkOrderCompletionMessage {
   required uint64 operator_index = 1;
   required uint64 worker_thread_index = 2;
+  required uint64 query_id = 3;
+  optional uint64 execution_time_in_microseconds = 4;
+}
+
+// A message sent upon completion of a rebuild WorkOrder execution.
+message RebuildWorkOrderCompletionMessage {
+  required uint64 operator_index = 1;
+  required uint64 worker_thread_index = 2;
+  required uint64 query_id = 3;
+  optional uint64 execution_time_in_microseconds = 4;
 }
 
 message CatalogRelationNewBlockMessage {
@@ -31,14 +55,47 @@ message CatalogRelationNewBlockMessage {
 
   // Used by PartitionAwareInsertDestination.
   optional uint64 partition_id = 3;
+  required uint64 query_id = 4;
 }
 
 message DataPipelineMessage {
   required uint64 operator_index = 1;
   required fixed64 block_id = 2;
   required int32 relation_id = 3;
+  required uint64 query_id = 4;
 }
 
 message WorkOrdersAvailableMessage {
   required uint64 operator_index = 1;
+  required uint64 query_id = 2;
+}
+
+// BlockLocator related messages.
+message BlockDomainRegistrationMessage {
+  // Format IP:Port, i.e., "0.0.0.0:0".
+  required string domain_network_address = 1;
+}
+
+// Used for RegistrationResponse, Unregistration, and FailureReport.
+message BlockDomainMessage {
+  required uint32 block_domain = 1;
+}
+
+// Used when StorageManager loads or evicts a block or a blob from its buffer
+// pool.
+message BlockLocationMessage {
+  required fixed64 block_id = 1;
+  required uint32 block_domain = 2;
+}
+
+message BlockMessage {
+  required fixed64 block_id = 1;
+}
+
+message LocateBlockResponseMessage {
+  repeated uint32 block_domains = 1;
+}
+
+message GetPeerDomainNetworkAddressesResponseMessage {
+  repeated string domain_network_addresses = 1;
 }

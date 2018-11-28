@@ -22,7 +22,9 @@
 
 #include "catalog/CatalogRelation.hpp"
 #include "query_execution/QueryContext.hpp"
+#include "query_execution/WorkOrderProtosContainer.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
+#include "relational_operators/WorkOrder.pb.h"
 #include "storage/HashTable.hpp"
 #include "storage/StorageBlock.hpp"
 #include "storage/StorageBlockInfo.hpp"
@@ -69,7 +71,8 @@ bool BuildHashOperator::getAllWorkOrders(
     if (!started_) {
       for (const block_id input_block_id : input_relation_block_ids_) {
         container->addNormalWorkOrder(
-            new BuildHashWorkOrder(input_relation_,
+            new BuildHashWorkOrder(query_id_,
+                                   input_relation_,
                                    join_key_attributes_,
                                    any_join_key_attributes_nullable_,
                                    input_block_id,
@@ -84,6 +87,7 @@ bool BuildHashOperator::getAllWorkOrders(
     while (num_workorders_generated_ < input_relation_block_ids_.size()) {
       container->addNormalWorkOrder(
           new BuildHashWorkOrder(
+              query_id_,
               input_relation_,
               join_key_attributes_,
               any_join_key_attributes_nullable_,
@@ -96,6 +100,44 @@ bool BuildHashOperator::getAllWorkOrders(
     return done_feeding_input_relation_;
   }
 }
+
+bool BuildHashOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) {
+  if (input_relation_is_stored_) {
+    if (!started_) {
+      for (const block_id input_block_id : input_relation_block_ids_) {
+        container->addWorkOrderProto(createWorkOrderProto(input_block_id), op_index_);
+      }
+      started_ = true;
+    }
+    return true;
+  } else {
+    while (num_workorders_generated_ < input_relation_block_ids_.size()) {
+      container->addWorkOrderProto(
+          createWorkOrderProto(input_relation_block_ids_[num_workorders_generated_]),
+          op_index_);
+      ++num_workorders_generated_;
+    }
+    return done_feeding_input_relation_;
+  }
+}
+
+serialization::WorkOrder* BuildHashOperator::createWorkOrderProto(const block_id block) {
+  serialization::WorkOrder *proto = new serialization::WorkOrder;
+  proto->set_work_order_type(serialization::BUILD_HASH);
+  proto->set_query_id(query_id_);
+
+  proto->SetExtension(serialization::BuildHashWorkOrder::relation_id, input_relation_.getID());
+  for (const attribute_id attr_id : join_key_attributes_) {
+    proto->AddExtension(serialization::BuildHashWorkOrder::join_key_attributes, attr_id);
+  }
+  proto->SetExtension(serialization::BuildHashWorkOrder::any_join_key_attributes_nullable,
+                      any_join_key_attributes_nullable_);
+  proto->SetExtension(serialization::BuildHashWorkOrder::join_hash_table_index, hash_table_index_);
+  proto->SetExtension(serialization::BuildHashWorkOrder::block_id, block);
+
+  return proto;
+}
+
 
 void BuildHashWorkOrder::execute() {
   BlockReference block(

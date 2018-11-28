@@ -21,20 +21,24 @@
 #include <cstdio>
 #include <string>
 
-#include "parser/ParseStatement.hpp"
-#include "utility/Macros.hpp"
+#include "tmb/id_typedefs.h"
 
 using std::fprintf;
 using std::fputc;
 using std::string;
 
+namespace tmb { class MessageBus; }
+
 namespace quickstep {
 
 class CatalogDatabase;
-class CatalogAttribute;
-class CatalogRelation;
+class Foreman;
+class ParseStatement;
+class QueryProcessor;
+class StorageManager;
 
 namespace cli {
+
 /** \addtogroup CLI
  *  @{
  */
@@ -46,16 +50,28 @@ constexpr int kInitMaxColumnWidth = 6;
 
 constexpr char kDescribeDatabaseCommand[] = "\\dt";
 constexpr char kDescribeTableCommand[] = "\\d";
+constexpr char kAnalyzeCommand[] = "\\analyze";
 
 /**
   * @brief Executes the command by calling the command handler.
-  *        
+  *
   * @param statement The parsed statement from the cli.
   * @param catalog_database The catalog information about the current database.
-  * @param out The stream where the output of the command has to be redirected to.      
+  * @param main_thread_client_id The TMB client ID of the main thread.
+  * @param foreman_client_id The TMB client ID of the Foreman thread.
+  * @param bus A pointer to the TMB.
+  * @param storage_manager The current StorageManager.
+  * @param query_processor The query processor to generate plans for SQL queries.
+  * @param foreman The foreman to execute query plans.
+  * @param out The stream where the output of the command has to be redirected to.
 */
 void executeCommand(const ParseStatement &statement,
                     const CatalogDatabase &catalog_database,
+                    const tmb::client_id main_thread_client_id,
+                    const tmb::client_id foreman_client_id,
+                    tmb::MessageBus *bus,
+                    StorageManager *storage_manager,
+                    QueryProcessor *query_processor,
                     FILE *out);
 
 /** @} */

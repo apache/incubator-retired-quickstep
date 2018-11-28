@@ -19,7 +19,7 @@ TopLevelPlan
 +-plan=CreateTable[relation=foo]
 | +-block_properties=ProtoDescription
 | | +-Property=ProtoProperty[Property=blocktype,Value=rowstore]
-| | +-Property=ProtoProperty[Property=slots,Value=4]
+| | +-Property=ProtoProperty[Property=slots,Value=5]
 | +-attributes=
 |   +-AttributeReference[id=0,name=attr,relation=foo,type=Int]
 +-output_attributes=
@@ -36,7 +36,7 @@ TopLevelPlan
 | | +-Property=ProtoProperty[Property=sort,Value=0]
 | | +-Property=ProtoProperty[Property=compress,Value=0]
 | | +-Property=ProtoProperty[Property=compress,Value=1]
-| | +-Property=ProtoProperty[Property=slots,Value=4]
+| | +-Property=ProtoProperty[Property=slots,Value=5]
 | +-attributes=
 |   +-AttributeReference[id=0,name=attr,relation=foo,type=Int]
 |   +-AttributeReference[id=1,name=attr2,relation=foo,type=Int]

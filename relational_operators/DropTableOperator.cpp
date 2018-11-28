@@ -24,7 +24,9 @@
 #include "catalog/CatalogDatabaseLite.hpp"
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
+#include "query_execution/WorkOrderProtosContainer.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
+#include "relational_operators/WorkOrder.pb.h"
 #include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageManager.hpp"
 
@@ -45,8 +47,30 @@ bool DropTableOperator::getAllWorkOrders(
 
     // DropTableWorkOrder only drops blocks, if any.
     container->addNormalWorkOrder(
-        new DropTableWorkOrder(std::move(relation_blocks), storage_manager),
+        new DropTableWorkOrder(
+            query_id_, std::move(relation_blocks), storage_manager),
         op_index_);
+
+    database_->setStatus(CatalogDatabase::Status::kPendingBlockDeletions);
+  }
+
+  return work_generated_;
+}
+
+bool DropTableOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) {
+  if (blocking_dependencies_met_ && !work_generated_) {
+    work_generated_ = true;
+
+    serialization::WorkOrder *proto = new serialization::WorkOrder;
+    proto->set_work_order_type(serialization::DROP_TABLE);
+    proto->set_query_id(query_id_);
+
+    std::vector<block_id> relation_blocks(relation_.getBlocksSnapshot());
+    for (const block_id relation_block : relation_blocks) {
+      proto->AddExtension(serialization::DropTableWorkOrder::block_ids, relation_block);
+    }
+
+    container->addWorkOrderProto(proto, op_index_);
 
     database_->setStatus(CatalogDatabase::Status::kPendingBlockDeletions);
   }

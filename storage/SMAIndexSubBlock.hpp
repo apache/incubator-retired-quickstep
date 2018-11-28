@@ -120,7 +120,6 @@ struct SMAPredicate {
   // that the predicate had not been used previously.
   Selectivity selectivity;
 
- private:
   SMAPredicate(const attribute_id attr,
                const ComparisonID comp,
                const TypedValue lit)
@@ -376,7 +375,7 @@ class SMAIndexSubBlock : public IndexSubBlock {
  private:
   bool requiresRebuild() const;
 
-  inline sma_internal::Selectivity getSelectivityForPredicate(const ComparisonPredicate &predicate) const;
+  sma_internal::Selectivity getSelectivityForPredicate(const ComparisonPredicate &predicate) const;
 
   // Retrieves an entry, first checking if the given attribute is indexed.
   inline const sma_internal::SMAEntry* getEntryChecked(attribute_id attribute) const {

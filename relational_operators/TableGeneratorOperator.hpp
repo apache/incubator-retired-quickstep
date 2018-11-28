@@ -1,6 +1,6 @@
 /**
  *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
- *   University of Wisconsin—Madison.
+ *     University of Wisconsin—Madison.
  *   Copyright 2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
@@ -40,6 +40,7 @@ namespace quickstep {
 class GeneratorFunctionHandle;
 class InsertDestination;
 class StorageManager;
+class WorkOrderProtosContainer;
 class WorkOrdersContainer;
 
 /** \addtogroup RelationalOperators
@@ -55,21 +56,23 @@ class TableGeneratorOperator : public RelationalOperator {
   /**
    * @brief Constructor
    *
+   * @param query_id The ID of the query to which this operator belongs.
    * @param output_relation The output relation.
    * @param output_destination_index The index of the InsertDestination in the
    *        QueryContext to insert the generated output.
    * @param generator_function_index The index of the GeneratorFunctionHandle in
    *        the QueryContext.
-   *
    **/
-  TableGeneratorOperator(const CatalogRelation &output_relation,
-                         const QueryContext::insert_destination_id output_destination_index,
-                         const QueryContext::generator_function_id generator_function_index)
-      : output_relation_(output_relation),
+  TableGeneratorOperator(
+      const std::size_t query_id,
+      const CatalogRelation &output_relation,
+      const QueryContext::insert_destination_id output_destination_index,
+      const QueryContext::generator_function_id generator_function_index)
+      : RelationalOperator(query_id),
+        output_relation_(output_relation),
         output_destination_index_(output_destination_index),
         generator_function_index_(generator_function_index),
-        started_(false) {
-  }
+        started_(false) {}
 
   ~TableGeneratorOperator() override {}
 
@@ -78,6 +81,8 @@ class TableGeneratorOperator : public RelationalOperator {
                         StorageManager *storage_manager,
                         const tmb::client_id scheduler_client_id,
                         tmb::MessageBus *bus) override;
+
+  bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override;
 
   void feedInputBlock(const block_id input_block_id, const relation_id input_relation_id) override {
   }
@@ -111,13 +116,16 @@ class TableGeneratorWorkOrder : public WorkOrder {
   /**
    * @brief Constructor.
    *
+   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param generator_function The GeneratorFunctionHandle to use.
    * @param output_destination The InsertDestination to insert the generated
    *        output.
    **/
-  TableGeneratorWorkOrder(const GeneratorFunctionHandle &function_handle,
+  TableGeneratorWorkOrder(const std::size_t query_id,
+                          const GeneratorFunctionHandle &function_handle,
                           InsertDestination *output_destination)
-      : function_handle_(function_handle),
+      : WorkOrder(query_id),
+        function_handle_(function_handle),
         output_destination_(DCHECK_NOTNULL(output_destination)) {}
 
   ~TableGeneratorWorkOrder() override {}

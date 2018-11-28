@@ -21,6 +21,12 @@ if (REBUILD_INDEX_ON_UPDATE_OVERFLOW)
   set(QUICKSTEP_REBUILD_INDEX_ON_UPDATE_OVERFLOW TRUE)
 endif()
 
+if (BUILD_SHARED_LIBS)
+  set(GFLAGS_LIB_NAME gflags_nothreads-shared)
+else()
+  set(GFLAGS_LIB_NAME gflags_nothreads-static)
+endif()
+
 include(CheckIncludeFileCXX)
 check_include_files("fcntl.h;glob.h;unistd.h;sys/stat.h;sys/types.h" QUICKSTEP_HAVE_FILE_MANAGER_POSIX)
 if (NOT QUICKSTEP_HAVE_FILE_MANAGER_POSIX)
@@ -126,6 +132,13 @@ QS_PROTOBUF_GENERATE_CPP(storage_StorageBlockLayout_proto_srcs
                          storage_StorageBlockLayout_proto_hdrs
                          StorageBlockLayout.proto)
 
+if (ENABLE_DISTRIBUTED)
+  GRPC_GENERATE_CPP(storage_DataExchange_proto_srcs
+                    storage_DataExchange_proto_hdrs
+                    .
+                    DataExchange.proto)
+endif()
+
 # Declare micro-libs:
 add_library(quickstep_storage_AggregationOperationState
             AggregationOperationState.cpp
@@ -171,6 +184,14 @@ add_library(quickstep_storage_CompressedTupleStorageSubBlock
             CompressedTupleStorageSubBlock.hpp)
 add_library(quickstep_storage_CountedReference ../empty_src.cpp CountedReference.hpp)
 add_library(quickstep_storage_CSBTreeIndexSubBlock CSBTreeIndexSubBlock.cpp CSBTreeIndexSubBlock.hpp)
+
+if (ENABLE_DISTRIBUTED)
+  add_library(quickstep_storage_DataExchange_proto
+              ${storage_DataExchange_proto_srcs}
+              ${storage_DataExchange_proto_hdrs})
+  add_library(quickstep_storage_DataExchangerAsync DataExchangerAsync.cpp DataExchangerAsync.hpp)
+endif()
+
 add_library(quickstep_storage_EvictionPolicy EvictionPolicy.cpp EvictionPolicy.hpp)
 add_library(quickstep_storage_FileManager ../empty_src.cpp FileManager.hpp)
 if (QUICKSTEP_HAVE_FILE_MANAGER_HDFS)
@@ -187,6 +208,7 @@ add_library(quickstep_storage_HashTable_proto ${storage_HashTable_proto_srcs})
 add_library(quickstep_storage_HashTableBase ../empty_src.cpp HashTableBase.hpp)
 add_library(quickstep_storage_HashTableFactory HashTableFactory.cpp HashTableFactory.hpp)
 add_library(quickstep_storage_HashTableKeyManager ../empty_src.cpp HashTableKeyManager.hpp)
+add_library(quickstep_storage_HashTablePool ../empty_src.cpp HashTablePool.hpp)
 add_library(quickstep_storage_IndexSubBlock ../empty_src.cpp IndexSubBlock.hpp)
 add_library(quickstep_storage_IndexSubBlockDescriptionFactory ../empty_src.cpp IndexSubBlockDescriptionFactory.hpp)
 add_library(quickstep_storage_InsertDestination InsertDestination.cpp InsertDestination.hpp)
@@ -252,6 +274,7 @@ target_link_libraries(quickstep_storage_AggregationOperationState
                       quickstep_storage_HashTable
                       quickstep_storage_HashTableBase
                       quickstep_storage_HashTableFactory
+                      quickstep_storage_HashTablePool
                       quickstep_storage_InsertDestination
                       quickstep_storage_StorageBlock
                       quickstep_storage_StorageBlockInfo
@@ -573,6 +596,19 @@ target_link_libraries(quickstep_storage_CSBTreeIndexSubBlock
                       quickstep_utility_Macros
                       quickstep_utility_PtrVector
                       quickstep_utility_ScopedBuffer)
+
+if (ENABLE_DISTRIBUTED)
+  target_link_libraries(quickstep_storage_DataExchange_proto
+                        ${PROTOBUF3_LIBRARY})
+  target_link_libraries(quickstep_storage_DataExchangerAsync
+                        glog
+                        quickstep_storage_DataExchange_proto
+                        quickstep_storage_StorageManager
+                        quickstep_threading_Thread
+                        quickstep_utility_Macros
+                        ${GRPCPLUSPLUS_LIBRARIES})
+endif()
+
 target_link_libraries(quickstep_storage_EvictionPolicy
                       quickstep_storage_StorageBlockInfo
                       quickstep_storage_StorageConstants
@@ -585,15 +621,16 @@ target_link_libraries(quickstep_storage_FileManager
                       quickstep_utility_Macros
                       quickstep_utility_StringUtil)
 if (QUICKSTEP_HAVE_FILE_MANAGER_HDFS)
-target_link_libraries(quickstep_storage_FileManagerHdfs
-                      gflags_nothreads-static
-                      quickstep_storage_FileManager
-                      quickstep_storage_StorageBlockInfo
-                      quickstep_storage_StorageConstants
-                      quickstep_storage_StorageErrors
-                      quickstep_utility_Macros
-                      quickstep_utility_StringUtil
-                      ${LIBHDFS3_LIBRARIES})
+  target_link_libraries(quickstep_storage_FileManagerHdfs
+                        glog
+                        ${GFLAGS_LIB_NAME}
+                        quickstep_storage_FileManager
+                        quickstep_storage_StorageBlockInfo
+                        quickstep_storage_StorageConstants
+                        quickstep_storage_StorageErrors
+                        quickstep_utility_Macros
+                        quickstep_utility_StringUtil
+                        ${LIBHDFS3_LIBRARIES})
 endif()
 if (QUICKSTEP_HAVE_FILE_MANAGER_POSIX)
   target_link_libraries(quickstep_storage_FileManagerLocal
@@ -610,6 +647,7 @@ elseif (QUICKSTEP_HAVE_FILE_MANAGER_WINDOWS)
   target_link_libraries(quickstep_storage_FileManagerLocal
                         quickstep_storage_FileManagerWindows)
   target_link_libraries(quickstep_storage_FileManagerWindows
+                        glog
                         quickstep_storage_FileManager
                         quickstep_storage_StorageBlockInfo
                         quickstep_storage_StorageConstants
@@ -630,6 +668,7 @@ target_link_libraries(quickstep_storage_HashTable
                       quickstep_threading_SpinSharedMutex
                       quickstep_types_Type
                       quickstep_types_TypedValue
+                      quickstep_utility_BloomFilter
                       quickstep_utility_HashPair
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_storage_HashTableBase
@@ -649,6 +688,7 @@ target_link_libraries(quickstep_storage_HashTableFactory
                       quickstep_types_Type
                       quickstep_types_TypeFactory
                       quickstep_types_TypedValue
+                      quickstep_utility_BloomFilter
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_storage_HashTableKeyManager
                       glog
@@ -658,6 +698,13 @@ target_link_libraries(quickstep_storage_HashTableKeyManager
                       quickstep_types_TypedValue
                       quickstep_types_operations_comparisons_ComparisonUtil
                       quickstep_utility_Macros)
+target_link_libraries(quickstep_storage_HashTablePool
+                      glog
+                      quickstep_expressions_aggregation_AggregationHandle
+                      quickstep_storage_HashTableBase
+                      quickstep_threading_SpinMutex
+                      quickstep_utility_Macros
+                      quickstep_utility_StringUtil)
 target_link_libraries(quickstep_storage_IndexSubBlock
                       quickstep_catalog_CatalogTypedefs
                       quickstep_expressions_predicate_PredicateCost
@@ -742,6 +789,7 @@ target_link_libraries(quickstep_storage_PackedRowStoreValueAccessor
                       quickstep_utility_BitVector
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_storage_PreloaderThread
+                      glog
                       quickstep_catalog_CatalogDatabase
                       quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogTypedefs
@@ -751,6 +799,10 @@ target_link_libraries(quickstep_storage_PreloaderThread
                       quickstep_threading_Thread
                       quickstep_threading_ThreadUtil
                       quickstep_utility_Macros)
+if (QUICKSTEP_HAVE_LIBNUMA)
+  target_link_libraries(quickstep_storage_PreloaderThread
+                        quickstep_catalog_NUMAPlacementScheme)
+endif()
 target_link_libraries(quickstep_storage_SMAIndexSubBlock
                       glog
                       quickstep_catalog_CatalogAttribute
@@ -904,9 +956,10 @@ target_link_libraries(quickstep_storage_StorageBlockLayout
 target_link_libraries(quickstep_storage_StorageBlockLayout_proto
                       ${PROTOBUF_LIBRARY})
 target_link_libraries(quickstep_storage_StorageManager
-                      gflags_nothreads-static
+                      ${GFLAGS_LIB_NAME}
                       glog
                       gtest
+                      quickstep_catalog_CatalogTypedefs
                       quickstep_storage_CountedReference
                       quickstep_storage_EvictionPolicy
                       quickstep_storage_FileManager
@@ -923,7 +976,8 @@ target_link_libraries(quickstep_storage_StorageManager
                       quickstep_utility_Alignment
                       quickstep_utility_CalculateInstalledMemory
                       quickstep_utility_Macros
-                      quickstep_utility_ShardedLockManager)
+                      quickstep_utility_ShardedLockManager
+                      tmb)
 if (QUICKSTEP_HAVE_FILE_MANAGER_HDFS)
 target_link_libraries(quickstep_storage_StorageManager
                       quickstep_storage_FileManagerHdfs)
@@ -932,6 +986,14 @@ if (QUICKSTEP_HAVE_LIBNUMA)
   target_link_libraries(quickstep_storage_StorageManager
                         ${LIBNUMA_LIBRARY})
 endif()
+if (ENABLE_DISTRIBUTED)
+  target_link_libraries(quickstep_storage_StorageManager
+                        quickstep_queryexecution_QueryExecutionMessages_proto
+                        quickstep_queryexecution_QueryExecutionTypedefs
+                        quickstep_queryexecution_QueryExecutionUtil
+                        quickstep_storage_DataExchange_proto
+                        ${GRPCPLUSPLUS_LIBRARIES})
+endif(ENABLE_DISTRIBUTED)
 target_link_libraries(quickstep_storage_SubBlockTypeRegistry
                       glog
                       quickstep_storage_StorageBlockLayout_proto
@@ -1003,6 +1065,7 @@ target_link_libraries(quickstep_storage
                       quickstep_storage_HashTableBase
                       quickstep_storage_HashTableFactory
                       quickstep_storage_HashTableKeyManager
+                      quickstep_storage_HashTablePool
                       quickstep_storage_IndexSubBlock
                       quickstep_storage_IndexSubBlockDescriptionFactory
                       quickstep_storage_InsertDestination
@@ -1044,6 +1107,11 @@ if (QUICKSTEP_HAVE_FILE_MANAGER_POSIX)
 elseif (QUICKSTEP_HAVE_FILE_MANAGER_WINDOWS)
   target_link_libraries(quickstep_storage
                         quickstep_storage_FileManagerWindows)
+endif()
+if (ENABLE_DISTRIBUTED)
+  target_link_libraries(quickstep_storage
+                        quickstep_storage_DataExchange_proto
+                        quickstep_storage_DataExchangerAsync)
 endif()
 # CMAKE_VALIDATE_IGNORE_BEGIN
 if(QUICKSTEP_HAVE_BITWEAVING)
@@ -1192,7 +1260,7 @@ target_link_libraries(BloomFilterIndexSubBlock_unittest
 add_test(BloomFilterIndexSubBlock_unittest BloomFilterIndexSubBlock_unittest)
 
 if(QUICKSTEP_HAVE_BITWEAVING)
-  add_executable(BitWeavingIndexSubBlock_unittest 
+  add_executable(BitWeavingIndexSubBlock_unittest
                  "${CMAKE_CURRENT_SOURCE_DIR}/bitweaving/tests/BitWeavingIndexSubBlock_unittest.cpp")
   target_link_libraries(BitWeavingIndexSubBlock_unittest
                         glog
@@ -1313,6 +1381,37 @@ target_link_libraries(CompressedPackedRowStoreTupleStorageSubBlock_unittest
                       quickstep_utility_ScopedBuffer
                       ${LIBS})
 add_test(CompressedPackedRowStoreTupleStorageSubBlock_unittest CompressedPackedRowStoreTupleStorageSubBlock_unittest)
+
+if (ENABLE_DISTRIBUTED)
+  add_executable(DataExchange_unittest
+                 "${CMAKE_CURRENT_SOURCE_DIR}/tests/DataExchange_unittest.cpp")
+  target_link_libraries(DataExchange_unittest
+                        ${GFLAGS_LIB_NAME}
+                        glog
+                        gtest
+                        quickstep_catalog_CatalogAttribute
+                        quickstep_catalog_CatalogRelation
+                        quickstep_catalog_CatalogTypedefs
+                        quickstep_queryexecution_BlockLocator
+                        quickstep_queryexecution_QueryExecutionMessages_proto
+                        quickstep_queryexecution_QueryExecutionTypedefs
+                        quickstep_queryexecution_QueryExecutionUtil
+                        quickstep_storage_CountedReference
+                        quickstep_storage_DataExchangerAsync
+                        quickstep_storage_StorageBlob
+                        quickstep_storage_StorageBlock
+                        quickstep_storage_StorageBlockInfo
+                        quickstep_storage_StorageConstants
+                        quickstep_storage_StorageManager
+                        quickstep_storage_TupleStorageSubBlock
+                        quickstep_types_TypeFactory
+                        quickstep_types_TypeID
+                        quickstep_types_TypedValue
+                        quickstep_types_containers_Tuple
+                        tmb
+                        ${LIBS})
+  add_test(DataExchange_unittest DataExchange_unittest)
+endif(ENABLE_DISTRIBUTED)
 
 add_executable(CSBTreeIndexSubBlock_unittest "${CMAKE_CURRENT_SOURCE_DIR}/tests/CSBTreeIndexSubBlock_unittest.cpp")
 target_link_libraries(CSBTreeIndexSubBlock_unittest
@@ -1442,6 +1541,7 @@ target_link_libraries(SMAIndexSubBlock_unittest
                       quickstep_types_CharType
                       quickstep_types_DoubleType
                       quickstep_types_FloatType
+                      quickstep_types_IntType
                       quickstep_types_LongType
                       quickstep_types_TypeFactory
                       quickstep_types_TypeID

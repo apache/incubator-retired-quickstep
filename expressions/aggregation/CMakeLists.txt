@@ -266,7 +266,6 @@ target_link_libraries(quickstep_expressions_aggregation
                       quickstep_expressions_aggregation_AggregationHandleMax
                       quickstep_expressions_aggregation_AggregationHandleMin
                       quickstep_expressions_aggregation_AggregationHandleSum
-                      quickstep_expressions_aggregation_AggregationHandleUtil
                       quickstep_expressions_aggregation_AggregationID)
 
 # Tests:
@@ -291,6 +290,8 @@ target_link_libraries(AggregationHandle_tests
                       quickstep_expressions_aggregation_AggregationHandleMin
                       quickstep_expressions_aggregation_AggregationHandleSum
                       quickstep_expressions_aggregation_AggregationID
+                      quickstep_storage_HashTableBase
+                      quickstep_storage_StorageManager
                       quickstep_types_CharType
                       quickstep_types_DateOperatorOverloads
                       quickstep_types_DatetimeIntervalType

@@ -66,8 +66,8 @@
 #include "types/operations/comparisons/ComparisonID.hpp"
 #include "utility/PtrList.hpp"
 
+#include "gflags/gflags.h"
 #include "glog/logging.h"
-
 #include "gtest/gtest.h"
 
 #include "tmb/id_typedefs.h"
@@ -77,6 +77,7 @@ using std::unique_ptr;
 namespace quickstep {
 
 namespace {
+constexpr std::size_t kQueryId = 0;
 constexpr int kOpIndex = 0;
 }  // namespace
 
@@ -170,6 +171,17 @@ class AggregationOperatorTest : public ::testing::Test {
 
   virtual void TearDown() {
     thread_id_map_->removeValue();
+
+    // Drop blocks from relations.
+    const std::vector<block_id> table_blocks = table_->getBlocksSnapshot();
+    for (const block_id block : table_blocks) {
+      storage_manager_->deleteBlockOrBlobFile(block);
+    }
+
+    const std::vector<block_id> result_table_blocks = result_table_->getBlocksSnapshot();
+    for (const block_id block : result_table_blocks) {
+      storage_manager_->deleteBlockOrBlobFile(block);
+    }
   }
 
   Tuple* createTuple(const CatalogRelation &relation, const std::int64_t val) {
@@ -216,6 +228,8 @@ class AggregationOperatorTest : public ::testing::Test {
 
     // Setup the aggregation state proto in the query context proto.
     serialization::QueryContext query_context_proto;
+    query_context_proto.set_query_id(0);  // dummy query ID.
+
     const QueryContext::aggregation_state_id aggr_state_index = query_context_proto.aggregation_states_size();
     serialization::AggregationOperationState *aggr_state_proto = query_context_proto.add_aggregation_states();
     aggr_state_proto->set_relation_id(table_->getID());
@@ -259,7 +273,7 @@ class AggregationOperatorTest : public ::testing::Test {
     aggr_state_proto->set_estimated_num_entries(estimated_entries);
 
     // Create Operators.
-    op_.reset(new AggregationOperator(*table_, true, aggr_state_index));
+    op_.reset(new AggregationOperator(0, *table_, true, aggr_state_index));
 
     // Setup the InsertDestination proto in the query context proto.
     const QueryContext::insert_destination_id insert_destination_index =
@@ -271,7 +285,10 @@ class AggregationOperatorTest : public ::testing::Test {
     insert_destination_proto->set_relational_op_index(kOpIndex);
 
     finalize_op_.reset(
-        new FinalizeAggregationOperator(aggr_state_index, *result_table_, insert_destination_index));
+        new FinalizeAggregationOperator(kQueryId,
+                                        aggr_state_index,
+                                        *result_table_,
+                                        insert_destination_index));
 
     // Set up the QueryContext.
     query_context_.reset(new QueryContext(query_context_proto,
@@ -304,6 +321,8 @@ class AggregationOperatorTest : public ::testing::Test {
 
     // Setup the aggregation state proto in the query context proto.
     serialization::QueryContext query_context_proto;
+    query_context_proto.set_query_id(0);  // dummy query ID.
+
     const QueryContext::aggregation_state_id aggr_state_index = query_context_proto.aggregation_states_size();
     serialization::AggregationOperationState *aggr_state_proto = query_context_proto.add_aggregation_states();
     aggr_state_proto->set_relation_id(table_->getID());
@@ -341,7 +360,7 @@ class AggregationOperatorTest : public ::testing::Test {
         serialization::HashTableImplType::LINEAR_OPEN_ADDRESSING);
 
     // Create Operators.
-    op_.reset(new AggregationOperator(*table_, true, aggr_state_index));
+    op_.reset(new AggregationOperator(0, *table_, true, aggr_state_index));
 
     // Setup the InsertDestination proto in the query context proto.
     const QueryContext::insert_destination_id insert_destination_index =
@@ -353,7 +372,10 @@ class AggregationOperatorTest : public ::testing::Test {
     insert_destination_proto->set_relational_op_index(kOpIndex);
 
     finalize_op_.reset(
-        new FinalizeAggregationOperator(aggr_state_index, *result_table_, insert_destination_index));
+        new FinalizeAggregationOperator(kQueryId,
+                                        aggr_state_index,
+                                        *result_table_,
+                                        insert_destination_index));
 
     // Set up the QueryContext.
     query_context_.reset(new QueryContext(query_context_proto,
@@ -420,6 +442,10 @@ class AggregationOperatorTest : public ::testing::Test {
         sub_block.getAttributeValueTyped(0, result_table_->getAttributeByName("result-1")->getID());
     test(expected0, actual0);
     test(expected1, actual1);
+
+    // Drop the block.
+    block.release();
+    storage_manager_->deleteBlockOrBlobFile(result[0]);
   }
 
   template <class FinalDataType>
@@ -463,6 +489,10 @@ class AggregationOperatorTest : public ::testing::Test {
         check_fn(group_by_id, actual0, actual1);
       }
       total_tuples += sub_block.numTuples();
+
+      // Drop the block.
+      block.release();
+      storage_manager_->deleteBlockOrBlobFile(result[bid]);
     }
     EXPECT_EQ(num_tuples, total_tuples);
   }
@@ -500,7 +530,7 @@ class AggregationOperatorTest : public ::testing::Test {
 
 const char AggregationOperatorTest::kDatabaseName[] = "database";
 const char AggregationOperatorTest::kTableName[] = "table";
-const char AggregationOperatorTest::kStoragePath[] = "./test_data";
+const char AggregationOperatorTest::kStoragePath[] = "./aggregation_operator_test_data";
 
 namespace {
 
@@ -1773,5 +1803,13 @@ TEST_F(AggregationOperatorTest, GroupBy_Count_zeroRows) {
 }
 
 }  // namespace
-
 }  // namespace quickstep
+
+int main(int argc, char* argv[]) {
+  google::InitGoogleLogging(argv[0]);
+  // Honor FLAGS_buffer_pool_slots in StorageManager.
+  gflags::ParseCommandLineFlags(&argc, &argv, true);
+  testing::InitGoogleTest(&argc, argv);
+
+  return RUN_ALL_TESTS();
+}

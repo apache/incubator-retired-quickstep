@@ -1,5 +1,5 @@
 #   Copyright 2011-2015 Quickstep Technologies LLC.
-#   Copyright 2015 Pivotal Software, Inc.
+#   Copyright 2015-2016 Pivotal Software, Inc.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -86,8 +86,8 @@ TopLevelPlan
   +-AttributeReference[id=10,name=col11,relation=foo,type=Char(5) NULL]
   +-AttributeReference[id=11,name=col12,relation=foo,type=VarChar(5) NULL]
 ==
-CREATE TABLE foo (col1 INT) WITH BLOCKPROPERTIES 
-  (TYPE compressed_columnstore, SORT col1, COMPRESS ALL, BLOCKSIZEMB 5);
+CREATE TABLE foo (col1 INT) WITH BLOCKPROPERTIES
+  (TYPE compressed_columnstore, SORT col1, COMPRESS ALL, BLOCKSIZEMB 4);
 --
 [Optimized Logical Plan]
 TopLevelPlan

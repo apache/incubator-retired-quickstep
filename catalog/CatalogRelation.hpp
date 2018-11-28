@@ -29,8 +29,14 @@
 #include "catalog/Catalog.pb.h"
 #include "catalog/CatalogConfig.h"
 #include "catalog/CatalogRelationSchema.hpp"
+#include "catalog/CatalogRelationStatistics.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "catalog/IndexScheme.hpp"
+
+#ifdef QUICKSTEP_HAVE_LIBNUMA
+#include "catalog/NUMAPlacementScheme.hpp"
+#endif  // QUICKSTEP_HAVE_LIBNUMA
+
 #include "catalog/PartitionScheme.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageBlockLayout.hpp"
@@ -39,10 +45,6 @@
 #include "threading/SharedMutex.hpp"
 #include "threading/SpinSharedMutex.hpp"
 #include "utility/Macros.hpp"
-
-#ifdef QUICKSTEP_HAVE_LIBNUMA
-#include "catalog/NUMAPlacementScheme.hpp"
-#endif
 
 namespace quickstep {
 
@@ -78,7 +80,8 @@ class CatalogRelation : public CatalogRelationSchema {
                   const relation_id id = -1,
                   bool temporary = false)
       : CatalogRelationSchema(parent, name, id, temporary),
-        default_layout_(nullptr) {
+        default_layout_(nullptr),
+        statistics_(new CatalogRelationStatistics()) {
   }
 
   /**
@@ -135,16 +138,20 @@ class CatalogRelation : public CatalogRelationSchema {
     return partition_scheme_.get();
   }
 
-#ifdef QUICKSTEP_HAVE_LIBNUMA
   /**
    * @brief Check if a NUMA placement scheme is available for the relation.
    *
    * @return True if the relation has a NUMA placement scheme, false otherwise.
    **/
   bool hasNUMAPlacementScheme() const {
+#ifdef QUICKSTEP_HAVE_LIBNUMA
     return placement_scheme_ != nullptr;
+#else
+    return false;
+#endif  // QUICKSTEP_HAVE_LIBNUMA
   }
 
+#ifdef QUICKSTEP_HAVE_LIBNUMA
   /**
    * @brief Get the NUMA placement scheme of the catalog relation.
    * @warning This is only safe if hasNUMAPlacementScheme() is true.
@@ -165,6 +172,15 @@ class CatalogRelation : public CatalogRelationSchema {
   }
 
   /**
+   * @brief Get the NUMA placement scheme of the relation.
+   *
+   * @return A pointer to a const NUMA placement scheme.
+   **/
+  const NUMAPlacementScheme* getNUMAPlacementSchemePtr() const {
+    return placement_scheme_.get();
+  }
+
+  /**
    * @brief Set the NUMA placement scheme for the catalog relation.
    *
    * @param placement_scheme The NUMA placement scheme object for the relation,
@@ -173,7 +189,7 @@ class CatalogRelation : public CatalogRelationSchema {
   void setNUMAPlacementScheme(NUMAPlacementScheme *placement_scheme)  {
     placement_scheme_.reset(placement_scheme);
   }
-#endif
+#endif  // QUICKSTEP_HAVE_LIBNUMA
 
   /**
    * @brief Check if an index scheme is available for the relation.
@@ -363,6 +379,24 @@ class CatalogRelation : public CatalogRelationSchema {
            * getDefaultStorageBlockLayout().estimateTuplesPerBlock();
   }
 
+  /**
+   * @brief Get an immutable reference to the statistics of this catalog relation.
+   *
+   * @return A reference to the statistics of this catalog relation.
+   */
+  const CatalogRelationStatistics& getStatistics() const {
+    return *statistics_;
+  }
+
+  /**
+   * @brief Get a mutable pointer to the statistics of this catalog relation.
+   *
+   * @return A pointer to the statistics of this catalog relation.
+   */
+  CatalogRelationStatistics* getStatisticsMutable() {
+    return statistics_.get();
+  }
+
  private:
   // A list of blocks belonged to the relation.
   std::vector<block_id> blocks_;
@@ -383,12 +417,14 @@ class CatalogRelation : public CatalogRelationSchema {
   // Mutex for locking the index scheme.
   alignas(kCacheLineBytes) mutable SpinSharedMutex<false> index_scheme_mutex_;
 
+  std::unique_ptr<CatalogRelationStatistics> statistics_;
+
 #ifdef QUICKSTEP_HAVE_LIBNUMA
   // NUMA placement scheme object which has the mapping between the partitions
   // of the relation and the NUMA nodes/sockets. It also maintains a mapping
   // between the blocks of the relation and the NUMA nodes..
   std::unique_ptr<NUMAPlacementScheme> placement_scheme_;
-#endif
+#endif  // QUICKSTEP_HAVE_LIBNUMA
 
   friend class CatalogTest;
 

@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -75,19 +77,21 @@ void PullUpProjectExpressions(
         E::ExpressionPtr updated_expression = rule.apply(expression_to_update);
 
         E::NamedExpressionPtr updated_named_expression;
-        // If the updated expression is not a NamedExpression or we have changed
-        // the ID, restore the ID by adding an Alias.
-        if (!E::SomeNamedExpression::MatchesWithConditionalCast(updated_expression,
-                                                                &updated_named_expression) ||
-            expression_to_update->id() != updated_named_expression->id()) {
+        if (E::SomeNamedExpression::MatchesWithConditionalCast(updated_expression,
+                                                               &updated_named_expression) &&
+            expression_to_update->id() == updated_named_expression->id() &&
+            expression_to_update->attribute_alias() == updated_named_expression->attribute_alias()) {
+          // Pull up directly if the updated expression has the same ExprId and
+          // attribute_alias as the original project expression.
+          (*project_expressions)[i] = updated_named_expression;
+        } else {
+          // Otherwise create an Alias to wrap the updated expression.
           (*project_expressions)[i] =
               E::Alias::Create(expression_to_update->id(),
                                updated_expression,
                                expression_to_update->attribute_name(),
                                expression_to_update->attribute_alias(),
                                expression_to_update->relation_name());
-        } else {
-          (*project_expressions)[i] = updated_named_expression;
         }
       }
     }

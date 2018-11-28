@@ -39,8 +39,8 @@
 #include "types/TypeID.hpp"
 #include "utility/MemStream.hpp"
 
+#include "gflags/gflags.h"
 #include "glog/logging.h"
-
 #include "gtest/gtest.h"
 
 #include "tmb/id_typedefs.h"
@@ -55,6 +55,7 @@ const char *failure_output_filename;
 namespace quickstep {
 
 namespace {
+constexpr std::size_t kQueryId = 0;
 constexpr int kOpIndex = 0;
 }  // namespace
 
@@ -94,7 +95,7 @@ class TextScanOperatorTest : public ::testing::Test {
     relation_->addAttribute(
         new CatalogAttribute(relation_, "varchar_attr", TypeFactory::GetType(kVarChar, 20, true)));
 
-    storage_manager_.reset(new StorageManager("./test_data/"));
+    storage_manager_.reset(new StorageManager("./text_scan_operator_test_data/"));
   }
 
   virtual void TearDown() {
@@ -179,6 +180,7 @@ TEST_F(TextScanOperatorTest, ScanTest) {
 
   // Setup the InsertDestination proto in the query context proto.
   serialization::QueryContext query_context_proto;
+  query_context_proto.set_query_id(0);  // dummy query ID.
 
   QueryContext::insert_destination_id output_destination_index = query_context_proto.insert_destinations_size();
   serialization::InsertDestination *output_destination_proto = query_context_proto.add_insert_destinations();
@@ -188,10 +190,10 @@ TEST_F(TextScanOperatorTest, ScanTest) {
   output_destination_proto->set_relational_op_index(kOpIndex);
 
   std::unique_ptr<TextScanOperator> text_scan_op(
-      new TextScanOperator(input_filename,
+      new TextScanOperator(kQueryId,
+                           input_filename,
                            '\t',
                            true,
-                           false,
                            *relation_,
                            output_destination_index));
 

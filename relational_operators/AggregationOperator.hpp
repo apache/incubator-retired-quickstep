@@ -38,7 +38,10 @@ namespace quickstep {
 
 class AggregationOperationState;
 class StorageManager;
+class WorkOrderProtosContainer;
 class WorkOrdersContainer;
+
+namespace serialization { class WorkOrder; }
 
 /** \addtogroup RelationalOperators
  *  @{
@@ -53,16 +56,19 @@ class AggregationOperator : public RelationalOperator {
    * @brief Constructor for aggregating with arbitrary expressions in projection
    *        list.
    *
+   * @param query_id The ID of this query.
    * @param input_relation The relation to perform aggregation over.
    * @param input_relation_is_stored If input_relation is a stored relation and
    *        is fully available to the operator before it can start generating
    *        workorders.
    * @param aggr_state_index The index of the AggregationState in QueryContext.
    **/
-  AggregationOperator(const CatalogRelation &input_relation,
+  AggregationOperator(const std::size_t query_id,
+                      const CatalogRelation &input_relation,
                       bool input_relation_is_stored,
                       const QueryContext::aggregation_state_id aggr_state_index)
-      : input_relation_is_stored_(input_relation_is_stored),
+      : RelationalOperator(query_id),
+        input_relation_is_stored_(input_relation_is_stored),
         input_relation_block_ids_(input_relation_is_stored ? input_relation.getBlocksSnapshot()
                                                            : std::vector<block_id>()),
         aggr_state_index_(aggr_state_index),
@@ -77,6 +83,8 @@ class AggregationOperator : public RelationalOperator {
                         const tmb::client_id scheduler_client_id,
                         tmb::MessageBus *bus) override;
 
+  bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override;
+
   void feedInputBlock(const block_id input_block_id, const relation_id input_relation_id) override {
     input_relation_block_ids_.push_back(input_block_id);
   }
@@ -88,6 +96,13 @@ class AggregationOperator : public RelationalOperator {
   }
 
  private:
+  /**
+   * @brief Create Work Order proto.
+   *
+   * @param block The block id used in the Work Order.
+   **/
+  serialization::WorkOrder* createWorkOrderProto(const block_id block);
+
   const bool input_relation_is_stored_;
   std::vector<block_id> input_relation_block_ids_;
   const QueryContext::aggregation_state_id aggr_state_index_;
@@ -106,12 +121,15 @@ class AggregationWorkOrder : public WorkOrder {
   /**
    * @brief Constructor
    *
+   * @param query_id The ID of this query.
    * @param input_block_id The block id.
    * @param state The AggregationState to use.
    **/
-  AggregationWorkOrder(const block_id input_block_id,
+  AggregationWorkOrder(const std::size_t query_id,
+                       const block_id input_block_id,
                        AggregationOperationState *state)
-      : input_block_id_(input_block_id),
+      : WorkOrder(query_id),
+        input_block_id_(input_block_id),
         state_(DCHECK_NOTNULL(state)) {}
 
   ~AggregationWorkOrder() override {}

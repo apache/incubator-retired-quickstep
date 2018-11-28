@@ -19,7 +19,9 @@
 
 #include <vector>
 
+#include "query_execution/WorkOrderProtosContainer.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
+#include "relational_operators/WorkOrder.pb.h"
 #include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageManager.hpp"
 
@@ -36,10 +38,27 @@ bool SaveBlocksOperator::getAllWorkOrders(
   while (num_workorders_generated_ < destination_block_ids_.size()) {
     container->addNormalWorkOrder(
         new SaveBlocksWorkOrder(
+            query_id_,
             destination_block_ids_[num_workorders_generated_],
             force_,
             storage_manager),
         op_index_);
+    ++num_workorders_generated_;
+  }
+  return done_feeding_input_relation_;
+}
+
+bool SaveBlocksOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) {
+  while (num_workorders_generated_ < destination_block_ids_.size()) {
+    serialization::WorkOrder *proto = new serialization::WorkOrder;
+    proto->set_work_order_type(serialization::SAVE_BLOCKS);
+    proto->set_query_id(query_id_);
+    proto->SetExtension(serialization::SaveBlocksWorkOrder::block_id,
+                        destination_block_ids_[num_workorders_generated_]);
+    proto->SetExtension(serialization::SaveBlocksWorkOrder::force, force_);
+
+    container->addWorkOrderProto(proto, op_index_);
+
     ++num_workorders_generated_;
   }
   return done_feeding_input_relation_;

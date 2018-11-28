@@ -139,6 +139,12 @@ endif()
 
 option(ENABLE_DISTRIBUTED "Use the distributed version of Quickstep" OFF)
 
+if (BUILD_SHARED_LIBS)
+  set(GFLAGS_LIB_NAME gflags_nothreads-shared)
+else()
+  set(GFLAGS_LIB_NAME gflags_nothreads-static)
+endif()
+
 # Turn on the QUICKSTEP_DEBUG flag in the source if this is a debug build.
 if (CMAKE_MAJOR_VERSION GREATER 2)
   cmake_policy(SET CMP0043 NEW)
@@ -151,6 +157,32 @@ else()
     DIRECTORY
     APPEND PROPERTY COMPILE_DEFINITIONS_DEBUG QUICKSTEP_DEBUG
   )
+endif()
+
+# Include Google Perftools CPU Profiler. You probably want to
+# use this option with CMAKE_BUILD_TYPE=RelWithDebInfo.
+# Pass profiler_file_name to quickstep_cli_shell to actually
+# run the profiler. The profiler only starts collecting
+# samples after the first query, so that it runs against a
+# warm buffer pool and caches. If you want to profile everything,
+# including the first query run, set the environment variable
+# CPUPROFILE instead of passing the flag profile_file_name
+# Use google-pprof on the output file to convert it into a useful
+# format like graphviz (dot).
+option(ENABLE_GOOGLE_PROFILER "Include Google Perftools CPU Profiler." OFF)
+
+if (ENABLE_GOOGLE_PROFILER)
+  set_property(
+    DIRECTORY
+    APPEND PROPERTY COMPILE_DEFINITIONS QUICKSTEP_ENABLE_PROFILER
+  )
+
+  # TODO(navsan) Add a FindGperftools.cmake module and use that here.
+  check_include_files("gperftools/profiler.h" HAVE_GPERFTOOLS_PROFILER)
+  if (NOT HAVE_GPERFTOOLS_PROFILER)
+    message(FATAL_ERROR "Could not find gperftools. Ensure that it is installed.")
+  endif()
+  set(LIBS ${LIBS} profiler)
 endif()
 
 # Link against the system's threading library.
@@ -490,10 +522,17 @@ if(USE_TCMALLOC)
         CXXFLAGS=${THIRD_PARTY_CXX_FLAGS}
     BUILD_COMMAND make
     BUILD_IN_SOURCE 0
+    # Uncomment the next line to change the path of the build by products
+    #   as some generators, e.g. Ninja, may need it to build properly
+    # BUILD_BYPRODUCTS <INSTALL_DIR>/lib/libtcmalloc_minimal.a
   )
-  # Static libtcmalloc_minimal.a
-  add_library(libtcmalloc_minimal STATIC IMPORTED)
-  set_property(TARGET libtcmalloc_minimal PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/third_party/gperftools/lib/libtcmalloc_minimal.a)
+  if (BUILD_SHARED_LIBS)
+    add_library(libtcmalloc_minimal SHARED IMPORTED)
+    set_property(TARGET libtcmalloc_minimal PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/third_party/gperftools/lib/libtcmalloc_minimal.so)
+  else()
+    add_library(libtcmalloc_minimal STATIC IMPORTED)
+    set_property(TARGET libtcmalloc_minimal PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/third_party/gperftools/lib/libtcmalloc_minimal.a)
+  endif()
   # Linking against tcmalloc also requires linking against the system threading
   # library.
   set_property(TARGET libtcmalloc_minimal PROPERTY IMPORTED_LINK_INTERFACE_LIBRARIES ${CMAKE_THREAD_LIBS_INIT})
@@ -659,13 +698,22 @@ set(ENABLE_PUREMEMORY ON CACHE BOOL "Enable PureMemory TMB")
 set(ENABLE_LEVELDB OFF CACHE BOOL "Enable LevelDB TMB")
 set(ENABLE_MEMORYMIRROR OFF CACHE BOOL "Enable MemoryMirror TMB")
 set(ENABLE_NATIVELOG OFF CACHE BOOL "Enable NativeLog TMB")
-set(ENABLE_NATIVENET OFF CACHE BOOL "Enable NativeNet TMB")
+
+# The distributed version requires to use the NativeNet implementation.
+if (NOT ENABLE_DISTRIBUTED)
+  set(ENABLE_NATIVENET OFF CACHE BOOL "Enable NativeNet TMB")
+endif()
+
 set(ENABLE ENABLE_SQLITE OFF CACHE BOOL "Enable SQLite TMB")
 set(ENABLE_VOLTDB OFF CACHE BOOL "Enable VoltDB TMB")
 set(ENABLE_ZOOKEEPER OFF CACHE BOOL "Enable Zookeeper TMB")
 
 add_subdirectory("${THIRD_PARTY_SOURCE_DIR}/tmb" "${CMAKE_CURRENT_BINARY_DIR}/third_party/tmb")
 include_directories(${TMB_INCLUDE_DIRS})
+
+if (ENABLE_DISTRIBUTED)
+  include_directories(${CMAKE_CURRENT_BINARY_DIR}/third_party/tmb/include)
+endif()
 
 # Add all of the module subdirectories. CMakeLists.txt in each of the subdirectories
 # defines how to build that module's libraries.
@@ -688,7 +736,7 @@ add_subdirectory(yarn)
 add_executable (quickstep_cli_shell cli/QuickstepCli.cpp)
 # Link against direct deps (will transitively pull in everything needed).
 target_link_libraries(quickstep_cli_shell
-                      gflags_nothreads-static
+                      ${GFLAGS_LIB_NAME}
                       glog
                       quickstep_catalog_CatalogRelation
                       quickstep_cli_CommandExecutor
@@ -699,9 +747,11 @@ target_link_libraries(quickstep_cli_shell
                       quickstep_cli_PrintToScreen
                       quickstep_parser_ParseStatement
                       quickstep_parser_SqlParserWrapper
+                      quickstep_queryexecution_AdmitRequestMessage
                       quickstep_queryexecution_Foreman
                       quickstep_queryexecution_QueryContext
                       quickstep_queryexecution_QueryExecutionTypedefs
+                      quickstep_queryexecution_QueryExecutionUtil
                       quickstep_queryexecution_Worker
                       quickstep_queryexecution_WorkerDirectory
                       quickstep_queryexecution_WorkerMessage
@@ -712,7 +762,8 @@ target_link_libraries(quickstep_cli_shell
                       quickstep_threading_ThreadIDBasedMap
                       quickstep_utility_Macros
                       quickstep_utility_PtrVector
-                      quickstep_utility_SqlError)
+                      quickstep_utility_SqlError
+                      quickstep_utility_StringUtil)
 if (ENABLE_HDFS)
   target_link_libraries(quickstep_cli_shell
                         quickstep_storage_FileManagerHdfs)

@@ -69,8 +69,8 @@
 #include "types/operations/comparisons/ComparisonID.hpp"
 #include "utility/Macros.hpp"
 
+#include "gflags/gflags.h"
 #include "glog/logging.h"
-
 #include "gtest/gtest.h"
 
 #include "tmb/id_typedefs.h"
@@ -92,6 +92,7 @@ constexpr tuple_id kNumDimTuples = 200;
 constexpr tuple_id kNumFactTuples = 300;
 constexpr tuple_id kBlockSize = 10;
 
+constexpr std::size_t kQueryId = 0;
 constexpr int kOpIndex = 0;
 
 }  // namespace
@@ -114,7 +115,7 @@ class HashJoinOperatorTest : public ::testing::TestWithParam<HashTableImplType> 
     bus_.RegisterClientAsSender(foreman_client_id_, kCatalogRelationNewBlockMessage);
     bus_.RegisterClientAsReceiver(foreman_client_id_, kCatalogRelationNewBlockMessage);
 
-    storage_manager_.reset(new StorageManager("./test_data/"));
+    storage_manager_.reset(new StorageManager("./hash_join_operator_test_data/"));
 
     // Create a database.
     db_.reset(new CatalogDatabase(nullptr, "database"));
@@ -193,6 +194,17 @@ class HashJoinOperatorTest : public ::testing::TestWithParam<HashTableImplType> 
 
   virtual void TearDown() {
     thread_id_map_->removeValue();
+
+    // Drop blocks from relations.
+    const std::vector<block_id> dim_blocks = dim_table_->getBlocksSnapshot();
+    for (const block_id block : dim_blocks) {
+      storage_manager_->deleteBlockOrBlobFile(block);
+    }
+
+    const std::vector<block_id> fact_blocks = fact_table_->getBlocksSnapshot();
+    for (const block_id block : fact_blocks) {
+      storage_manager_->deleteBlockOrBlobFile(block);
+    }
   }
 
   StorageBlockLayout* createStorageLayout(const CatalogRelation &relation) {
@@ -282,6 +294,7 @@ class HashJoinOperatorTest : public ::testing::TestWithParam<HashTableImplType> 
 TEST_P(HashJoinOperatorTest, LongKeyHashJoinTest) {
   // Setup the hash table proto in the query context proto.
   serialization::QueryContext query_context_proto;
+  query_context_proto.set_query_id(0);  // dummy query ID.
 
   const QueryContext::join_hash_table_id join_hash_table_index =
       query_context_proto.join_hash_tables_size();
@@ -321,7 +334,8 @@ TEST_P(HashJoinOperatorTest, LongKeyHashJoinTest) {
 
   // Create the builder operator.
   unique_ptr<BuildHashOperator> builder(
-      new BuildHashOperator(*dim_table_,
+      new BuildHashOperator(kQueryId,
+                            *dim_table_,
                             true /* is_stored */,
                             std::vector<attribute_id>(1, dim_col_long.getID()),
                             dim_col_long.getType().isNullable(),
@@ -347,17 +361,18 @@ TEST_P(HashJoinOperatorTest, LongKeyHashJoinTest) {
   insert_destination_proto->set_relation_id(output_relation_id);
   insert_destination_proto->set_relational_op_index(kOpIndex);
 
-  unique_ptr<HashJoinOperator> prober(
-      new HashJoinOperator(*dim_table_,
-                           *fact_table_,
-                           true /* is_stored */,
-                           std::vector<attribute_id>(1, fact_col_long.getID()),
-                           fact_col_long.getType().isNullable(),
-                           *result_table,
-                           output_destination_index,
-                           join_hash_table_index,
-                           QueryContext::kInvalidPredicateId /* residual_predicate_index */,
-                           selection_index));
+  unique_ptr<HashJoinOperator> prober(new HashJoinOperator(
+      kQueryId,
+      *dim_table_,
+      *fact_table_,
+      true /* is_stored */,
+      std::vector<attribute_id>(1, fact_col_long.getID()),
+      fact_col_long.getType().isNullable(),
+      *result_table,
+      output_destination_index,
+      join_hash_table_index,
+      QueryContext::kInvalidPredicateId /* residual_predicate_index */,
+      selection_index));
 
   // Set up the QueryContext.
   query_context_.reset(new QueryContext(query_context_proto,
@@ -398,6 +413,10 @@ TEST_P(HashJoinOperatorTest, LongKeyHashJoinTest) {
         ++counts[value];
       }
     }
+
+    // Drop the block.
+    result_block.release();
+    storage_manager_->deleteBlockOrBlobFile(result_blocks[bid]);
   }
   EXPECT_EQ(static_cast<std::size_t>(kNumDimTuples), num_result_tuples);
 
@@ -406,7 +425,7 @@ TEST_P(HashJoinOperatorTest, LongKeyHashJoinTest) {
   }
 
   // Create cleaner operator.
-  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(join_hash_table_index));
+  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(kQueryId, join_hash_table_index));
   cleaner->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(cleaner.get());
 
@@ -416,6 +435,7 @@ TEST_P(HashJoinOperatorTest, LongKeyHashJoinTest) {
 TEST_P(HashJoinOperatorTest, IntDuplicateKeyHashJoinTest) {
   // Setup the hash table proto in the query context proto.
   serialization::QueryContext query_context_proto;
+  query_context_proto.set_query_id(0);  // dummy query ID.
 
   const QueryContext::join_hash_table_id join_hash_table_index =
       query_context_proto.join_hash_tables_size();
@@ -458,7 +478,8 @@ TEST_P(HashJoinOperatorTest, IntDuplicateKeyHashJoinTest) {
 
   // Create the builder operator.
   unique_ptr<BuildHashOperator> builder(
-      new BuildHashOperator(*dim_table_,
+      new BuildHashOperator(kQueryId,
+                            *dim_table_,
                             true /* is_stored */,
                             std::vector<attribute_id>(1, dim_col_int.getID()),
                             dim_col_int.getType().isNullable(),
@@ -489,17 +510,19 @@ TEST_P(HashJoinOperatorTest, IntDuplicateKeyHashJoinTest) {
   insert_destination_proto->set_relation_id(output_relation_id);
   insert_destination_proto->set_relational_op_index(kOpIndex);
 
-  unique_ptr<HashJoinOperator> prober(
-      new HashJoinOperator(*dim_table_,
-                           *fact_table_,
-                           true /* is_stored */,
-                           std::vector<attribute_id>(1, fact_col_int.getID()),
-                           fact_col_int.getType().isNullable(),
-                           *result_table,
-                           output_destination_index,
-                           join_hash_table_index,
-                           QueryContext::kInvalidPredicateId /* residual_predicate_index */,
-                           selection_index));
+  unique_ptr<HashJoinOperator> prober(new HashJoinOperator(
+      kQueryId,
+      *dim_table_,
+      *fact_table_,
+      true /* is_stored */,
+      std::vector<attribute_id>(1, fact_col_int.getID()),
+      fact_col_int.getType().isNullable(),
+      *result_table,
+      output_destination_index,
+      join_hash_table_index,
+      QueryContext::kInvalidPredicateId /* residual_predicate_index */,
+      selection_index));
+
 
   // Set up the QueryContext.
   query_context_.reset(new QueryContext(query_context_proto,
@@ -550,6 +573,10 @@ TEST_P(HashJoinOperatorTest, IntDuplicateKeyHashJoinTest) {
         ++fact_counts[value];
       }
     }
+
+    // Drop the block.
+    result_block.release();
+    storage_manager_->deleteBlockOrBlobFile(result_blocks[bid]);
   }
   EXPECT_EQ(static_cast<std::size_t>(kNumDimTuples), num_result_tuples);
 
@@ -569,7 +596,7 @@ TEST_P(HashJoinOperatorTest, IntDuplicateKeyHashJoinTest) {
   }
 
   // Create cleaner operator.
-  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(join_hash_table_index));
+  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(kQueryId, join_hash_table_index));
   cleaner->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(cleaner.get());
 
@@ -579,6 +606,7 @@ TEST_P(HashJoinOperatorTest, IntDuplicateKeyHashJoinTest) {
 TEST_P(HashJoinOperatorTest, CharKeyCartesianProductHashJoinTest) {
   // Setup the hash table proto in the query context proto.
   serialization::QueryContext query_context_proto;
+  query_context_proto.set_query_id(0);  // dummy query ID.
 
   const QueryContext::join_hash_table_id join_hash_table_index =
       query_context_proto.join_hash_tables_size();
@@ -613,7 +641,8 @@ TEST_P(HashJoinOperatorTest, CharKeyCartesianProductHashJoinTest) {
 
   // Create builder operator.
   unique_ptr<BuildHashOperator> builder(
-      new BuildHashOperator(*dim_table_,
+      new BuildHashOperator(kQueryId,
+                            *dim_table_,
                             true /* is_stored */,
                             std::vector<attribute_id>(1, dim_col_char.getID()),
                             dim_col_char.getType().isNullable(),
@@ -639,17 +668,18 @@ TEST_P(HashJoinOperatorTest, CharKeyCartesianProductHashJoinTest) {
   insert_destination_proto->set_relation_id(output_relation_id);
   insert_destination_proto->set_relational_op_index(kOpIndex);
 
-  unique_ptr<HashJoinOperator> prober(
-      new HashJoinOperator(*dim_table_,
-                           *fact_table_,
-                           true /* is_stored */,
-                           std::vector<attribute_id>(1, fact_col_char.getID()),
-                           fact_col_char.getType().isNullable(),
-                           *result_table,
-                           output_destination_index,
-                           join_hash_table_index,
-                           QueryContext::kInvalidPredicateId /* residual_predicate_index */,
-                           selection_index));
+  unique_ptr<HashJoinOperator> prober(new HashJoinOperator(
+      kQueryId,
+      *dim_table_,
+      *fact_table_,
+      true /* is_stored */,
+      std::vector<attribute_id>(1, fact_col_char.getID()),
+      fact_col_char.getType().isNullable(),
+      *result_table,
+      output_destination_index,
+      join_hash_table_index,
+      QueryContext::kInvalidPredicateId /* residual_predicate_index */,
+      selection_index));
 
   // Set up the QueryContext.
   query_context_.reset(new QueryContext(query_context_proto,
@@ -689,6 +719,10 @@ TEST_P(HashJoinOperatorTest, CharKeyCartesianProductHashJoinTest) {
         ++counts[value];
       }
     }
+
+    // Drop the block.
+    result_block.release();
+    storage_manager_->deleteBlockOrBlobFile(result_blocks[bid]);
   }
   EXPECT_EQ(static_cast<std::size_t>(kNumDimTuples * kNumFactTuples),
             num_result_tuples);
@@ -698,7 +732,7 @@ TEST_P(HashJoinOperatorTest, CharKeyCartesianProductHashJoinTest) {
   }
 
   // Create cleaner operator.
-  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(join_hash_table_index));
+  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(kQueryId, join_hash_table_index));
   cleaner->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(cleaner.get());
 
@@ -708,6 +742,7 @@ TEST_P(HashJoinOperatorTest, CharKeyCartesianProductHashJoinTest) {
 TEST_P(HashJoinOperatorTest, VarCharDuplicateKeyHashJoinTest) {
   // Setup the hash table proto in the query context proto.
   serialization::QueryContext query_context_proto;
+  query_context_proto.set_query_id(0);  // dummy query ID.
 
   const QueryContext::join_hash_table_id join_hash_table_index =
       query_context_proto.join_hash_tables_size();
@@ -743,7 +778,8 @@ TEST_P(HashJoinOperatorTest, VarCharDuplicateKeyHashJoinTest) {
 
   // Create builder operator.
   unique_ptr<BuildHashOperator> builder(
-      new BuildHashOperator(*dim_table_,
+      new BuildHashOperator(kQueryId,
+                            *dim_table_,
                             true /* is_stored */,
                             std::vector<attribute_id>(1, dim_col_varchar.getID()),
                             dim_col_varchar.getType().isNullable(),
@@ -774,17 +810,19 @@ TEST_P(HashJoinOperatorTest, VarCharDuplicateKeyHashJoinTest) {
   insert_destination_proto->set_relation_id(output_relation_id);
   insert_destination_proto->set_relational_op_index(kOpIndex);
 
-  unique_ptr<HashJoinOperator> prober(
-      new HashJoinOperator(*dim_table_,
-                           *fact_table_,
-                           true /* is_stored */,
-                           std::vector<attribute_id>(1, fact_col_varchar.getID()),
-                           fact_col_varchar.getType().isNullable(),
-                           *result_table,
-                           output_destination_index,
-                           join_hash_table_index,
-                           QueryContext::kInvalidPredicateId /* residual_predicate_index */,
-                           selection_index));
+  unique_ptr<HashJoinOperator> prober(new HashJoinOperator(
+      kQueryId,
+      *dim_table_,
+      *fact_table_,
+      true /* is_stored */,
+      std::vector<attribute_id>(1, fact_col_varchar.getID()),
+      fact_col_varchar.getType().isNullable(),
+      *result_table,
+      output_destination_index,
+      join_hash_table_index,
+      QueryContext::kInvalidPredicateId /* residual_predicate_index */,
+      selection_index));
+
 
   // Set up the QueryContext.
   query_context_.reset(new QueryContext(query_context_proto,
@@ -835,6 +873,10 @@ TEST_P(HashJoinOperatorTest, VarCharDuplicateKeyHashJoinTest) {
         ++fact_counts[value];
       }
     }
+
+    // Drop the block.
+    result_block.release();
+    storage_manager_->deleteBlockOrBlobFile(result_blocks[bid]);
   }
   EXPECT_EQ(static_cast<std::size_t>(kNumDimTuples), num_result_tuples);
 
@@ -858,7 +900,7 @@ TEST_P(HashJoinOperatorTest, VarCharDuplicateKeyHashJoinTest) {
   }
 
   // Create the cleaner operator.
-  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(join_hash_table_index));
+  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(kQueryId, join_hash_table_index));
   cleaner->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(cleaner.get());
 
@@ -868,6 +910,7 @@ TEST_P(HashJoinOperatorTest, VarCharDuplicateKeyHashJoinTest) {
 TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinTest) {
   // Setup the hash table proto in the query context proto.
   serialization::QueryContext query_context_proto;
+  query_context_proto.set_query_id(0);  // dummy query ID.
 
   const QueryContext::join_hash_table_id join_hash_table_index =
       query_context_proto.join_hash_tables_size();
@@ -908,7 +951,8 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinTest) {
   dim_key_attrs.push_back(dim_col_varchar.getID());
 
   unique_ptr<BuildHashOperator> builder(
-      new BuildHashOperator(*dim_table_,
+      new BuildHashOperator(kQueryId,
+                            *dim_table_,
                             true /* is_stored */,
                             dim_key_attrs,
                             dim_col_long.getType().isNullable() || dim_col_varchar.getType().isNullable(),
@@ -943,17 +987,19 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinTest) {
   fact_key_attrs.push_back(fact_col_long.getID());
   fact_key_attrs.push_back(fact_col_varchar.getID());
 
-  unique_ptr<HashJoinOperator> prober(
-      new HashJoinOperator(*dim_table_,
-                           *fact_table_,
-                           true /* is_stored */,
-                           fact_key_attrs,
-                           fact_col_long.getType().isNullable() || fact_col_varchar.getType().isNullable(),
-                           *result_table,
-                           output_destination_index,
-                           join_hash_table_index,
-                           QueryContext::kInvalidPredicateId /* residual_predicate_index */,
-                           selection_index));
+  unique_ptr<HashJoinOperator> prober(new HashJoinOperator(
+      kQueryId,
+      *dim_table_,
+      *fact_table_,
+      true /* is_stored */,
+      fact_key_attrs,
+      fact_col_long.getType().isNullable() ||
+          fact_col_varchar.getType().isNullable(),
+      *result_table,
+      output_destination_index,
+      join_hash_table_index,
+      QueryContext::kInvalidPredicateId /* residual_predicate_index */,
+      selection_index));
 
   // Set up the QueryContext.
   query_context_.reset(new QueryContext(query_context_proto,
@@ -1004,6 +1050,10 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinTest) {
         ++fact_counts[value];
       }
     }
+
+    // Drop the block.
+    result_block.release();
+    storage_manager_->deleteBlockOrBlobFile(result_blocks[bid]);
   }
   EXPECT_EQ(static_cast<std::size_t>(kNumDimTuples) / 2, num_result_tuples);
 
@@ -1027,7 +1077,7 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinTest) {
   }
 
   // Create cleaner operator.
-  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(join_hash_table_index));
+  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(kQueryId, join_hash_table_index));
   cleaner->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(cleaner.get());
 
@@ -1038,6 +1088,7 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinTest) {
 TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest) {
   // Setup the hash table proto in the query context proto.
   serialization::QueryContext query_context_proto;
+  query_context_proto.set_query_id(0);  // dummy query ID.
 
   const QueryContext::join_hash_table_id join_hash_table_index =
       query_context_proto.join_hash_tables_size();
@@ -1078,7 +1129,8 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest) {
   dim_key_attrs.push_back(dim_col_varchar.getID());
 
   unique_ptr<BuildHashOperator> builder(
-      new BuildHashOperator(*dim_table_,
+      new BuildHashOperator(kQueryId,
+                            *dim_table_,
                             true /* is_stored */,
                             dim_key_attrs,
                             dim_col_long.getType().isNullable() || dim_col_varchar.getType().isNullable(),
@@ -1124,11 +1176,13 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest) {
   query_context_proto.add_predicates()->CopyFrom(residual_pred->getProto());
 
   unique_ptr<HashJoinOperator> prober(
-      new HashJoinOperator(*dim_table_,
+      new HashJoinOperator(kQueryId,
+                           *dim_table_,
                            *fact_table_,
                            true /* is_stored */,
                            fact_key_attrs,
-                           fact_col_long.getType().isNullable() || fact_col_varchar.getType().isNullable(),
+                           fact_col_long.getType().isNullable() ||
+                               fact_col_varchar.getType().isNullable(),
                            *result_table,
                            output_destination_index,
                            join_hash_table_index,
@@ -1184,6 +1238,10 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest) {
         ++fact_counts[value];
       }
     }
+
+    // Drop the block.
+    result_block.release();
+    storage_manager_->deleteBlockOrBlobFile(result_blocks[bid]);
   }
   EXPECT_EQ(8u, num_result_tuples);
 
@@ -1207,7 +1265,7 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest) {
   }
 
   // Create cleaner operator.
-  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(join_hash_table_index));
+  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(kQueryId, join_hash_table_index));
   cleaner->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(cleaner.get());
 
@@ -1227,3 +1285,12 @@ INSTANTIATE_TEST_CASE_P(
         HashTableImplType::kSimpleScalarSeparateChaining),);  // NOLINT(whitespace/comma)
 
 }  // namespace quickstep
+
+int main(int argc, char* argv[]) {
+  google::InitGoogleLogging(argv[0]);
+  // Honor FLAGS_buffer_pool_slots in StorageManager.
+  gflags::ParseCommandLineFlags(&argc, &argv, true);
+  testing::InitGoogleTest(&argc, argv);
+
+  return RUN_ALL_TESTS();
+}

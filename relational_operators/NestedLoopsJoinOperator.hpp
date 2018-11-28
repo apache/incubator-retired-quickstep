@@ -44,7 +44,10 @@ class Predicate;
 class Scalar;
 class StorageManager;
 class TupleStorageSubBlock;
+class WorkOrderProtosContainer;
 class WorkOrdersContainer;
+
+namespace serialization { class WorkOrder; }
 
 /** \addtogroup RelationalOperators
  *  @{
@@ -59,6 +62,7 @@ class NestedLoopsJoinOperator : public RelationalOperator {
   /**
    * @brief Constructor.
    *
+   * @param query_id The ID of the query to which this operator belongs.
    * @param left_input_relation The first relation in the join (order is not
    *        actually important).
    * @param right_input_relation The second relation in the join (order is not
@@ -77,15 +81,18 @@ class NestedLoopsJoinOperator : public RelationalOperator {
    * @param right_relation_is_stored If right_input_relation is a stored
    *                                 relation.
    **/
-  NestedLoopsJoinOperator(const CatalogRelation &left_input_relation,
-                          const CatalogRelation &right_input_relation,
-                          const CatalogRelation &output_relation,
-                          const QueryContext::insert_destination_id output_destination_index,
-                          const QueryContext::predicate_id join_predicate_index,
-                          const QueryContext::scalar_group_id selection_index,
-                          bool left_relation_is_stored,
-                          bool right_relation_is_stored)
-      : left_input_relation_(left_input_relation),
+  NestedLoopsJoinOperator(
+      const std::size_t query_id,
+      const CatalogRelation &left_input_relation,
+      const CatalogRelation &right_input_relation,
+      const CatalogRelation &output_relation,
+      const QueryContext::insert_destination_id output_destination_index,
+      const QueryContext::predicate_id join_predicate_index,
+      const QueryContext::scalar_group_id selection_index,
+      bool left_relation_is_stored,
+      bool right_relation_is_stored)
+      : RelationalOperator(query_id),
+        left_input_relation_(left_input_relation),
         right_input_relation_(right_input_relation),
         output_relation_(output_relation),
         output_destination_index_(output_destination_index),
@@ -93,10 +100,12 @@ class NestedLoopsJoinOperator : public RelationalOperator {
         selection_index_(selection_index),
         left_relation_is_stored_(left_relation_is_stored),
         right_relation_is_stored_(right_relation_is_stored),
-        left_relation_block_ids_(left_relation_is_stored ? left_input_relation.getBlocksSnapshot()
-                                                         : std::vector<block_id>()),
-        right_relation_block_ids_(right_relation_is_stored ? right_input_relation.getBlocksSnapshot()
-                                                           : std::vector<block_id>()),
+        left_relation_block_ids_(left_relation_is_stored
+                                     ? left_input_relation.getBlocksSnapshot()
+                                     : std::vector<block_id>()),
+        right_relation_block_ids_(right_relation_is_stored
+                                      ? right_input_relation.getBlocksSnapshot()
+                                      : std::vector<block_id>()),
         num_left_workorders_generated_(0),
         num_right_workorders_generated_(0),
         done_feeding_left_relation_(false),
@@ -112,6 +121,8 @@ class NestedLoopsJoinOperator : public RelationalOperator {
                         StorageManager *storage_manager,
                         const tmb::client_id scheduler_client_id,
                         tmb::MessageBus *bus) override;
+
+  bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override;
 
   void doneFeedingInputBlocks(const relation_id rel_id) override {
     if (rel_id == left_input_relation_.getID()) {
@@ -181,6 +192,52 @@ class NestedLoopsJoinOperator : public RelationalOperator {
                                        QueryContext *query_context,
                                        StorageManager *storage_manager);
 
+  /**
+   * @brief Pairs block IDs from left and right relation block IDs and generates
+   *        NestedLoopsJoinWorkOrder protos and pushes them to the
+   *        WorkOrderProtosContainer when both relations are not stored
+   *        relations.
+   *
+   * @param container A pointer to the WorkOrderProtosContainer to store the
+   *                  resulting WorkOrder protos.
+   * @param left_min The starting index in left_relation_block_ids_ from where
+   *                 we begin generating NestedLoopsJoinWorkOrders.
+   * @param left_max The index in left_relation_block_ids_ until which we
+   *                 generate NestedLoopsJoinWorkOrders (excluding left_max).
+   * @param right_min The starting index in right_relation_block_ids_ from where
+   *                  we begin generating NestedLoopsJoinWorkOrders.
+   * @param right_max The index in right_relation_block_ids_ until which we
+   *                  generate NestedLoopsJoinWorkOrders. (excluding right_max).
+   *
+   * @return The number of workorder protos generated during the execution of this
+   *         function.
+   **/
+  std::size_t getAllWorkOrderProtosHelperBothNotStored(WorkOrderProtosContainer *container,
+                                                       const std::vector<block_id>::size_type left_min,
+                                                       const std::vector<block_id>::size_type left_max,
+                                                       const std::vector<block_id>::size_type right_min,
+                                                       const std::vector<block_id>::size_type right_max);
+
+  /**
+   * @brief Pairs block IDs from left and right relation block IDs and generates
+   *        NestedLoopsJoinWorkOrder protos and pushes them to the
+   *        WorkOrderProtosContainer when only one relation is a stored relation.
+   *
+   * @param container A pointer to the WorkOrderProtosContainer to store the
+   *                  resulting WorkOrder protos.
+   *
+   * @return Whether all work orders have been generated.
+   **/
+  bool getAllWorkOrderProtosHelperOneStored(WorkOrderProtosContainer *container);
+
+  /**
+   * @brief Create Work Order proto.
+   *
+   * @param block The block id used in the Work Order.
+   **/
+  serialization::WorkOrder* createWorkOrderProto(const block_id left_block,
+                                                 const block_id right_block);
+
   const CatalogRelation &left_input_relation_;
   const CatalogRelation &right_input_relation_;
 
@@ -219,6 +276,7 @@ class NestedLoopsJoinWorkOrder : public WorkOrder {
   /**
    * @brief Constructor.
    *
+   * @param query_id The ID of the query to which this operator belongs.
    * @param left_input_relation The first relation in the join (order is not
    *        actually important).
    * @param right_input_relation The second relation in the join (order is not
@@ -233,15 +291,18 @@ class NestedLoopsJoinWorkOrder : public WorkOrder {
    * @param output_destination The InsertDestination to insert the join results.
    * @param storage_manager The StorageManager to use.
    **/
-  NestedLoopsJoinWorkOrder(const CatalogRelationSchema &left_input_relation,
-                           const CatalogRelationSchema &right_input_relation,
-                           const block_id left_block_id,
-                           const block_id right_block_id,
-                           const Predicate *join_predicate,
-                           const std::vector<std::unique_ptr<const Scalar>> &selection,
-                           InsertDestination *output_destination,
-                           StorageManager *storage_manager)
-      : left_input_relation_(left_input_relation),
+  NestedLoopsJoinWorkOrder(
+      const std::size_t query_id,
+      const CatalogRelationSchema &left_input_relation,
+      const CatalogRelationSchema &right_input_relation,
+      const block_id left_block_id,
+      const block_id right_block_id,
+      const Predicate *join_predicate,
+      const std::vector<std::unique_ptr<const Scalar>> &selection,
+      InsertDestination *output_destination,
+      StorageManager *storage_manager)
+      : WorkOrder(query_id),
+        left_input_relation_(left_input_relation),
         right_input_relation_(right_input_relation),
         left_block_id_(left_block_id),
         right_block_id_(right_block_id),

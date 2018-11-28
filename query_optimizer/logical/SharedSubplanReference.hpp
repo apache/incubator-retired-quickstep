@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -27,6 +29,8 @@
 #include "query_optimizer/logical/Logical.hpp"
 #include "query_optimizer/logical/LogicalType.hpp"
 #include "utility/Macros.hpp"
+
+#include "glog/logging.h"
 
 namespace quickstep {
 namespace optimizer {
@@ -60,7 +64,14 @@ class SharedSubplanReference : public Logical {
   }
 
   /**
-   * @return The output attributes of the shared subplan.
+   * @return The attributes from the referenced shared subplan.
+   */
+  const std::vector<expressions::AttributeReferencePtr>& referenced_attributes() const {
+    return referenced_attributes_;
+  }
+
+  /**
+   * @return The output attributes of this shared subplan reference.
    */
   const std::vector<expressions::AttributeReferencePtr>& output_attributes() const {
     return output_attributes_;
@@ -81,7 +92,7 @@ class SharedSubplanReference : public Logical {
   LogicalPtr copyWithNewChildren(const std::vector<LogicalPtr> &new_children) const override;
 
   std::vector<expressions::AttributeReferencePtr> getReferencedAttributes() const override {
-    return output_attributes_;
+    return referenced_attributes_;
   }
 
   /**
@@ -89,21 +100,30 @@ class SharedSubplanReference : public Logical {
    *
    * @param subplan_id The ID of the shared subplan, which is the index of the referenced
    *        shared subplan in <shared_subplans_> of the TopLevelPlan.
-   * @param output_attributes The output attributes of the shared subplan.
+   * @param referenced_attributes The attributes from the referenced shared subplan.
+   * @param output_attributes The output attributes of this shared subplan reference.
    * @return An immutable SharedSubplanReference.
    */
-  static SharedSubplanReferencePtr Create(int subplan_id,
-                                          const std::vector<expressions::AttributeReferencePtr> &output_attributes) {
-    return SharedSubplanReferencePtr(new SharedSubplanReference(subplan_id, output_attributes));
+  static SharedSubplanReferencePtr Create(
+      int subplan_id,
+      const std::vector<expressions::AttributeReferencePtr> &referenced_attributes,
+      const std::vector<expressions::AttributeReferencePtr> &output_attributes) {
+    return SharedSubplanReferencePtr(
+        new SharedSubplanReference(subplan_id, referenced_attributes, output_attributes));
   }
 
  private:
   SharedSubplanReference(int subplan_id,
+                         const std::vector<expressions::AttributeReferencePtr> &referenced_attributes,
                          const std::vector<expressions::AttributeReferencePtr> &output_attributes)
     : subplan_id_(subplan_id),
-      output_attributes_(output_attributes) {}
+      referenced_attributes_(referenced_attributes),
+      output_attributes_(output_attributes) {
+    DCHECK_EQ(output_attributes_.size(), referenced_attributes_.size());
+  }
 
   int subplan_id_;
+  std::vector<expressions::AttributeReferencePtr> referenced_attributes_;
   std::vector<expressions::AttributeReferencePtr> output_attributes_;
 
   DISALLOW_COPY_AND_ASSIGN(SharedSubplanReference);

@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -19,10 +19,7 @@
 #define QUICKSTEP_STORAGE_FILE_MANAGER_HPP_
 
 #include <cstddef>
-#include <cstdint>
-#include <cstdio>
 #include <string>
-#include <utility>
 
 #include "storage/StorageBlockInfo.hpp"
 #include "utility/Macros.hpp"
@@ -49,12 +46,12 @@ class FileManager {
    * @param block_domain The domain of a block id.
    **/
   explicit FileManager(const std::string &storage_path)
-      : storage_path_(storage_path) { }
+      : storage_path_(storage_path) {}
 
   /**
    * @brief Virtual destructor.
    **/
-  virtual ~FileManager() { }
+  virtual ~FileManager() {}
 
   /**
    * @brief Get a block or blob's relative filename, which uses storage_path_

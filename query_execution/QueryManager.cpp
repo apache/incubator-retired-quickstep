@@ -161,7 +161,7 @@ QueryManager::QueryStatusCode QueryManager::processMessage(
   dag_node_index op_index;
   switch (tagged_message.message_type()) {
     case kWorkOrderCompleteMessage: {
-      serialization::WorkOrderCompletionMessage proto;
+      serialization::NormalWorkOrderCompletionMessage proto;
       CHECK(proto.ParseFromArray(tagged_message.message(),
                                  tagged_message.message_bytes()));
 
@@ -170,7 +170,7 @@ QueryManager::QueryStatusCode QueryManager::processMessage(
       break;
     }
     case kRebuildWorkOrderCompleteMessage: {
-      serialization::WorkOrderCompletionMessage proto;
+      serialization::RebuildWorkOrderCompletionMessage proto;
       CHECK(proto.ParseFromArray(tagged_message.message(),
                                  tagged_message.message_bytes()));
 
@@ -457,11 +457,12 @@ void QueryManager::getRebuildWorkOrders(const dag_node_index index,
        i < partially_filled_block_refs.size();
        ++i) {
     container->addRebuildWorkOrder(
-        new RebuildWorkOrder(std::move(partially_filled_block_refs[i]),
-                            index,
-                            op.getOutputRelationID(),
-                            foreman_client_id_,
-                            bus_),
+        new RebuildWorkOrder(query_id_,
+                             std::move(partially_filled_block_refs[i]),
+                             index,
+                             op.getOutputRelationID(),
+                             foreman_client_id_,
+                             bus_),
         index);
   }
 }

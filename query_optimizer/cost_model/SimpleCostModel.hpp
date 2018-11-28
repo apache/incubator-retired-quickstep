@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -19,6 +21,7 @@
 #define QUERY_OPTIMIZER_COST_MODEL_SIMPLE_COST_MODEL_HPP_
 
 #include <cstddef>
+#include <vector>
 
 #include "query_optimizer/cost_model/CostModel.hpp"
 #include "query_optimizer/physical/Aggregate.hpp"
@@ -47,7 +50,8 @@ class SimpleCostModel : public CostModel {
   /**
    * @brief Constructor.
    */
-  SimpleCostModel() {}
+  explicit SimpleCostModel(const std::vector<physical::PhysicalPtr> &shared_subplans)
+      : shared_subplans_(shared_subplans) {}
 
   std::size_t estimateCardinality(
       const physical::PhysicalPtr &physical_plan) override;
@@ -83,6 +87,8 @@ class SimpleCostModel : public CostModel {
   // cardinality of the input plan divided by 10.
   std::size_t estimateCardinalityForAggregate(
       const physical::AggregatePtr &physical_plan);
+
+  const std::vector<physical::PhysicalPtr> &shared_subplans_;
 
   DISALLOW_COPY_AND_ASSIGN(SimpleCostModel);
 };

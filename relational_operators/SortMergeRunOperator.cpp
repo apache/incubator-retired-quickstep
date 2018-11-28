@@ -23,9 +23,11 @@
 #include <vector>
 
 #include "query_execution/QueryExecutionTypedefs.hpp"
+#include "query_execution/WorkOrderProtosContainer.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
 #include "relational_operators/SortMergeRunOperator.pb.h"
 #include "relational_operators/SortMergeRunOperatorHelpers.hpp"
+#include "relational_operators/WorkOrder.pb.h"
 #include "threading/ThreadIDBasedMap.hpp"
 
 #include "glog/logging.h"
@@ -69,6 +71,72 @@ bool SortMergeRunOperator::getAllWorkOrders(
   return generateWorkOrders(container, query_context, storage_manager, scheduler_client_id, bus);
 }
 
+bool SortMergeRunOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) {
+  if (input_relation_is_stored_) {
+    // Input blocks (or runs) are from base relation. Only possible when base
+    // relation is stored sorted.
+    if (!started_) {
+      // Initialize merge tree completely, since all input runs are known.
+      merge_tree_.initializeTree(input_relation_block_ids_.size());
+      started_ = true;
+      initializeInputRuns();
+    }
+  } else {
+    // Input blocks (or runs) are pipelined from the sorted run generation
+    // operator.
+    if (!started_ && !input_stream_done_) {
+      // Initialize merge tree for first pipeline mode.
+      merge_tree_.initializeForPipeline();
+      started_ = true;
+      initializeInputRuns();
+    }
+  }
+
+  // Get merge jobs from merge tree.
+  std::vector<MergeTree::MergeJob> jobs;
+  const bool done_generating = merge_tree_.getMergeJobs(&jobs);
+
+  for (std::vector<MergeTree::MergeJob>::size_type job_id = 0;
+       job_id < jobs.size();
+       ++job_id) {
+    // Add work order for each merge job.
+    container->addWorkOrderProto(createWorkOrderProto(&jobs[job_id]), op_index_);
+  }
+
+  return done_generating;
+}
+
+serialization::WorkOrder* SortMergeRunOperator::createWorkOrderProto(
+    merge_run_operator::MergeTree::MergeJob *job) {
+  DCHECK(job != nullptr);
+  DCHECK(!job->runs.empty());
+
+  serialization::WorkOrder *proto = new serialization::WorkOrder;
+  proto->set_work_order_type(serialization::SORT_MERGE_RUN);
+  proto->set_query_id(query_id_);
+
+  proto->SetExtension(serialization::SortMergeRunWorkOrder::operator_index, op_index_);
+  proto->SetExtension(serialization::SortMergeRunWorkOrder::sort_config_index, sort_config_index_);
+
+  for (const merge_run_operator::Run &run : job->runs) {
+    serialization::Run *run_proto = proto->AddExtension(serialization::SortMergeRunWorkOrder::runs);
+    for (const block_id block : run) {
+      run_proto->add_blocks(block);
+    }
+  }
+
+  proto->SetExtension(serialization::SortMergeRunWorkOrder::top_k, top_k_);
+  proto->SetExtension(serialization::SortMergeRunWorkOrder::merge_level, job->level);
+  proto->SetExtension(serialization::SortMergeRunWorkOrder::relation_id,
+                      job->level > 0 ? run_relation_.getID()
+                                     : input_relation_.getID());
+  proto->SetExtension(serialization::SortMergeRunWorkOrder::insert_destination_index,
+                      job->is_final_level ? output_destination_index_
+                                          : run_block_destination_index_);
+
+  return proto;
+}
+
 WorkOrder *SortMergeRunOperator::createWorkOrder(
     merge_run_operator::MergeTree::MergeJob *job,
     QueryContext *query_context,
@@ -85,6 +153,7 @@ WorkOrder *SortMergeRunOperator::createWorkOrder(
 
   // Create a work order from the merge job from merge tree.
   return new SortMergeRunWorkOrder(
+      query_id_,
       query_context->getSortConfig(sort_config_index_),
       job->level > 0 ? run_relation_ : input_relation_,
       std::move(job->runs),
@@ -258,6 +327,7 @@ void SortMergeRunWorkOrder::execute() {
 
   // Send completion message to operator.
   FeedbackMessage msg(SortMergeRunOperator::kRunOutputMessage,
+                      getQueryID(),
                       operator_index_,
                       serialized_output.first,
                       serialized_output.second);

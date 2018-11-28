@@ -1,6 +1,7 @@
 /**
  *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
  *     University of Wisconsin—Madison.
+ *   Copyright 2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -18,6 +19,7 @@
 #ifndef QUICKSTEP_RELATIONAL_OPERATORS_CREATE_INDEX_OPERATOR_HPP_
 #define QUICKSTEP_RELATIONAL_OPERATORS_CREATE_INDEX_OPERATOR_HPP_
 
+#include <cstddef>
 #include <string>
 
 #include "catalog/CatalogRelation.hpp"
@@ -36,6 +38,7 @@ namespace quickstep {
 class CatalogRelation;
 class QueryContext;
 class StorageManager;
+class WorkOrderProtosContainer;
 class WorkOrdersContainer;
 
 /** \addtogroup RelationalOperators
@@ -50,27 +53,37 @@ class CreateIndexOperator : public RelationalOperator {
   /**
    * @brief Constructor.
    *
+   * @param query_id The ID of the query to which this operator belongs.
    * @param relation The relation to create index upon.
    * @param index_name The index to create.
    * @param index_description The index_description associated with this index.
    **/
-  CreateIndexOperator(CatalogRelation *relation,
+  CreateIndexOperator(const std::size_t query_id,
+                      CatalogRelation *relation,
                       const std::string &index_name,
                       IndexSubBlockDescription &&index_description)  // NOLINT(whitespace/operators)
-      : relation_(DCHECK_NOTNULL(relation)),
+      : RelationalOperator(query_id),
+        relation_(DCHECK_NOTNULL(relation)),
         index_name_(index_name),
         index_description_(index_description) {}
 
   ~CreateIndexOperator() override {}
 
   /**
-   * @note no WorkOrder generated for this operator.
+   * @note No WorkOrder generated for this operator.
    **/
   bool getAllWorkOrders(WorkOrdersContainer *container,
                         QueryContext *query_context,
                         StorageManager *storage_manager,
                         const tmb::client_id scheduler_client_id,
                         tmb::MessageBus *bus) override;
+
+  /**
+   * @note no WorkOrder proto generated for this operator.
+   **/
+  bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override {
+    return true;
+  }
 
   void updateCatalogOnCompletion() override;
 

@@ -464,8 +464,6 @@ WHERE a.int_col = b.int_col
 +-----------+-----------+---------------+-----------------------+---------------+------------------------+-----------+
 ==
 
-# FIXME(qzeng): Inner nested-loops join has no output column, causing query
-# result to be INCORRECT.
 SELECT COUNT(*)
 FROM
   (SELECT a.float_col
@@ -476,7 +474,7 @@ FROM
 +--------------------+
 |COUNT(*)            |
 +--------------------+
-|                   0|
+|                 575|
 +--------------------+
 ==
 
@@ -535,21 +533,12 @@ WHERE int_col = 2;
 
 SELECT int_col
 FROM test
-GROUP BY int_col;
+GROUP BY int_col
+ORDER BY int_col;
 --
 +-----------+
 |int_col    |
 +-----------+
-|          2|
-|          4|
-|          6|
-|          8|
-|         12|
-|         14|
-|         16|
-|         18|
-|         22|
-|         24|
 |        -23|
 |        -21|
 |        -19|
@@ -562,6 +551,16 @@ GROUP BY int_col;
 |         -5|
 |         -3|
 |         -1|
+|          2|
+|          4|
+|          6|
+|          8|
+|         12|
+|         14|
+|         16|
+|         18|
+|         22|
+|         24|
 +-----------+
 ==
 
@@ -662,11 +661,11 @@ FROM dates;
 +-------------------------------+
 ==
 
-SELECT EXTRACT(hour FROM value + INTERVAL '1 hour')
+SELECT EXTRACT(HOUR FROM value + INTERVAL '1 hour')
 FROM dates;
 --
 +-----------------------------------------------------+
-|EXTRACT(hour FROM (value+DatetimeInterval('1 hour')))|
+|EXTRACT(HOUR FROM (value+DatetimeInterval('1 hour')))|
 +-----------------------------------------------------+
 |                                                   11|
 |                                                   12|
@@ -764,6 +763,30 @@ WHERE
 +-----------+
 ==
 
+# SUBSTRING function
+SELECT char_col,
+       SUBSTRING(char_col FROM 1 FOR 2) AS negative_value
+FROM test
+WHERE SUBSTRING(char_col FROM 1 FOR 1) = '-'
+--
++--------------------+--------------+
+|char_col            |negative_value|
++--------------------+--------------+
+|         -1 1.000000|            -1|
+|         -3 1.732051|            -3|
+|         -5 2.236068|            -5|
+|         -7 2.645751|            -7|
+|         -9 3.000000|            -9|
+|        -11 3.316625|            -1|
+|        -13 3.605551|            -1|
+|        -15 3.872983|            -1|
+|        -17 4.123106|            -1|
+|        -19 4.358899|            -1|
+|        -21 4.582576|            -2|
+|        -23 4.795832|            -2|
++--------------------+--------------+
+==
+
 # IN predicate
 SELECT *
 FROM generate_series(1, 5) AS gs(i)
@@ -820,21 +843,110 @@ WHERE i NOT IN (
 +-----------+
 ==
 
-# TODO(team): Support uncorrelated queries.
-# SELECT COUNT(*)
-# FROM test
-# WHERE double_col < 0
-#   AND long_col > (SELECT AVG(long_col) FROM test)
+# Scalar subquery expression
+SELECT *
+FROM test
+WHERE double_col < 0
+  AND long_col > (SELECT AVG(long_col) FROM test);
+--
++-----------+--------------------+---------------+------------------------+--------------------+
+|int_col    |long_col            |float_col      |double_col              |char_col            |
++-----------+--------------------+---------------+------------------------+--------------------+
+|        -15|                 225|     3.87298346|     -58.094750193111253|        -15 3.872983|
+|        -17|                 289|     4.12310553|     -70.092795635500224|        -17 4.123106|
+|        -19|                 361|     4.35889912|      -82.81907992727281|        -19 4.358899|
+|        -21|                 441|      4.5825758|     -96.234089594072643|        -21 4.582576|
+|        -23|                 529|     4.79583168|     -110.30412503619254|        -23 4.795832|
++-----------+--------------------+---------------+------------------------+--------------------+
+==
 
-# TODO(team): Fix Issue #9 to enable COUNT(*).
-SELECT COUNT(long_col)
+SELECT i + (
+  SELECT SUM(j)
+  FROM generate_series(1, 10) AS gs(j))
+FROM generate_series(1, 5) AS gs(i);
+--
++----------------------+
+|(i+SubqueryExpression)|
++----------------------+
+|                    56|
+|                    57|
+|                    58|
+|                    59|
+|                    60|
++----------------------+
+==
+
+SELECT i + (
+  SELECT SUM(j)
+  FROM generate_series(1, 10) AS gs1(j),
+       generate_series(1, 10) AS gs2(k)
+  WHERE i = k AND j <= k)
+FROM generate_series(1, 5) AS gs(i);
+--
++----------------------+
+|(i+SubqueryExpression)|
++----------------------+
+|                     2|
+|                     5|
+|                     9|
+|                    14|
+|                    20|
++----------------------+
+==
+
+# This query is to test that the output columns have the correct alias name as specified.
+SELECT *
+FROM (
+  SELECT i, SUM(i) AS sum
+  FROM generate_series(1, 2) AS gs(i)
+  GROUP BY i
+) t1 JOIN (
+  SELECT j, AVG(j) AS avg
+  FROM generate_series(1, 2) AS gs(j)
+  GROUP BY j
+) t2 ON i = j;
+--
++-----------+--------------------+-----------+------------------------+
+|i          |sum                 |j          |avg                     |
++-----------+--------------------+-----------+------------------------+
+|          1|                   1|          1|                       1|
+|          2|                   2|          2|                       2|
++-----------+--------------------+-----------+------------------------+
+==
+
+# Same shared subplan referenced multiple times.
+WITH t(x, y) AS (
+  SELECT i % 5, i
+  FROM generate_series(1, 20) AS g(i)
+)
+SELECT *
+FROM t
+WHERE t.y = (
+  SELECT MAX(y)
+  FROM t t1
+  WHERE t.x = t1.x
+)
+ORDER BY x;
+--
++-----------+-----------+
+|x          |y          |
++-----------+-----------+
+|          0|         20|
+|          1|         16|
+|          2|         17|
+|          3|         18|
+|          4|         19|
++-----------+-----------+
+==
+
+SELECT COUNT(*)
 FROM test,
      (SELECT AVG(long_col) a FROM test) subquery
 WHERE double_col < 0
   AND long_col > subquery.a;
 --
 +--------------------+
-|COUNT(long_col)     |
+|COUNT(*)            |
 +--------------------+
 |                   5|
 +--------------------+

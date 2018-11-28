@@ -24,6 +24,7 @@
 #include <vector>
 
 #include "catalog/CatalogConfig.h"
+#include "storage/StorageConfig.h"
 #include "utility/StringUtil.hpp"
 
 #include "glog/logging.h"

@@ -48,6 +48,7 @@ class RebuildWorkOrder : public WorkOrder {
   /**
    * @brief Constructor.
    *
+   * @param query_id The ID of the query to which this RebuildWorkOrder belongs.
    * @param block_ref A MutableBlockReference to the storage block which needs
    *        to be rebuilt.
    * @param input_operator_index The index of the relational operator in the
@@ -57,12 +58,15 @@ class RebuildWorkOrder : public WorkOrder {
    * @param scheduler_client_id The TMB client ID of the scheduler thread.
    * @param bus A pointer to the TMB.
    **/
-  RebuildWorkOrder(MutableBlockReference &&block_ref,
-                   const std::size_t input_operator_index,
-                   const relation_id input_relation_id,
-                   const client_id scheduler_client_id,
-                   MessageBus *bus)
-      : block_ref_(std::move(block_ref)),
+  RebuildWorkOrder(
+      const std::size_t query_id,
+      MutableBlockReference &&block_ref,  // NOLINT(whitespace/operators)
+      const std::size_t input_operator_index,
+      const relation_id input_relation_id,
+      const client_id scheduler_client_id,
+      MessageBus *bus)
+      : WorkOrder(query_id),
+        block_ref_(std::move(block_ref)),
         input_operator_index_(input_operator_index),
         input_relation_id_(input_relation_id),
         scheduler_client_id_(scheduler_client_id),
@@ -81,6 +85,7 @@ class RebuildWorkOrder : public WorkOrder {
     proto.set_operator_index(input_operator_index_);
     proto.set_block_id(block_ref_->getID());
     proto.set_relation_id(input_relation_id_);
+    proto.set_query_id(query_id_);
 
     // NOTE(zuyu): Using the heap memory to serialize proto as a c-like string.
     const std::size_t proto_length = proto.ByteSize();

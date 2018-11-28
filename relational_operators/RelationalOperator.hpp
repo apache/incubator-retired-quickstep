@@ -36,6 +36,7 @@ namespace tmb { class MessageBus; }
 namespace quickstep {
 
 class StorageManager;
+class WorkOrderProtosContainer;
 class WorkOrdersContainer;
 
 /** \addtogroup RelationalOperators
@@ -80,6 +81,27 @@ class RelationalOperator {
                                 StorageManager *storage_manager,
                                 const tmb::client_id scheduler_client_id,
                                 tmb::MessageBus *bus) = 0;
+
+  /**
+    * @brief For the distributed version, generate all the next WorkOrder protos
+    *        for this RelationalOperator
+    *
+    * @note If a RelationalOperator has blocking dependencies, it should not
+    *       generate workorders unless all of the blocking dependencies have been
+    *       met.
+    *
+    * @note If a RelationalOperator is not parallelizeable on a block-level, then
+    *       only one WorkOrder consisting of all the work for this
+    *       RelationalOperator should be generated.
+    *
+    * @param container A pointer to a WorkOrderProtosContainer to be used to
+    *        store the generated WorkOrder protos.
+    *
+    * @return Whether the operator has finished generating work order protos. If
+    *         \c false, the execution engine will invoke this method after at
+    *         least one pending work order has finished executing.
+    **/
+  virtual bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) = 0;
 
   /**
    * @brief Update Catalog upon the completion of this RelationalOperator, if
@@ -208,12 +230,17 @@ class RelationalOperator {
   /**
    * @brief Constructor
    *
+   * @param query_id The ID of the query to which this operator belongs.
    * @param blocking_dependencies_met If those dependencies which break the
    *        pipeline have been met.
    **/
-  explicit RelationalOperator(bool blocking_dependencies_met = false)
-      : blocking_dependencies_met_(blocking_dependencies_met),
+  explicit RelationalOperator(const std::size_t query_id,
+                              const bool blocking_dependencies_met = false)
+      : query_id_(query_id),
+        blocking_dependencies_met_(blocking_dependencies_met),
         done_feeding_input_relation_(false) {}
+
+  const std::size_t query_id_;
 
   bool blocking_dependencies_met_;
   bool done_feeding_input_relation_;

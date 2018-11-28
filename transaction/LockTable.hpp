@@ -23,7 +23,6 @@
 #include <utility>
 
 #include "threading/SharedMutex.hpp"
-#include "transaction/AccessMode.hpp"
 #include "transaction/Lock.hpp"
 #include "transaction/ResourceId.hpp"
 #include "transaction/Transaction.hpp"
@@ -31,6 +30,8 @@
 
 namespace quickstep {
 namespace transaction {
+
+class AccessMode;
 
 /** \addtogroup Transaction
  * @{
@@ -40,14 +41,14 @@ namespace transaction {
  * @brief Represents different results for LockTable's methods.
  **/
 enum class LockTableResult {
-  kPLACED_IN_OWNED = 0,
-  kPLACED_IN_PENDING,
-  kALREADY_IN_OWNED,
-  kALREADY_IN_PENDING,
-  kDEL_FROM_OWNED,
-  kDEL_FROM_PENDING,
-  kDEL_ERROR,
-  kPUT_ERROR,
+  kPlacedInOwned = 0,
+  kPlacedInPending,
+  kAlreadyInOwned,
+  kAlreadyInPending,
+  kDeleteFromOwned,
+  kDeleteFromPending,
+  kDeleteError,
+  kPutError,
 };
 
 /**
@@ -79,31 +80,30 @@ class LockTable {
    * @param rid Id of the resource to be locked.
    * @param access_mode Access mode of the lock.
    *
-   * @return LockTableResult::kPLACED_IN_OWNED if lock is granted,
-   *         LockTableResult::kPLACED_IN_PENDING if lock is not granted,
-   *         LockTableResult::kALREADY_IN_OWNED if lock has been
+   * @return LockTableResult::kPlacedInOwned if lock is granted,
+   *         LockTableResult::kPlacedInPending if lock is not granted,
+   *         LockTableResult::kAlreadyInOwned if lock has been
    *         already granted,
-   *         LockTableResult::kALREADY_IN_PENDING if lock has been
+   *         LockTableResult::kAlreadyInPending if lock has been
    *         already pending.
    **/
   LockTableResult putLock(const transaction_id tid,
                           const ResourceId &rid,
-                          const AccessMode access_mode);
+                          const AccessMode &access_mode);
   /**
    * @brief Deletes the lock entry.
    *
    * @param tid Id of the transaction that owns or awaits.
    * @param rid Id of resource that the lock covers.
    *
-   * @return LockTableResult::kDEL_FROM_OWNED if the lock is deleted from
+   * @return LockTableResult::kDelFromOwned if the lock is deleted from
    *         owned list,
-   *         LockTableResult::kDEL_FROM_PENDING if the lock is deleted from
+   *         LockTableResult::kDelFromPending if the lock is deleted from
    *         pending list,
-   *         LockTableResult::kDEL_ERROR if the lock cannot be found
+   *         LockTableResult::kDelError if the lock cannot be found
    **/
   LockTableResult deleteLock(const transaction_id tid,
                              const ResourceId &rid);
-
 
   /**
    * @brief Iterator for begin position.

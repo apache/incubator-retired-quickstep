@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -33,6 +35,8 @@ serialization::UnaryOperation UnaryOperation::getProto() const {
       FATAL_ERROR("Must use the overridden NumericCastOperation::getProto");
     case UnaryOperationID::kDateExtract:
       FATAL_ERROR("Must use the overridden DateExtractOperation::getProto");
+    case UnaryOperationID::kSubstring:
+      FATAL_ERROR("Must use the overridden SubstringOperation::getProto");
     default:
       FATAL_ERROR("Unrecognized UnaryOperationID in UnaryOperation::getProto");
   }

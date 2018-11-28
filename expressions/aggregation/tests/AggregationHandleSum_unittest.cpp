@@ -26,6 +26,7 @@
 #include "expressions/aggregation/AggregationHandle.hpp"
 #include "expressions/aggregation/AggregationHandleSum.hpp"
 #include "expressions/aggregation/AggregationID.hpp"
+#include "storage/StorageManager.hpp"
 #include "types/CharType.hpp"
 #include "types/DatetimeIntervalType.hpp"
 #include "types/DoubleType.hpp"
@@ -237,6 +238,7 @@ class AggregationHandleSumTest : public::testing::Test {
 
   std::unique_ptr<AggregationHandle> aggregation_handle_sum_;
   std::unique_ptr<AggregationState> aggregation_handle_sum_state_;
+  std::unique_ptr<StorageManager> storage_manager_;
 };
 
 const int AggregationHandleSumTest::kNumSamples;
@@ -423,6 +425,128 @@ TEST_F(AggregationHandleSumTest, ResultTypeForArgumentTypeTest) {
   EXPECT_TRUE(ResultTypeForArgumentTypeTest(kDouble, kDouble));
   EXPECT_TRUE(ResultTypeForArgumentTypeTest(kDatetimeInterval, kDatetimeInterval));
   EXPECT_TRUE(ResultTypeForArgumentTypeTest(kYearMonthInterval, kYearMonthInterval));
+}
+
+TEST_F(AggregationHandleSumTest, GroupByTableMergeTest) {
+  const Type &long_non_null_type = LongType::Instance(false);
+  initializeHandle(long_non_null_type);
+  storage_manager_.reset(new StorageManager("./test_sum_data"));
+  std::unique_ptr<AggregationStateHashTableBase> source_hash_table(
+      aggregation_handle_sum_->createGroupByHashTable(
+          HashTableImplType::kSimpleScalarSeparateChaining,
+          std::vector<const Type *>(1, &long_non_null_type),
+          10,
+          storage_manager_.get()));
+  std::unique_ptr<AggregationStateHashTableBase> destination_hash_table(
+      aggregation_handle_sum_->createGroupByHashTable(
+          HashTableImplType::kSimpleScalarSeparateChaining,
+          std::vector<const Type *>(1, &long_non_null_type),
+          10,
+          storage_manager_.get()));
+
+  AggregationStateHashTable<AggregationStateSum> *destination_hash_table_derived =
+      static_cast<AggregationStateHashTable<AggregationStateSum> *>(
+          destination_hash_table.get());
+
+  AggregationStateHashTable<AggregationStateSum> *source_hash_table_derived =
+      static_cast<AggregationStateHashTable<AggregationStateSum> *>(
+          source_hash_table.get());
+
+  AggregationHandleSum *aggregation_handle_sum_derived =
+      static_cast<AggregationHandleSum *>(aggregation_handle_sum_.get());
+  // We create three keys: first is present in both the hash tables, second key
+  // is present only in the source hash table while the third key is present
+  // the destination hash table only.
+  std::vector<TypedValue> common_key;
+  common_key.emplace_back(static_cast<std::int64_t>(0));
+  std::vector<TypedValue> exclusive_source_key, exclusive_destination_key;
+  exclusive_source_key.emplace_back(static_cast<std::int64_t>(1));
+  exclusive_destination_key.emplace_back(static_cast<std::int64_t>(2));
+
+  const std::int64_t common_key_source_sum = 3000;
+  TypedValue common_key_source_sum_val(common_key_source_sum);
+
+  const std::int64_t common_key_destination_sum = 4000;
+  TypedValue common_key_destination_sum_val(common_key_destination_sum);
+
+  const std::int64_t merged_common_key = common_key_source_sum + common_key_destination_sum;
+  TypedValue common_key_merged_val(merged_common_key);
+
+  const std::int64_t exclusive_key_source_sum = 100;
+  TypedValue exclusive_key_source_sum_val(exclusive_key_source_sum);
+
+  const std::int64_t exclusive_key_destination_sum = 200;
+  TypedValue exclusive_key_destination_sum_val(exclusive_key_destination_sum);
+
+  std::unique_ptr<AggregationStateSum> common_key_source_state(
+      static_cast<AggregationStateSum *>(
+          aggregation_handle_sum_->createInitialState()));
+  std::unique_ptr<AggregationStateSum> common_key_destination_state(
+      static_cast<AggregationStateSum *>(
+          aggregation_handle_sum_->createInitialState()));
+  std::unique_ptr<AggregationStateSum> exclusive_key_source_state(
+      static_cast<AggregationStateSum *>(
+          aggregation_handle_sum_->createInitialState()));
+  std::unique_ptr<AggregationStateSum> exclusive_key_destination_state(
+      static_cast<AggregationStateSum *>(
+          aggregation_handle_sum_->createInitialState()));
+
+  // Create sum value states for keys.
+  aggregation_handle_sum_derived->iterateUnaryInl(common_key_source_state.get(),
+                                                  common_key_source_sum_val);
+  std::int64_t actual_val = aggregation_handle_sum_->finalize(*common_key_source_state)
+                       .getLiteral<std::int64_t>();
+  EXPECT_EQ(common_key_source_sum_val.getLiteral<std::int64_t>(), actual_val);
+
+  aggregation_handle_sum_derived->iterateUnaryInl(
+      common_key_destination_state.get(), common_key_destination_sum_val);
+  actual_val = aggregation_handle_sum_->finalize(*common_key_destination_state)
+                   .getLiteral<std::int64_t>();
+  EXPECT_EQ(common_key_destination_sum_val.getLiteral<std::int64_t>(), actual_val);
+
+  aggregation_handle_sum_derived->iterateUnaryInl(
+      exclusive_key_destination_state.get(), exclusive_key_destination_sum_val);
+  actual_val =
+      aggregation_handle_sum_->finalize(*exclusive_key_destination_state)
+          .getLiteral<std::int64_t>();
+  EXPECT_EQ(exclusive_key_destination_sum_val.getLiteral<std::int64_t>(), actual_val);
+
+  aggregation_handle_sum_derived->iterateUnaryInl(
+      exclusive_key_source_state.get(), exclusive_key_source_sum_val);
+  actual_val = aggregation_handle_sum_->finalize(*exclusive_key_source_state)
+                   .getLiteral<std::int64_t>();
+  EXPECT_EQ(exclusive_key_source_sum_val.getLiteral<std::int64_t>(), actual_val);
+
+  // Add the key-state pairs to the hash tables.
+  source_hash_table_derived->putCompositeKey(common_key,
+                                             *common_key_source_state);
+  destination_hash_table_derived->putCompositeKey(
+      common_key, *common_key_destination_state);
+  source_hash_table_derived->putCompositeKey(exclusive_source_key,
+                                             *exclusive_key_source_state);
+  destination_hash_table_derived->putCompositeKey(
+      exclusive_destination_key, *exclusive_key_destination_state);
+
+  EXPECT_EQ(2u, destination_hash_table_derived->numEntries());
+  EXPECT_EQ(2u, source_hash_table_derived->numEntries());
+
+  aggregation_handle_sum_->mergeGroupByHashTables(*source_hash_table,
+                                                  destination_hash_table.get());
+
+  EXPECT_EQ(3u, destination_hash_table_derived->numEntries());
+
+  CheckSumValue<std::int64_t>(
+      common_key_merged_val.getLiteral<std::int64_t>(),
+      *aggregation_handle_sum_derived,
+      *(destination_hash_table_derived->getSingleCompositeKey(common_key)));
+  CheckSumValue<std::int64_t>(exclusive_key_destination_sum_val.getLiteral<std::int64_t>(),
+                     *aggregation_handle_sum_derived,
+                     *(destination_hash_table_derived->getSingleCompositeKey(
+                         exclusive_destination_key)));
+  CheckSumValue<std::int64_t>(exclusive_key_source_sum_val.getLiteral<std::int64_t>(),
+                     *aggregation_handle_sum_derived,
+                     *(source_hash_table_derived->getSingleCompositeKey(
+                         exclusive_source_key)));
 }
 
 }  // namespace quickstep

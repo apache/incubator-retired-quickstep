@@ -1166,7 +1166,8 @@ TopLevelPlan
 | | | | +-Add
 | | | |   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
 | | | |   +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
-| | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | +-Alias[id=1,name=col1,relation=,type=Long]
+| | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
 | | | +-Alias[id=8,name=,alias=$groupby2,relation=$groupby,type=Float]
 | | |   +-Add
 | | |     +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
@@ -1304,7 +1305,8 @@ TopLevelPlan
 | | | +-Literal[value=2,type=Int]
 | | +-grouping_expressions=
 | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
-| | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | +-Alias[id=4,name=subquery_col3,relation=subquery,type=Char(20)]
+| | |   +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
 | | +-aggregate_expressions=
 | |   +-Alias[id=8,name=,alias=$aggregate0,relation=$aggregate,type=Long]
 | |   | +-AggregateFunction[function=COUNT]
@@ -1540,12 +1542,16 @@ select int_col from subquery
 TopLevelPlan
 +-plan=Project
 | +-input=SharedSubplanReference[subplan_id=0]
+| | +-referenced_attributes=
+| | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
 | | +-output_attributes=
-| |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
-| |   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
-| |   +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| |   +-AttributeReference[id=6,name=int_col,relation=test,type=Int NULL]
+| |   +-AttributeReference[id=7,name=long_col,relation=test,type=Long]
+| |   +-AttributeReference[id=8,name=double_col,relation=test,type=Double NULL]
 | +-project_list=
-|   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   +-AttributeReference[id=6,name=int_col,relation=test,type=Int NULL]
 +-shared_subplans=
 | +-Project
 |   +-input=TableReference[relation_name=Test,relation_alias=test]
@@ -1561,17 +1567,21 @@ TopLevelPlan
 |     +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
 |     +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
 +-output_attributes=
-  +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+  +-AttributeReference[id=6,name=int_col,relation=test,type=Int NULL]
 [Physical Plan]
 TopLevelPlan
 +-plan=Selection
 | +-input=SharedSubplanReference[subplan_id=0]
+| | +-referenced_attributes=
+| | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
 | | +-output_attributes=
-| |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
-| |   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
-| |   +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| |   +-AttributeReference[id=6,name=int_col,relation=test,type=Int NULL]
+| |   +-AttributeReference[id=7,name=long_col,relation=test,type=Long]
+| |   +-AttributeReference[id=8,name=double_col,relation=test,type=Double NULL]
 | +-project_expressions=
-|   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   +-AttributeReference[id=6,name=int_col,relation=test,type=Int NULL]
 +-shared_subplans=
 | +-Selection
 |   +-input=TableReference[relation=Test,alias=test]
@@ -1587,7 +1597,7 @@ TopLevelPlan
 |     +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
 |     +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
 +-output_attributes=
-  +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+  +-AttributeReference[id=6,name=int_col,relation=test,type=Int NULL]
 ==
 
 SELECT COUNT(DISTINCT int_col), SUM(float_col)
@@ -2113,3 +2123,756 @@ TopLevelPlan
 |   +-AttributeReference[id=7,name=long_col,relation=test,type=Long]
 +-output_attributes=
   +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+==
+
+
+# Scalar subquery expressions
+SELECT x + (SELECT SUM(y) FROM c)
+FROM b;
+--
+[Optimized Logical Plan]
+TopLevelPlan
++-plan=Project
+| +-input=NestedLoopsJoin
+| | +-left=TableReference[relation_name=b]
+| | | +-AttributeReference[id=0,name=w,relation=b,type=Int]
+| | | +-AttributeReference[id=1,name=x,relation=b,type=Int]
+| | +-right=Project
+| | | +-input=Aggregate
+| | | | +-input=TableReference[relation_name=c]
+| | | | | +-AttributeReference[id=2,name=x,relation=c,type=Int]
+| | | | | +-AttributeReference[id=3,name=y,relation=c,type=Int]
+| | | | +-grouping_expressions=
+| | | | | +-[]
+| | | | +-aggregate_expressions=
+| | | |   +-Alias[id=4,name=,alias=$aggregate0,relation=$aggregate,
+| | | |     type=Long NULL]
+| | | |     +-AggregateFunction[function=SUM]
+| | | |       +-AttributeReference[id=3,name=y,relation=c,type=Int]
+| | | +-project_list=
+| | |   +-Alias[id=4,name=,alias=SUM(y),relation=,type=Long NULL]
+| | |     +-AttributeReference[id=4,name=,alias=$aggregate0,relation=$aggregate,
+| | |       type=Long NULL]
+| | +-join_predicate=Literal[value=true]
+| +-project_list=
+|   +-Alias[id=5,name=,alias=(x+SubqueryExpression),relation=,type=Long NULL]
+|     +-Add
+|       +-AttributeReference[id=1,name=x,relation=b,type=Int]
+|       +-AttributeReference[id=4,name=,alias=SUM(y),relation=,type=Long NULL]
++-output_attributes=
+  +-AttributeReference[id=5,name=,alias=(x+SubqueryExpression),relation=,
+    type=Long NULL]
+[Physical Plan]
+TopLevelPlan
++-plan=NestedLoopsJoin
+| +-left=TableReference[relation=b]
+| | +-AttributeReference[id=0,name=w,relation=b,type=Int]
+| | +-AttributeReference[id=1,name=x,relation=b,type=Int]
+| +-right=Aggregate
+| | +-input=TableReference[relation=c]
+| | | +-AttributeReference[id=2,name=x,relation=c,type=Int]
+| | | +-AttributeReference[id=3,name=y,relation=c,type=Int]
+| | +-grouping_expressions=
+| | | +-[]
+| | +-aggregate_expressions=
+| |   +-Alias[id=4,name=,alias=$aggregate0,relation=$aggregate,type=Long NULL]
+| |     +-AggregateFunction[function=SUM]
+| |       +-AttributeReference[id=3,name=y,relation=c,type=Int]
+| +-join_predicate=Literal[value=true]
+| +-project_expressions=
+|   +-Alias[id=5,name=,alias=(x+SubqueryExpression),relation=,type=Long NULL]
+|     +-Add
+|       +-AttributeReference[id=1,name=x,relation=b,type=Int]
+|       +-AttributeReference[id=4,name=,alias=$aggregate0,relation=$aggregate,
+|         type=Long NULL]
++-output_attributes=
+  +-AttributeReference[id=5,name=,alias=(x+SubqueryExpression),relation=,
+    type=Long NULL]
+==
+
+SELECT x + (SELECT SUM(y) FROM c WHERE b.w = c.x)
+FROM b;
+--
+[Optimized Logical Plan]
+TopLevelPlan
++-plan=Project
+| +-input=HashJoin
+| | +-left=TableReference[relation_name=b]
+| | | +-AttributeReference[id=0,name=w,relation=b,type=Int]
+| | | +-AttributeReference[id=1,name=x,relation=b,type=Int]
+| | +-right=Project
+| | | +-input=Aggregate
+| | | | +-input=TableReference[relation_name=c]
+| | | | | +-AttributeReference[id=2,name=x,relation=c,type=Int]
+| | | | | +-AttributeReference[id=3,name=y,relation=c,type=Int]
+| | | | +-grouping_expressions=
+| | | | | +-AttributeReference[id=2,name=x,relation=c,type=Int]
+| | | | +-aggregate_expressions=
+| | | |   +-Alias[id=4,name=,alias=$aggregate0,relation=$aggregate,
+| | | |     type=Long NULL]
+| | | |     +-AggregateFunction[function=SUM]
+| | | |       +-AttributeReference[id=3,name=y,relation=c,type=Int]
+| | | +-project_list=
+| | |   +-AttributeReference[id=2,name=x,relation=c,type=Int]
+| | |   +-Alias[id=4,name=,alias=SUM(y),relation=,type=Long NULL]
+| | |     +-AttributeReference[id=4,name=,alias=$aggregate0,relation=$aggregate,
+| | |       type=Long NULL]
+| | +-left_join_attributes=
+| | | +-AttributeReference[id=0,name=w,relation=b,type=Int]
+| | +-right_join_attributes=
+| |   +-AttributeReference[id=2,name=x,relation=c,type=Int]
+| +-project_list=
+|   +-Alias[id=5,name=,alias=(x+SubqueryExpression),relation=,type=Long NULL]
+|     +-Add
+|       +-AttributeReference[id=1,name=x,relation=b,type=Int]
+|       +-AttributeReference[id=4,name=,alias=SUM(y),relation=,type=Long NULL]
++-output_attributes=
+  +-AttributeReference[id=5,name=,alias=(x+SubqueryExpression),relation=,
+    type=Long NULL]
+[Physical Plan]
+TopLevelPlan
++-plan=HashJoin
+| +-left=TableReference[relation=b]
+| | +-AttributeReference[id=0,name=w,relation=b,type=Int]
+| | +-AttributeReference[id=1,name=x,relation=b,type=Int]
+| +-right=Aggregate
+| | +-input=TableReference[relation=c]
+| | | +-AttributeReference[id=2,name=x,relation=c,type=Int]
+| | | +-AttributeReference[id=3,name=y,relation=c,type=Int]
+| | +-grouping_expressions=
+| | | +-AttributeReference[id=2,name=x,relation=c,type=Int]
+| | +-aggregate_expressions=
+| |   +-Alias[id=4,name=,alias=$aggregate0,relation=$aggregate,type=Long NULL]
+| |     +-AggregateFunction[function=SUM]
+| |       +-AttributeReference[id=3,name=y,relation=c,type=Int]
+| +-project_expressions=
+| | +-Alias[id=5,name=,alias=(x+SubqueryExpression),relation=,type=Long NULL]
+| |   +-Add
+| |     +-AttributeReference[id=1,name=x,relation=b,type=Int]
+| |     +-AttributeReference[id=4,name=,alias=$aggregate0,relation=$aggregate,
+| |       type=Long NULL]
+| +-left_join_attributes=
+| | +-AttributeReference[id=0,name=w,relation=b,type=Int]
+| +-right_join_attributes=
+|   +-AttributeReference[id=2,name=x,relation=c,type=Int]
++-output_attributes=
+  +-AttributeReference[id=5,name=,alias=(x+SubqueryExpression),relation=,
+    type=Long NULL]
+==
+
+SELECT *
+FROM b
+WHERE b.x > (SELECT SUM(y) FROM c);
+--
+[Optimized Logical Plan]
+TopLevelPlan
++-plan=Project
+| +-input=NestedLoopsJoin
+| | +-left=TableReference[relation_name=b]
+| | | +-AttributeReference[id=0,name=w,relation=b,type=Int]
+| | | +-AttributeReference[id=1,name=x,relation=b,type=Int]
+| | +-right=Project
+| | | +-input=Aggregate
+| | | | +-input=TableReference[relation_name=c]
+| | | | | +-AttributeReference[id=2,name=x,relation=c,type=Int]
+| | | | | +-AttributeReference[id=3,name=y,relation=c,type=Int]
+| | | | +-grouping_expressions=
+| | | | | +-[]
+| | | | +-aggregate_expressions=
+| | | |   +-Alias[id=4,name=,alias=$aggregate0,relation=$aggregate,
+| | | |     type=Long NULL]
+| | | |     +-AggregateFunction[function=SUM]
+| | | |       +-AttributeReference[id=3,name=y,relation=c,type=Int]
+| | | +-project_list=
+| | |   +-Alias[id=4,name=,alias=SUM(y),relation=,type=Long NULL]
+| | |     +-AttributeReference[id=4,name=,alias=$aggregate0,relation=$aggregate,
+| | |       type=Long NULL]
+| | +-join_predicate=Greater
+| |   +-AttributeReference[id=1,name=x,relation=b,type=Int]
+| |   +-AttributeReference[id=4,name=,alias=SUM(y),relation=,type=Long NULL]
+| +-project_list=
+|   +-AttributeReference[id=0,name=w,relation=b,type=Int]
+|   +-AttributeReference[id=1,name=x,relation=b,type=Int]
++-output_attributes=
+  +-AttributeReference[id=0,name=w,relation=b,type=Int]
+  +-AttributeReference[id=1,name=x,relation=b,type=Int]
+[Physical Plan]
+TopLevelPlan
++-plan=NestedLoopsJoin
+| +-left=TableReference[relation=b]
+| | +-AttributeReference[id=0,name=w,relation=b,type=Int]
+| | +-AttributeReference[id=1,name=x,relation=b,type=Int]
+| +-right=Aggregate
+| | +-input=TableReference[relation=c]
+| | | +-AttributeReference[id=2,name=x,relation=c,type=Int]
+| | | +-AttributeReference[id=3,name=y,relation=c,type=Int]
+| | +-grouping_expressions=
+| | | +-[]
+| | +-aggregate_expressions=
+| |   +-Alias[id=4,name=,alias=$aggregate0,relation=$aggregate,type=Long NULL]
+| |     +-AggregateFunction[function=SUM]
+| |       +-AttributeReference[id=3,name=y,relation=c,type=Int]
+| +-join_predicate=Greater
+| | +-AttributeReference[id=1,name=x,relation=b,type=Int]
+| | +-AttributeReference[id=4,name=,alias=$aggregate0,relation=$aggregate,
+| |   type=Long NULL]
+| +-project_expressions=
+|   +-AttributeReference[id=0,name=w,relation=b,type=Int]
+|   +-AttributeReference[id=1,name=x,relation=b,type=Int]
++-output_attributes=
+  +-AttributeReference[id=0,name=w,relation=b,type=Int]
+  +-AttributeReference[id=1,name=x,relation=b,type=Int]
+==
+
+SELECT *
+FROM b
+WHERE b.x > (SELECT SUM(y) FROM c WHERE b.w = c.x);
+--
+[Optimized Logical Plan]
+TopLevelPlan
++-plan=Project
+| +-input=Filter
+| | +-input=HashJoin
+| | | +-left=TableReference[relation_name=b]
+| | | | +-AttributeReference[id=0,name=w,relation=b,type=Int]
+| | | | +-AttributeReference[id=1,name=x,relation=b,type=Int]
+| | | +-right=Project
+| | | | +-input=Aggregate
+| | | | | +-input=TableReference[relation_name=c]
+| | | | | | +-AttributeReference[id=2,name=x,relation=c,type=Int]
+| | | | | | +-AttributeReference[id=3,name=y,relation=c,type=Int]
+| | | | | +-grouping_expressions=
+| | | | | | +-AttributeReference[id=2,name=x,relation=c,type=Int]
+| | | | | +-aggregate_expressions=
+| | | | |   +-Alias[id=4,name=,alias=$aggregate0,relation=$aggregate,
+| | | | |     type=Long NULL]
+| | | | |     +-AggregateFunction[function=SUM]
+| | | | |       +-AttributeReference[id=3,name=y,relation=c,type=Int]
+| | | | +-project_list=
+| | | |   +-AttributeReference[id=2,name=x,relation=c,type=Int]
+| | | |   +-Alias[id=4,name=,alias=SUM(y),relation=,type=Long NULL]
+| | | |     +-AttributeReference[id=4,name=,alias=$aggregate0,
+| | | |       relation=$aggregate,type=Long NULL]
+| | | +-left_join_attributes=
+| | | | +-AttributeReference[id=0,name=w,relation=b,type=Int]
+| | | +-right_join_attributes=
+| | |   +-AttributeReference[id=2,name=x,relation=c,type=Int]
+| | +-filter_predicate=Greater
+| |   +-AttributeReference[id=1,name=x,relation=b,type=Int]
+| |   +-AttributeReference[id=4,name=,alias=SUM(y),relation=,type=Long NULL]
+| +-project_list=
+|   +-AttributeReference[id=0,name=w,relation=b,type=Int]
+|   +-AttributeReference[id=1,name=x,relation=b,type=Int]
++-output_attributes=
+  +-AttributeReference[id=0,name=w,relation=b,type=Int]
+  +-AttributeReference[id=1,name=x,relation=b,type=Int]
+[Physical Plan]
+TopLevelPlan
++-plan=HashJoin
+| +-left=TableReference[relation=b]
+| | +-AttributeReference[id=0,name=w,relation=b,type=Int]
+| | +-AttributeReference[id=1,name=x,relation=b,type=Int]
+| +-right=Aggregate
+| | +-input=TableReference[relation=c]
+| | | +-AttributeReference[id=2,name=x,relation=c,type=Int]
+| | | +-AttributeReference[id=3,name=y,relation=c,type=Int]
+| | +-grouping_expressions=
+| | | +-AttributeReference[id=2,name=x,relation=c,type=Int]
+| | +-aggregate_expressions=
+| |   +-Alias[id=4,name=,alias=$aggregate0,relation=$aggregate,type=Long NULL]
+| |     +-AggregateFunction[function=SUM]
+| |       +-AttributeReference[id=3,name=y,relation=c,type=Int]
+| +-residual_predicate=Greater
+| | +-AttributeReference[id=1,name=x,relation=b,type=Int]
+| | +-AttributeReference[id=4,name=,alias=$aggregate0,relation=$aggregate,
+| |   type=Long NULL]
+| +-project_expressions=
+| | +-AttributeReference[id=0,name=w,relation=b,type=Int]
+| | +-AttributeReference[id=1,name=x,relation=b,type=Int]
+| +-left_join_attributes=
+| | +-AttributeReference[id=0,name=w,relation=b,type=Int]
+| +-right_join_attributes=
+|   +-AttributeReference[id=2,name=x,relation=c,type=Int]
++-output_attributes=
+  +-AttributeReference[id=0,name=w,relation=b,type=Int]
+  +-AttributeReference[id=1,name=x,relation=b,type=Int]
+==
+
+SELECT x + (
+  SELECT SUM(y) + (SELECT SUM(w) FROM a WHERE a.y > 10)
+  FROM c
+  WHERE b.w = c.x AND c.x < 10)
+FROM b;
+--
+[Optimized Logical Plan]
+TopLevelPlan
++-plan=Project
+| +-input=HashJoin
+| | +-left=TableReference[relation_name=b]
+| | | +-AttributeReference[id=0,name=w,relation=b,type=Int]
+| | | +-AttributeReference[id=1,name=x,relation=b,type=Int]
+| | +-right=Project
+| | | +-input=NestedLoopsJoin
+| | | | +-left=Aggregate
+| | | | | +-input=Filter
+| | | | | | +-input=TableReference[relation_name=c]
+| | | | | | | +-AttributeReference[id=2,name=x,relation=c,type=Int]
+| | | | | | | +-AttributeReference[id=3,name=y,relation=c,type=Int]
+| | | | | | +-filter_predicate=Less
+| | | | | |   +-AttributeReference[id=2,name=x,relation=c,type=Int]
+| | | | | |   +-Literal[value=10,type=Int]
+| | | | | +-grouping_expressions=
+| | | | | | +-AttributeReference[id=2,name=x,relation=c,type=Int]
+| | | | | +-aggregate_expressions=
+| | | | |   +-Alias[id=4,name=,alias=$aggregate0,relation=$aggregate,
+| | | | |     type=Long NULL]
+| | | | |     +-AggregateFunction[function=SUM]
+| | | | |       +-AttributeReference[id=3,name=y,relation=c,type=Int]
+| | | | +-right=Project
+| | | | | +-input=Aggregate
+| | | | | | +-input=Filter
+| | | | | | | +-input=TableReference[relation_name=a]
+| | | | | | | | +-AttributeReference[id=5,name=w,relation=a,type=Int]
+| | | | | | | | +-AttributeReference[id=6,name=x,relation=a,type=Int]
+| | | | | | | | +-AttributeReference[id=7,name=y,relation=a,type=Int]
+| | | | | | | | +-AttributeReference[id=8,name=z,relation=a,type=Int]
+| | | | | | | +-filter_predicate=Greater
+| | | | | | |   +-AttributeReference[id=7,name=y,relation=a,type=Int]
+| | | | | | |   +-Literal[value=10,type=Int]
+| | | | | | +-grouping_expressions=
+| | | | | | | +-[]
+| | | | | | +-aggregate_expressions=
+| | | | | |   +-Alias[id=9,name=,alias=$aggregate0,relation=$aggregate,
+| | | | | |     type=Long NULL]
+| | | | | |     +-AggregateFunction[function=SUM]
+| | | | | |       +-AttributeReference[id=5,name=w,relation=a,type=Int]
+| | | | | +-project_list=
+| | | | |   +-Alias[id=9,name=,alias=SUM(w),relation=,type=Long NULL]
+| | | | |     +-AttributeReference[id=9,name=,alias=$aggregate0,
+| | | | |       relation=$aggregate,type=Long NULL]
+| | | | +-join_predicate=Literal[value=true]
+| | | +-project_list=
+| | |   +-AttributeReference[id=2,name=x,relation=c,type=Int]
+| | |   +-Alias[id=10,name=,alias=(SUM(y)+SubqueryExpression),relation=,
+| | |     type=Long NULL]
+| | |     +-Add
+| | |       +-AttributeReference[id=4,name=,alias=$aggregate0,
+| | |       | relation=$aggregate,type=Long NULL]
+| | |       +-AttributeReference[id=9,name=,alias=SUM(w),relation=,
+| | |         type=Long NULL]
+| | +-left_join_attributes=
+| | | +-AttributeReference[id=0,name=w,relation=b,type=Int]
+| | +-right_join_attributes=
+| |   +-AttributeReference[id=2,name=x,relation=c,type=Int]
+| +-project_list=
+|   +-Alias[id=11,name=,alias=(x+SubqueryExpression),relation=,type=Long NULL]
+|     +-Add
+|       +-AttributeReference[id=1,name=x,relation=b,type=Int]
+|       +-AttributeReference[id=10,name=,alias=(SUM(y)+SubqueryExpression),
+|         relation=,type=Long NULL]
++-output_attributes=
+  +-AttributeReference[id=11,name=,alias=(x+SubqueryExpression),relation=,
+    type=Long NULL]
+[Physical Plan]
+TopLevelPlan
++-plan=HashJoin
+| +-left=TableReference[relation=b]
+| | +-AttributeReference[id=0,name=w,relation=b,type=Int]
+| | +-AttributeReference[id=1,name=x,relation=b,type=Int]
+| +-right=NestedLoopsJoin
+| | +-left=Aggregate
+| | | +-input=TableReference[relation=c]
+| | | | +-AttributeReference[id=2,name=x,relation=c,type=Int]
+| | | | +-AttributeReference[id=3,name=y,relation=c,type=Int]
+| | | +-filter_predicate=Less
+| | | | +-AttributeReference[id=2,name=x,relation=c,type=Int]
+| | | | +-Literal[value=10,type=Int]
+| | | +-grouping_expressions=
+| | | | +-AttributeReference[id=2,name=x,relation=c,type=Int]
+| | | +-aggregate_expressions=
+| | |   +-Alias[id=4,name=,alias=$aggregate0,relation=$aggregate,type=Long NULL]
+| | |     +-AggregateFunction[function=SUM]
+| | |       +-AttributeReference[id=3,name=y,relation=c,type=Int]
+| | +-right=Aggregate
+| | | +-input=TableReference[relation=a]
+| | | | +-AttributeReference[id=5,name=w,relation=a,type=Int]
+| | | | +-AttributeReference[id=6,name=x,relation=a,type=Int]
+| | | | +-AttributeReference[id=7,name=y,relation=a,type=Int]
+| | | | +-AttributeReference[id=8,name=z,relation=a,type=Int]
+| | | +-filter_predicate=Greater
+| | | | +-AttributeReference[id=7,name=y,relation=a,type=Int]
+| | | | +-Literal[value=10,type=Int]
+| | | +-grouping_expressions=
+| | | | +-[]
+| | | +-aggregate_expressions=
+| | |   +-Alias[id=9,name=,alias=$aggregate0,relation=$aggregate,type=Long NULL]
+| | |     +-AggregateFunction[function=SUM]
+| | |       +-AttributeReference[id=5,name=w,relation=a,type=Int]
+| | +-join_predicate=Literal[value=true]
+| | +-project_expressions=
+| |   +-AttributeReference[id=2,name=x,relation=c,type=Int]
+| |   +-Alias[id=10,name=,alias=(SUM(y)+SubqueryExpression),relation=,
+| |     type=Long NULL]
+| |     +-Add
+| |       +-AttributeReference[id=4,name=,alias=$aggregate0,relation=$aggregate,
+| |       | type=Long NULL]
+| |       +-AttributeReference[id=9,name=,alias=$aggregate0,relation=$aggregate,
+| |         type=Long NULL]
+| +-project_expressions=
+| | +-Alias[id=11,name=,alias=(x+SubqueryExpression),relation=,type=Long NULL]
+| |   +-Add
+| |     +-AttributeReference[id=1,name=x,relation=b,type=Int]
+| |     +-AttributeReference[id=10,name=,alias=(SUM(y)+SubqueryExpression),
+| |       relation=,type=Long NULL]
+| +-left_join_attributes=
+| | +-AttributeReference[id=0,name=w,relation=b,type=Int]
+| +-right_join_attributes=
+|   +-AttributeReference[id=2,name=x,relation=c,type=Int]
++-output_attributes=
+  +-AttributeReference[id=11,name=,alias=(x+SubqueryExpression),relation=,
+    type=Long NULL]
+==
+
+SELECT x * (SELECT SUM(y) FROM c) + (SELECT AVG(y) FROM d)
+FROM b;
+--
+[Optimized Logical Plan]
+TopLevelPlan
++-plan=Project
+| +-input=NestedLoopsJoin
+| | +-left=TableReference[relation_name=b]
+| | | +-AttributeReference[id=0,name=w,relation=b,type=Int]
+| | | +-AttributeReference[id=1,name=x,relation=b,type=Int]
+| | +-right=NestedLoopsJoin
+| | | +-left=Project
+| | | | +-input=Aggregate
+| | | | | +-input=TableReference[relation_name=c]
+| | | | | | +-AttributeReference[id=2,name=x,relation=c,type=Int]
+| | | | | | +-AttributeReference[id=3,name=y,relation=c,type=Int]
+| | | | | +-grouping_expressions=
+| | | | | | +-[]
+| | | | | +-aggregate_expressions=
+| | | | |   +-Alias[id=4,name=,alias=$aggregate0,relation=$aggregate,
+| | | | |     type=Long NULL]
+| | | | |     +-AggregateFunction[function=SUM]
+| | | | |       +-AttributeReference[id=3,name=y,relation=c,type=Int]
+| | | | +-project_list=
+| | | |   +-Alias[id=4,name=,alias=SUM(y),relation=,type=Long NULL]
+| | | |     +-AttributeReference[id=4,name=,alias=$aggregate0,
+| | | |       relation=$aggregate,type=Long NULL]
+| | | +-right=Project
+| | | | +-input=Aggregate
+| | | | | +-input=TableReference[relation_name=d]
+| | | | | | +-AttributeReference[id=5,name=y,relation=d,type=Int]
+| | | | | | +-AttributeReference[id=6,name=z,relation=d,type=Int]
+| | | | | +-grouping_expressions=
+| | | | | | +-[]
+| | | | | +-aggregate_expressions=
+| | | | |   +-Alias[id=7,name=,alias=$aggregate0,relation=$aggregate,
+| | | | |     type=Double NULL]
+| | | | |     +-AggregateFunction[function=AVG]
+| | | | |       +-AttributeReference[id=5,name=y,relation=d,type=Int]
+| | | | +-project_list=
+| | | |   +-Alias[id=7,name=,alias=AVG(y),relation=,type=Double NULL]
+| | | |     +-AttributeReference[id=7,name=,alias=$aggregate0,
+| | | |       relation=$aggregate,type=Double NULL]
+| | | +-join_predicate=Literal[value=true]
+| | +-join_predicate=Literal[value=true]
+| +-project_list=
+|   +-Alias[id=8,name=,alias=((x*SubqueryExpression)+SubqueryExpression),
+|     relation=,type=Double NULL]
+|     +-Add
+|       +-Multiply
+|       | +-AttributeReference[id=1,name=x,relation=b,type=Int]
+|       | +-AttributeReference[id=4,name=,alias=SUM(y),relation=,type=Long NULL]
+|       +-AttributeReference[id=7,name=,alias=AVG(y),relation=,type=Double NULL]
++-output_attributes=
+  +-AttributeReference[id=8,name=,
+    alias=((x*SubqueryExpression)+SubqueryExpression),relation=,type=Double NULL]
+[Physical Plan]
+TopLevelPlan
++-plan=NestedLoopsJoin
+| +-left=TableReference[relation=b]
+| | +-AttributeReference[id=0,name=w,relation=b,type=Int]
+| | +-AttributeReference[id=1,name=x,relation=b,type=Int]
+| +-right=NestedLoopsJoin
+| | +-left=Aggregate
+| | | +-input=TableReference[relation=c]
+| | | | +-AttributeReference[id=2,name=x,relation=c,type=Int]
+| | | | +-AttributeReference[id=3,name=y,relation=c,type=Int]
+| | | +-grouping_expressions=
+| | | | +-[]
+| | | +-aggregate_expressions=
+| | |   +-Alias[id=4,name=,alias=$aggregate0,relation=$aggregate,type=Long NULL]
+| | |     +-AggregateFunction[function=SUM]
+| | |       +-AttributeReference[id=3,name=y,relation=c,type=Int]
+| | +-right=Aggregate
+| | | +-input=TableReference[relation=d]
+| | | | +-AttributeReference[id=5,name=y,relation=d,type=Int]
+| | | | +-AttributeReference[id=6,name=z,relation=d,type=Int]
+| | | +-grouping_expressions=
+| | | | +-[]
+| | | +-aggregate_expressions=
+| | |   +-Alias[id=7,name=,alias=$aggregate0,relation=$aggregate,
+| | |     type=Double NULL]
+| | |     +-AggregateFunction[function=AVG]
+| | |       +-AttributeReference[id=5,name=y,relation=d,type=Int]
+| | +-join_predicate=Literal[value=true]
+| | +-project_expressions=
+| |   +-Alias[id=4,name=,alias=SUM(y),relation=,type=Long NULL]
+| |   | +-AttributeReference[id=4,name=,alias=$aggregate0,relation=$aggregate,
+| |   |   type=Long NULL]
+| |   +-Alias[id=7,name=,alias=AVG(y),relation=,type=Double NULL]
+| |     +-AttributeReference[id=7,name=,alias=$aggregate0,relation=$aggregate,
+| |       type=Double NULL]
+| +-join_predicate=Literal[value=true]
+| +-project_expressions=
+|   +-Alias[id=8,name=,alias=((x*SubqueryExpression)+SubqueryExpression),
+|     relation=,type=Double NULL]
+|     +-Add
+|       +-Multiply
+|       | +-AttributeReference[id=1,name=x,relation=b,type=Int]
+|       | +-AttributeReference[id=4,name=,alias=SUM(y),relation=,type=Long NULL]
+|       +-AttributeReference[id=7,name=,alias=AVG(y),relation=,type=Double NULL]
++-output_attributes=
+  +-AttributeReference[id=8,name=,
+    alias=((x*SubqueryExpression)+SubqueryExpression),relation=,type=Double NULL]
+==
+
+SELECT x * (SELECT SUM(y) FROM c)
+FROM b
+WHERE w < (SELECT AVG(y) FROM d);
+--
+[Optimized Logical Plan]
+TopLevelPlan
++-plan=Project
+| +-input=NestedLoopsJoin
+| | +-left=NestedLoopsJoin
+| | | +-left=TableReference[relation_name=b]
+| | | | +-AttributeReference[id=0,name=w,relation=b,type=Int]
+| | | | +-AttributeReference[id=1,name=x,relation=b,type=Int]
+| | | +-right=Project
+| | | | +-input=Aggregate
+| | | | | +-input=TableReference[relation_name=d]
+| | | | | | +-AttributeReference[id=2,name=y,relation=d,type=Int]
+| | | | | | +-AttributeReference[id=3,name=z,relation=d,type=Int]
+| | | | | +-grouping_expressions=
+| | | | | | +-[]
+| | | | | +-aggregate_expressions=
+| | | | |   +-Alias[id=4,name=,alias=$aggregate0,relation=$aggregate,
+| | | | |     type=Double NULL]
+| | | | |     +-AggregateFunction[function=AVG]
+| | | | |       +-AttributeReference[id=2,name=y,relation=d,type=Int]
+| | | | +-project_list=
+| | | |   +-Alias[id=4,name=,alias=AVG(y),relation=,type=Double NULL]
+| | | |     +-AttributeReference[id=4,name=,alias=$aggregate0,
+| | | |       relation=$aggregate,type=Double NULL]
+| | | +-join_predicate=Less
+| | |   +-AttributeReference[id=0,name=w,relation=b,type=Int]
+| | |   +-AttributeReference[id=4,name=,alias=AVG(y),relation=,type=Double NULL]
+| | +-right=Project
+| | | +-input=Aggregate
+| | | | +-input=TableReference[relation_name=c]
+| | | | | +-AttributeReference[id=5,name=x,relation=c,type=Int]
+| | | | | +-AttributeReference[id=6,name=y,relation=c,type=Int]
+| | | | +-grouping_expressions=
+| | | | | +-[]
+| | | | +-aggregate_expressions=
+| | | |   +-Alias[id=7,name=,alias=$aggregate0,relation=$aggregate,
+| | | |     type=Long NULL]
+| | | |     +-AggregateFunction[function=SUM]
+| | | |       +-AttributeReference[id=6,name=y,relation=c,type=Int]
+| | | +-project_list=
+| | |   +-Alias[id=7,name=,alias=SUM(y),relation=,type=Long NULL]
+| | |     +-AttributeReference[id=7,name=,alias=$aggregate0,relation=$aggregate,
+| | |       type=Long NULL]
+| | +-join_predicate=Literal[value=true]
+| +-project_list=
+|   +-Alias[id=8,name=,alias=(x*SubqueryExpression),relation=,type=Long NULL]
+|     +-Multiply
+|       +-AttributeReference[id=1,name=x,relation=b,type=Int]
+|       +-AttributeReference[id=7,name=,alias=SUM(y),relation=,type=Long NULL]
++-output_attributes=
+  +-AttributeReference[id=8,name=,alias=(x*SubqueryExpression),relation=,
+    type=Long NULL]
+[Physical Plan]
+TopLevelPlan
++-plan=NestedLoopsJoin
+| +-left=NestedLoopsJoin
+| | +-left=TableReference[relation=b]
+| | | +-AttributeReference[id=0,name=w,relation=b,type=Int]
+| | | +-AttributeReference[id=1,name=x,relation=b,type=Int]
+| | +-right=Aggregate
+| | | +-input=TableReference[relation=d]
+| | | | +-AttributeReference[id=2,name=y,relation=d,type=Int]
+| | | | +-AttributeReference[id=3,name=z,relation=d,type=Int]
+| | | +-grouping_expressions=
+| | | | +-[]
+| | | +-aggregate_expressions=
+| | |   +-Alias[id=4,name=,alias=$aggregate0,relation=$aggregate,
+| | |     type=Double NULL]
+| | |     +-AggregateFunction[function=AVG]
+| | |       +-AttributeReference[id=2,name=y,relation=d,type=Int]
+| | +-join_predicate=Less
+| | | +-AttributeReference[id=0,name=w,relation=b,type=Int]
+| | | +-AttributeReference[id=4,name=,alias=$aggregate0,relation=$aggregate,
+| | |   type=Double NULL]
+| | +-project_expressions=
+| |   +-AttributeReference[id=1,name=x,relation=b,type=Int]
+| +-right=Aggregate
+| | +-input=TableReference[relation=c]
+| | | +-AttributeReference[id=5,name=x,relation=c,type=Int]
+| | | +-AttributeReference[id=6,name=y,relation=c,type=Int]
+| | +-grouping_expressions=
+| | | +-[]
+| | +-aggregate_expressions=
+| |   +-Alias[id=7,name=,alias=$aggregate0,relation=$aggregate,type=Long NULL]
+| |     +-AggregateFunction[function=SUM]
+| |       +-AttributeReference[id=6,name=y,relation=c,type=Int]
+| +-join_predicate=Literal[value=true]
+| +-project_expressions=
+|   +-Alias[id=8,name=,alias=(x*SubqueryExpression),relation=,type=Long NULL]
+|     +-Multiply
+|       +-AttributeReference[id=1,name=x,relation=b,type=Int]
+|       +-AttributeReference[id=7,name=,alias=$aggregate0,relation=$aggregate,
+|         type=Long NULL]
++-output_attributes=
+  +-AttributeReference[id=8,name=,alias=(x*SubqueryExpression),relation=,
+    type=Long NULL]
+==
+
+# Same shared subplan referenced multiple times.
+WITH t(x, y) AS (
+  SELECT i % 5, i
+  FROM generate_series(1, 20) AS g(i)
+)
+SELECT *
+FROM t
+WHERE t.y = (
+  SELECT MAX(y)
+  FROM t t1
+  WHERE t.x = t1.x
+)
+ORDER BY x;
+--
+[Optimized Logical Plan]
+TopLevelPlan
++-plan=Project
+| +-input=Sort[is_ascending=[true],nulls_first=[false]]
+| | +-input=Filter
+| | | +-input=HashJoin
+| | | | +-left=SharedSubplanReference[subplan_id=0]
+| | | | | +-referenced_attributes=
+| | | | | | +-AttributeReference[id=3,name=x,relation=,type=Int]
+| | | | | | +-AttributeReference[id=4,name=y,relation=,type=Int]
+| | | | | +-output_attributes=
+| | | | |   +-AttributeReference[id=5,name=x,relation=,type=Int]
+| | | | |   +-AttributeReference[id=6,name=y,relation=,type=Int]
+| | | | +-right=Project
+| | | | | +-input=Aggregate
+| | | | | | +-input=SharedSubplanReference[subplan_id=0]
+| | | | | | | +-referenced_attributes=
+| | | | | | | | +-AttributeReference[id=3,name=x,relation=,type=Int]
+| | | | | | | | +-AttributeReference[id=4,name=y,relation=,type=Int]
+| | | | | | | +-output_attributes=
+| | | | | | |   +-AttributeReference[id=7,name=x,relation=,type=Int]
+| | | | | | |   +-AttributeReference[id=8,name=y,relation=,type=Int]
+| | | | | | +-grouping_expressions=
+| | | | | | | +-AttributeReference[id=7,name=x,relation=,type=Int]
+| | | | | | +-aggregate_expressions=
+| | | | | |   +-Alias[id=9,name=,alias=$aggregate0,relation=$aggregate,
+| | | | | |     type=Int NULL]
+| | | | | |     +-AggregateFunction[function=MAX]
+| | | | | |       +-AttributeReference[id=8,name=y,relation=,type=Int]
+| | | | | +-project_list=
+| | | | |   +-AttributeReference[id=7,name=x,relation=,type=Int]
+| | | | |   +-Alias[id=9,name=,alias=MAX(y),relation=,type=Int NULL]
+| | | | |     +-AttributeReference[id=9,name=,alias=$aggregate0,
+| | | | |       relation=$aggregate,type=Int NULL]
+| | | | +-left_join_attributes=
+| | | | | +-AttributeReference[id=5,name=x,relation=,type=Int]
+| | | | +-right_join_attributes=
+| | | |   +-AttributeReference[id=7,name=x,relation=,type=Int]
+| | | +-filter_predicate=Equal
+| | |   +-AttributeReference[id=6,name=y,relation=,type=Int]
+| | |   +-AttributeReference[id=9,name=,alias=MAX(y),relation=,type=Int NULL]
+| | +-sort_expressions=
+| |   +-AttributeReference[id=5,name=x,relation=,type=Int]
+| +-project_list=
+|   +-AttributeReference[id=5,name=x,relation=,type=Int]
+|   +-AttributeReference[id=6,name=y,relation=,type=Int]
++-shared_subplans=
+| +-Project
+|   +-input=TableGenerator[function_name=generate_series,table_alias=g]
+|   | +-AttributeReference[id=0,name=generate_series,alias=g,
+|   |   relation=generate_series,type=Int]
+|   +-project_list=
+|     +-Alias[id=3,name=x,relation=,type=Int]
+|     | +-Modulo
+|     |   +-AttributeReference[id=0,name=generate_series,alias=g,
+|     |   | relation=generate_series,type=Int]
+|     |   +-Literal[value=5,type=Int]
+|     +-Alias[id=4,name=y,relation=,type=Int]
+|       +-AttributeReference[id=0,name=generate_series,alias=g,
+|         relation=generate_series,type=Int]
++-output_attributes=
+  +-AttributeReference[id=5,name=x,relation=,type=Int]
+  +-AttributeReference[id=6,name=y,relation=,type=Int]
+[Physical Plan]
+TopLevelPlan
++-plan=Selection
+| +-input=Sort[is_ascending=[true],nulls_first=[false]]
+| | +-input=HashJoin
+| | | +-left=SharedSubplanReference[subplan_id=0]
+| | | | +-referenced_attributes=
+| | | | | +-AttributeReference[id=3,name=x,relation=,type=Int]
+| | | | | +-AttributeReference[id=4,name=y,relation=,type=Int]
+| | | | +-output_attributes=
+| | | |   +-AttributeReference[id=5,name=x,relation=,type=Int]
+| | | |   +-AttributeReference[id=6,name=y,relation=,type=Int]
+| | | +-right=Aggregate
+| | | | +-input=SharedSubplanReference[subplan_id=0]
+| | | | | +-referenced_attributes=
+| | | | | | +-AttributeReference[id=3,name=x,relation=,type=Int]
+| | | | | | +-AttributeReference[id=4,name=y,relation=,type=Int]
+| | | | | +-output_attributes=
+| | | | |   +-AttributeReference[id=7,name=x,relation=,type=Int]
+| | | | |   +-AttributeReference[id=8,name=y,relation=,type=Int]
+| | | | +-grouping_expressions=
+| | | | | +-AttributeReference[id=7,name=x,relation=,type=Int]
+| | | | +-aggregate_expressions=
+| | | |   +-Alias[id=9,name=,alias=$aggregate0,relation=$aggregate,type=Int NULL]
+| | | |     +-AggregateFunction[function=MAX]
+| | | |       +-AttributeReference[id=8,name=y,relation=,type=Int]
+| | | +-project_expressions=
+| | | | +-AttributeReference[id=5,name=x,relation=,type=Int]
+| | | | +-AttributeReference[id=6,name=y,relation=,type=Int]
+| | | +-left_join_attributes=
+| | | | +-AttributeReference[id=5,name=x,relation=,type=Int]
+| | | | +-AttributeReference[id=6,name=y,relation=,type=Int]
+| | | +-right_join_attributes=
+| | |   +-AttributeReference[id=7,name=x,relation=,type=Int]
+| | |   +-AttributeReference[id=9,name=,alias=$aggregate0,relation=$aggregate,
+| | |     type=Int NULL]
+| | +-sort_attributes=
+| |   +-AttributeReference[id=5,name=x,relation=,type=Int]
+| +-project_expressions=
+|   +-AttributeReference[id=5,name=x,relation=,type=Int]
+|   +-AttributeReference[id=6,name=y,relation=,type=Int]
++-shared_subplans=
+| +-Selection
+|   +-input=TableGenerator[function_name=generate_series,table_alias=g]
+|   | +-AttributeReference[id=0,name=generate_series,alias=g,
+|   |   relation=generate_series,type=Int]
+|   +-project_expressions=
+|     +-Alias[id=3,name=x,relation=,type=Int]
+|     | +-Modulo
+|     |   +-AttributeReference[id=0,name=generate_series,alias=g,
+|     |   | relation=generate_series,type=Int]
+|     |   +-Literal[value=5,type=Int]
+|     +-Alias[id=4,name=y,relation=,type=Int]
+|       +-AttributeReference[id=0,name=generate_series,alias=g,
+|         relation=generate_series,type=Int]
++-output_attributes=
+  +-AttributeReference[id=5,name=x,relation=,type=Int]
+  +-AttributeReference[id=6,name=y,relation=,type=Int]

@@ -69,8 +69,8 @@
 #include "utility/SortConfiguration.hpp"
 #include "utility/SortConfiguration.pb.h"
 
+#include "gflags/gflags.h"
 #include "glog/logging.h"
-
 #include "gtest/gtest.h"
 
 #include "tmb/id_typedefs.h"
@@ -84,6 +84,7 @@ namespace quickstep {
 
 namespace {
 
+constexpr std::size_t kQueryId = 0;
 constexpr const std::size_t kOpIndex = 0;
 
 // Helper struct for test tuple that will that will be inserted and sorted.
@@ -188,6 +189,7 @@ class RunTest : public ::testing::Test {
                                        nullptr,
                                        storage_manager_.get(),
                                        kOpIndex,
+                                       0,  // dummy query ID.
                                        foreman_client_id_,
                                        &bus_));
   }
@@ -196,6 +198,17 @@ class RunTest : public ::testing::Test {
     // Usually the worker thread makes the following call. In this test setup,
     // we don't have a worker thread hence we have to explicitly make the call.
     thread_id_map_->removeValue();
+
+    // Drop blocks from relations and InsertDestination.
+    const vector<block_id> tmp_blocks = insert_destination_->getTouchedBlocks();
+    for (const block_id block : tmp_blocks) {
+      storage_manager_->deleteBlockOrBlobFile(block);
+    }
+
+    const vector<block_id> blocks = table_->getBlocksSnapshot();
+    for (const block_id block : blocks) {
+      storage_manager_->deleteBlockOrBlobFile(block);
+    }
   }
 
   // Helper method to insert test tuples.
@@ -225,7 +238,7 @@ class RunTest : public ::testing::Test {
 };
 
 const char RunTest::kTableName[] = "table";
-const char RunTest::kStoragePath[] = "./test_data";
+const char RunTest::kStoragePath[] = "./sort_merge_run_operator_test_data";
 const tuple_id RunTest::kNumTuples = 100;
 const tuple_id RunTest::kNumTuplesPerBlock = 10;
 
@@ -421,6 +434,7 @@ class RunMergerTest : public ::testing::Test {
                                        nullptr,
                                        storage_manager_.get(),
                                        kOpIndex,
+                                       0,  // dummy query ID.
                                        foreman_client_id_,
                                        &bus_));
   }
@@ -429,6 +443,17 @@ class RunMergerTest : public ::testing::Test {
     // Usually the worker thread makes the following call. In this test setup,
     // we don't have a worker thread hence we have to explicitly make the call.
     thread_id_map_->removeValue();
+
+    // Drop blocks from relations and InsertDestination.
+    const vector<block_id> tmp_blocks = insert_destination_->getTouchedBlocks();
+    for (const block_id block : tmp_blocks) {
+      storage_manager_->deleteBlockOrBlobFile(block);
+    }
+
+    const vector<block_id> blocks = table_->getBlocksSnapshot();
+    for (const block_id block : blocks) {
+      storage_manager_->deleteBlockOrBlobFile(block);
+    }
   }
 
   // Helper method to create test tuples.
@@ -642,7 +667,7 @@ class RunMergerTest : public ::testing::Test {
 };
 
 const char RunMergerTest::kTableName[] = "table";
-const char RunMergerTest::kStoragePath[] = "./test_data";
+const char RunMergerTest::kStoragePath[] = "./sort_merge_run_operator_test_data";
 const std::size_t RunMergerTest::kNumTuplesPerBlock = 10;
 const tuple_id RunMergerTest::kNumBlocksPerRun = 10;
 const std::size_t RunMergerTest::kNumRuns = 10;
@@ -1246,6 +1271,8 @@ class SortMergeRunOperatorTest : public ::testing::Test {
     ASSERT_EQ(null_col3_, result_table_->getAttributeByName("null-col-3")->getID());
     ASSERT_EQ(tid_col_, result_table_->getAttributeByName("tid")->getID());
 
+    query_context_proto_.set_query_id(0);  // dummy query ID.
+
     // Setup the InsertDestination proto in the query context proto.
     insert_destination_index_ = query_context_proto_.insert_destinations_size();
     serialization::InsertDestination *insert_destination_proto = query_context_proto_.add_insert_destinations();
@@ -1285,6 +1312,22 @@ class SortMergeRunOperatorTest : public ::testing::Test {
     // Usually the worker thread makes the following call. In this test setup,
     // we don't have a worker thread hence we have to explicitly make the call.
     thread_id_map_->removeValue();
+
+    // Drop blocks from relations.
+    const vector<block_id> input_blocks = input_table_->getBlocksSnapshot();
+    for (const block_id block : input_blocks) {
+      storage_manager_->deleteBlockOrBlobFile(block);
+    }
+
+    const vector<block_id> result_blocks = result_table_->getBlocksSnapshot();
+    for (const block_id block : result_blocks) {
+      storage_manager_->deleteBlockOrBlobFile(block);
+    }
+
+    const vector<block_id> run_blocks = run_table_->getBlocksSnapshot();
+    for (const block_id block : run_blocks) {
+      storage_manager_->deleteBlockOrBlobFile(block);
+    }
   }
 
   CatalogRelation *createTable(const char *name, const relation_id rel_id) {
@@ -1527,7 +1570,8 @@ class SortMergeRunOperatorTest : public ::testing::Test {
                            const std::size_t top_k = 0) {
     const QueryContext::sort_config_id sort_config_index = createSortConfigProto(attrs, ordering, null_ordering);
 
-    merge_op_.reset(new SortMergeRunOperator(*input_table_,
+    merge_op_.reset(new SortMergeRunOperator(kQueryId,
+                                             *input_table_,
                                              *result_table_,
                                              insert_destination_index_,
                                              *run_table_,
@@ -1536,6 +1580,7 @@ class SortMergeRunOperatorTest : public ::testing::Test {
                                              merge_factor,
                                              top_k,
                                              true));
+
     merge_op_->setOperatorIndex(kOpIndex);
 
     // Set up the QueryContext.
@@ -1570,7 +1615,8 @@ class SortMergeRunOperatorTest : public ::testing::Test {
                         const std::size_t top_k = 0) {
     const QueryContext::sort_config_id sort_config_index = createSortConfigProto(attrs, ordering, null_ordering);
 
-    merge_op_.reset(new SortMergeRunOperator(*input_table_,
+    merge_op_.reset(new SortMergeRunOperator(kQueryId,
+                                             *input_table_,
                                              *result_table_,
                                              insert_destination_index_,
                                              *run_table_,
@@ -1681,7 +1727,7 @@ class SortMergeRunOperatorTest : public ::testing::Test {
 const char SortMergeRunOperatorTest::kTableName[] = "table";
 const char SortMergeRunOperatorTest::kResultTableName[] = "result-table";
 const char SortMergeRunOperatorTest::kRunTableName[] = "run-table";
-const char SortMergeRunOperatorTest::kStoragePath[] = "./test_data";
+const char SortMergeRunOperatorTest::kStoragePath[] = "./sort_merge_run_operator_test_data";
 const char SortMergeRunOperatorTest::kDatabaseName[] = "database";
 
 namespace {
@@ -2260,3 +2306,12 @@ TEST_F(SortMergeRunOperatorTest, Pipleined_ManyPasses_MergeFactor17_SlowFeed_Top
 }
 
 }  // namespace quickstep
+
+int main(int argc, char* argv[]) {
+  google::InitGoogleLogging(argv[0]);
+  // Honor FLAGS_buffer_pool_slots in StorageManager.
+  gflags::ParseCommandLineFlags(&argc, &argv, true);
+  testing::InitGoogleTest(&argc, argv);
+
+  return RUN_ALL_TESTS();
+}

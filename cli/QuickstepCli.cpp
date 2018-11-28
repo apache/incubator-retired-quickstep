@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015-2016 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -34,7 +36,7 @@
 #include <stdlib.h>
 #endif
 
-#include "cli/CliConfig.h"  // For QUICKSTEP_USE_LINENOISE.
+#include "cli/CliConfig.h"  // For QUICKSTEP_USE_LINENOISE, QUICKSTEP_ENABLE_GOOGLE_PROFILER.
 #include "cli/CommandExecutor.hpp"
 #include "cli/DropRelation.hpp"
 
@@ -46,13 +48,19 @@ typedef quickstep::LineReaderLineNoise LineReaderImpl;
 typedef quickstep::LineReaderDumb LineReaderImpl;
 #endif
 
+#ifdef QUICKSTEP_ENABLE_GOOGLE_PROFILER
+#include <gperftools/profiler.h>
+#endif
+
 #include "cli/DefaultsConfigurator.hpp"
 #include "cli/InputParserUtil.hpp"
 #include "cli/PrintToScreen.hpp"
 #include "parser/ParseStatement.hpp"
 #include "parser/SqlParserWrapper.hpp"
+#include "query_execution/AdmitRequestMessage.hpp"
 #include "query_execution/Foreman.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"
+#include "query_execution/QueryExecutionUtil.hpp"
 #include "query_execution/Worker.hpp"
 #include "query_execution/WorkerDirectory.hpp"
 #include "query_execution/WorkerMessage.hpp"
@@ -70,6 +78,7 @@ typedef quickstep::LineReaderDumb LineReaderImpl;
 #include "utility/Macros.hpp"
 #include "utility/PtrVector.hpp"
 #include "utility/SqlError.hpp"
+#include "utility/StringUtil.hpp"
 
 #include "gflags/gflags.h"
 
@@ -79,7 +88,6 @@ typedef quickstep::LineReaderDumb LineReaderImpl;
 #include "tmb/id_typedefs.h"
 #include "tmb/message_bus.h"
 #include "tmb/message_style.h"
-#include "tmb/tagged_message.h"
 
 namespace quickstep {
 class CatalogRelation;
@@ -92,6 +100,7 @@ using std::string;
 using std::vector;
 
 using quickstep::Address;
+using quickstep::AdmitRequestMessage;
 using quickstep::CatalogRelation;
 using quickstep::DefaultsConfigurator;
 using quickstep::DropRelation;
@@ -104,15 +113,17 @@ using quickstep::ParseResult;
 using quickstep::ParseStatement;
 using quickstep::PrintToScreen;
 using quickstep::PtrVector;
+using quickstep::QueryExecutionUtil;
 using quickstep::QueryHandle;
 using quickstep::QueryPlan;
 using quickstep::QueryProcessor;
 using quickstep::SqlParserWrapper;
-using quickstep::TaggedMessage;
 using quickstep::Worker;
 using quickstep::WorkerDirectory;
 using quickstep::WorkerMessage;
+using quickstep::kAdmitRequestMessage;
 using quickstep::kPoisonMessage;
+using quickstep::kWorkloadCompletionMessage;
 
 using tmb::client_id;
 
@@ -126,6 +137,9 @@ static constexpr char kPathSeparator = '/';
 static constexpr char kDefaultStoragePath[] = "qsstor/";
 #endif
 
+DEFINE_bool(profile_and_report_workorder_perf, false,
+    "If true, Quickstep will record the exceution time of all the individual "
+    "normal work orders and report it at the end of query execution.");
 DEFINE_int32(num_workers, 0, "Number of worker threads. If this value is "
                              "specified and is greater than 0, then this "
                              "user-supplied value is used. Else (i.e. the"
@@ -144,6 +158,34 @@ DEFINE_string(worker_affinities, "",
               "means that they will all be runable on any CPU according to "
               "the kernel's own scheduling policy).");
 DEFINE_bool(initialize_db, false, "If true, initialize a database.");
+DEFINE_bool(print_query, false,
+            "Print each input query statement. This is useful when running a "
+            "large number of queries in a batch.");
+DEFINE_string(profile_file_name, "",
+              "If nonempty, enable profiling using GOOGLE CPU Profiler, and write "
+              "its output to the given file name. This flag has no effect if "
+              "ENABLE_GOOGLE_PROFILER CMake flag was not set during build. "
+              "The profiler only starts collecting samples after the first query, "
+              "so that it runs against a warm buffer pool and caches. If you want to profile "
+              "everything, including the first query run, set the "
+              "environment variable CPUPROFILE instead of passing this flag.");
+              // Here's a detailed explanation of why we skip the first query run
+              // during profiling:
+              // Unless you’ve preloaded the buffer pool (which is not always a good
+              // idea), the first run of the query results in disk I/O and other overhead
+              // that significantly skews the profiling results. It’s the same reason we don’t
+              // include the first run time in our benchmarking: when profiling query
+              // execution, it makes more sense to get numbers using a warm buffer pool and
+              // warm caches. This is not *always* the right thing to do: it’s obviously
+              // wrong for profiling the TextScan operator. In those cases, you might want
+              // to put in your own Profiler probes (just follow the start/stop pattern used
+              // in this file) or just run quickstep with the CPUPROFILE environment variable
+              // set (as per gperftools documentation) to get the full profile for the
+              // entire execution.
+              // To put things in perspective, the first run is, in my experiments, about 5-10
+              // times more expensive than the average run. That means the query needs to be
+              // run at least a hundred times to make the impact of the first run small (< 5 %).
+
 }  // namespace quickstep
 
 int main(int argc, char* argv[]) {
@@ -169,7 +211,7 @@ int main(int argc, char* argv[]) {
            real_num_workers,
            (static_cast<double>(quickstep::FLAGS_buffer_pool_slots) * quickstep::kSlotSizeBytes)/quickstep::kAGigaByte);
   } else {
-    LOG(FATAL) << "Quickstep needs at least one worker thread";
+    LOG(FATAL) << "Quickstep needs at least one worker thread to run";
   }
 
 #ifdef QUICKSTEP_HAVE_FILE_MANAGER_HDFS
@@ -190,7 +232,9 @@ int main(int argc, char* argv[]) {
 
   // The TMB client id for the main thread, used to kill workers at the end.
   const client_id main_thread_client_id = bus.Connect();
+  bus.RegisterClientAsSender(main_thread_client_id, kAdmitRequestMessage);
   bus.RegisterClientAsSender(main_thread_client_id, kPoisonMessage);
+  bus.RegisterClientAsReceiver(main_thread_client_id, kWorkloadCompletionMessage);
 
   // Setup the paths used by StorageManager.
   string fixed_storage_path(quickstep::FLAGS_storage_path);
@@ -258,24 +302,23 @@ int main(int argc, char* argv[]) {
       InputParserUtil::ParseWorkerAffinities(real_num_workers,
                                              quickstep::FLAGS_worker_affinities);
 
-  const std::size_t num_numa_nodes_covered =
-      DefaultsConfigurator::GetNumNUMANodesCoveredByWorkers(worker_cpu_affinities);
+  const std::size_t num_numa_nodes_system = DefaultsConfigurator::GetNumNUMANodes();
 
   if (quickstep::FLAGS_preload_buffer_pool) {
+    std::chrono::time_point<std::chrono::steady_clock> preload_start, preload_end;
+    preload_start = std::chrono::steady_clock::now();
+    printf("Preloading the buffer pool ... ");
+    fflush(stdout);
     quickstep::PreloaderThread preloader(*query_processor->getDefaultDatabase(),
                                          query_processor->getStorageManager(),
                                          worker_cpu_affinities.front());
-    printf("Preloading buffer pool... ");
-    fflush(stdout);
+
     preloader.start();
     preloader.join();
-    printf("DONE\n");
+    preload_end = std::chrono::steady_clock::now();
+    printf("in %g seconds\n",
+           std::chrono::duration<double>(preload_end - preload_start).count());
   }
-
-  Foreman foreman(&bus,
-                  query_processor->getDefaultDatabase(),
-                  query_processor->getStorageManager(),
-                  num_numa_nodes_covered);
 
   // Get the NUMA affinities for workers.
   vector<int> cpu_numa_nodes = InputParserUtil::GetNUMANodesForCPUs();
@@ -311,24 +354,40 @@ int main(int argc, char* argv[]) {
                                    worker_client_ids,
                                    worker_numa_nodes);
 
-  foreman.setWorkerDirectory(&worker_directory);
+  Foreman foreman(main_thread_client_id,
+                  &worker_directory,
+                  &bus,
+                  query_processor->getDefaultDatabase(),
+                  query_processor->getStorageManager(),
+                  -1,  // Don't pin the Foreman thread.
+                  num_numa_nodes_system,
+                  quickstep::FLAGS_profile_and_report_workorder_perf);
 
   // Start the worker threads.
   for (Worker &worker : workers) {
     worker.start();
   }
 
+  foreman.start();
+
   LineReaderImpl line_reader("quickstep> ",
                              "      ...> ");
   std::unique_ptr<SqlParserWrapper> parser_wrapper(new SqlParserWrapper());
   std::chrono::time_point<std::chrono::steady_clock> start, end;
 
+#ifdef QUICKSTEP_ENABLE_GOOGLE_PROFILER
+  bool started_profiling = false;
+#endif
   for (;;) {
     string *command_string = new string();
     *command_string = line_reader.getNextCommand();
     if (command_string->size() == 0) {
       delete command_string;
       break;
+    }
+
+    if (quickstep::FLAGS_print_query) {
+      printf("\n%s\n", command_string->c_str());
     }
 
     parser_wrapper->feedNextBuffer(command_string);
@@ -349,7 +408,13 @@ int main(int argc, char* argv[]) {
           try {
             quickstep::cli::executeCommand(
                 *result.parsed_statement,
-                *(query_processor->getDefaultDatabase()), stdout);
+                *(query_processor->getDefaultDatabase()),
+                main_thread_client_id,
+                foreman.getBusClientID(),
+                &bus,
+                query_processor->getStorageManager(),
+                query_processor.get(),
+                stdout);
           } catch (const quickstep::SqlError &sql_error) {
             fprintf(stderr, "%s",
                     sql_error.formatMessage(*command_string).c_str());
@@ -369,14 +434,16 @@ int main(int argc, char* argv[]) {
         }
 
         DCHECK(query_handle->getQueryPlanMutable() != nullptr);
-        foreman.setQueryPlan(query_handle->getQueryPlanMutable()->getQueryPlanDAGMutable());
-
-        foreman.reconstructQueryContextFromProto(query_handle->getQueryContextProto());
+        start = std::chrono::steady_clock::now();
+        QueryExecutionUtil::ConstructAndSendAdmitRequestMessage(
+            main_thread_client_id,
+            foreman.getBusClientID(),
+            query_handle.get(),
+            &bus);
 
         try {
-          start = std::chrono::steady_clock::now();
-          foreman.start();
-          foreman.join();
+          QueryExecutionUtil::ReceiveQueryCompletionMessage(
+              main_thread_client_id, &bus);
           end = std::chrono::steady_clock::now();
 
           const CatalogRelation *query_result_relation = query_handle->getQueryResultRelation();
@@ -384,6 +451,10 @@ int main(int argc, char* argv[]) {
             PrintToScreen::PrintRelation(*query_result_relation,
                                          query_processor->getStorageManager(),
                                          stdout);
+            PrintToScreen::PrintOutputSize(
+                *query_result_relation,
+                query_processor->getStorageManager(),
+                stdout);
 
             DropRelation::Drop(*query_result_relation,
                                query_processor->getDefaultDatabase(),
@@ -391,13 +462,19 @@ int main(int argc, char* argv[]) {
           }
 
           query_processor->saveCatalog();
-          printf("Execution time: %g seconds\n",
-                 std::chrono::duration<double>(end - start).count());
+          std::chrono::duration<double, std::milli> time_ms = end - start;
+          printf("Time: %s ms\n",
+                 quickstep::DoubleToStringWithSignificantDigits(
+                     time_ms.count(), 3).c_str());
+          if (quickstep::FLAGS_profile_and_report_workorder_perf) {
+            // TODO(harshad) - Allow user specified file instead of stdout.
+            foreman.printWorkOrderProfilingResults(query_handle->query_id(),
+                                                   stdout);
+          }
         } catch (const std::exception &e) {
           fprintf(stderr, "QUERY EXECUTION ERROR: %s\n", e.what());
           break;
         }
-        printf("Query Complete\n");
       } else {
         if (result.condition == ParseResult::kError) {
           fprintf(stderr, "%s", result.error_message.c_str());
@@ -405,6 +482,13 @@ int main(int argc, char* argv[]) {
         reset_parser = true;
         break;
       }
+#ifdef QUICKSTEP_ENABLE_GOOGLE_PROFILER
+      // Profile only if profile_file_name flag is set
+      if (!started_profiling && !quickstep::FLAGS_profile_file_name.empty()) {
+        started_profiling = true;
+        ProfilerStart(quickstep::FLAGS_profile_file_name.c_str());
+      }
+#endif
     }
 
     if (quitting) {
@@ -415,29 +499,20 @@ int main(int argc, char* argv[]) {
     }
   }
 
-  // Terminate all workers before exiting.
-  // The main thread broadcasts poison message to the workers. Each worker dies
-  // after receiving poison message. The order of workers' death is irrelavant.
-  MessageStyle style;
-  style.Broadcast(true);
-  Address address;
-  address.All(true);
-  std::unique_ptr<WorkerMessage> poison_message(WorkerMessage::PoisonMessage());
-  TaggedMessage poison_tagged_message(poison_message.get(),
-                                      sizeof(*poison_message),
-                                      kPoisonMessage);
+#ifdef QUICKSTEP_ENABLE_GOOGLE_PROFILER
+  if (started_profiling) {
+    ProfilerStop();
+    ProfilerFlush();
+  }
+#endif
 
-  const tmb::MessageBus::SendStatus send_status =
-      bus.Send(main_thread_client_id,
-               address,
-               style,
-               std::move(poison_tagged_message));
-  CHECK(send_status == tmb::MessageBus::SendStatus::kOK) <<
-     "Broadcast message from Foreman to workers failed";
+  // Kill the foreman and workers.
+  QueryExecutionUtil::BroadcastPoisonMessage(main_thread_client_id, &bus);
 
   for (Worker &worker : workers) {
     worker.join();
   }
 
+  foreman.join();
   return 0;
 }

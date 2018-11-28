@@ -64,8 +64,8 @@
 #include "utility/SortConfiguration.hpp"
 #include "utility/SortConfiguration.pb.h"
 
+#include "gflags/gflags.h"
 #include "glog/logging.h"
-
 #include "gtest/gtest.h"
 
 #include "tmb/id_typedefs.h"
@@ -77,6 +77,7 @@ namespace quickstep {
 
 namespace {
 
+constexpr std::size_t kQueryId = 0;
 constexpr int kOpIndex = 0;
 
 // Helper struct for test tuple that will that will be inserted and sorted.
@@ -193,6 +194,17 @@ class SortRunGenerationOperatorTest : public ::testing::Test {
     // Usually the worker thread makes the following call. In this test setup,
     // we don't have a worker thread hence we have to explicitly make the call.
     thread_id_map_->removeValue();
+
+    // Drop blocks from relations.
+    const vector<block_id> input_blocks = input_table_->getBlocksSnapshot();
+    for (const block_id block : input_blocks) {
+      storage_manager_->deleteBlockOrBlobFile(block);
+    }
+
+    const vector<block_id> result_blocks = result_table_->getBlocksSnapshot();
+    for (const block_id block : result_blocks) {
+      storage_manager_->deleteBlockOrBlobFile(block);
+    }
   }
 
   // Helper method to create catalog relation.
@@ -316,6 +328,7 @@ class SortRunGenerationOperatorTest : public ::testing::Test {
                    const std::vector<bool> &null_ordering) {
     // Setup the InsertDestination proto in the query context proto.
     serialization::QueryContext query_context_proto;
+    query_context_proto.set_query_id(0);  // dummy query ID.
 
     const QueryContext::insert_destination_id insert_destination_index =
         query_context_proto.insert_destinations_size();
@@ -342,12 +355,14 @@ class SortRunGenerationOperatorTest : public ::testing::Test {
       order_by_proto->set_null_first(null_ordering[i]);
     }
 
-    std::unique_ptr<RelationalOperator> run_gen(
-        new SortRunGenerationOperator(*input_table_,
-                                      *result_table_,
-                                      insert_destination_index,
-                                      sort_config_index,
-                                      true /* is_stored */));
+    std::unique_ptr<RelationalOperator> run_gen(new SortRunGenerationOperator(
+        kQueryId,
+        *input_table_,
+        *result_table_,
+        insert_destination_index,
+        sort_config_index,
+        true /* is_stored */));
+
     run_gen->setOperatorIndex(kOpIndex);
 
     // Set up the QueryContext.
@@ -414,7 +429,7 @@ class SortRunGenerationOperatorTest : public ::testing::Test {
 
 const char SortRunGenerationOperatorTest::kTableName[] = "table";
 const char SortRunGenerationOperatorTest::kResultTableName[] = "result-table";
-const char SortRunGenerationOperatorTest::kStoragePath[] = "./test_data";
+const char SortRunGenerationOperatorTest::kStoragePath[] = "./sort_run_generation_operator_test_data";
 
 namespace {
 
@@ -770,3 +785,12 @@ TEST_F(SortRunGenerationOperatorTest, 3Column_MixedNullOrdering_MixedOrdering) {
 }
 
 }  // namespace quickstep
+
+int main(int argc, char* argv[]) {
+  google::InitGoogleLogging(argv[0]);
+  // Honor FLAGS_buffer_pool_slots in StorageManager.
+  gflags::ParseCommandLineFlags(&argc, &argv, true);
+  testing::InitGoogleTest(&argc, argv);
+
+  return RUN_ALL_TESTS();
+}

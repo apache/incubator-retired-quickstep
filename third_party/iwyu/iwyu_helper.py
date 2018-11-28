@@ -19,11 +19,13 @@ import sys
 QUICKSTEP_INCLUDES = [ '.',
                        './build',
                        './build/third_party',
-                       './build/third_party/protobuf/include',
                        './build/third_party/gflags/include',
-                       './third_party/gtest/include',
-                       './third_party/glog/src',
+                       './build/third_party/protobuf/include',
+                       './build/third_party/tmb/include',
                        './third_party/benchmark/include',
+                       './third_party/glog/src',
+                       './third_party/googletest/googletest/include',
+                       './third_party/re2',
                        './third_party/tmb/include']
 QUICKSTEP_DEFINES = [ '-DQUICKSTEP_DEBUG',
                       '-DQUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION', ]

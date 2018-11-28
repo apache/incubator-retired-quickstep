@@ -18,6 +18,7 @@
 #ifndef QUICKSTEP_RELATIONAL_OPERATORS_SAVE_BLOCKS_OPERATOR_HPP_
 #define QUICKSTEP_RELATIONAL_OPERATORS_SAVE_BLOCKS_OPERATOR_HPP_
 
+#include <cstddef>
 #include <vector>
 
 #include "catalog/CatalogTypedefs.hpp"
@@ -36,6 +37,7 @@ namespace quickstep {
 
 class QueryContext;
 class StorageManager;
+class WorkOrderProtosContainer;
 class WorkOrdersContainer;
 
 /** \addtogroup RelationalOperators
@@ -50,11 +52,14 @@ class SaveBlocksOperator : public RelationalOperator {
   /**
    * @brief Constructor for saving only modified blocks in a relation.
    *
+   * @param query_id The ID of the query to which this operator belongs.
    * @param force If true, force writing of all blocks to disk, otherwise only
    *        write dirty blocks.
    **/
-  explicit SaveBlocksOperator(bool force = false)
-      : force_(force),
+  explicit SaveBlocksOperator(const std::size_t query_id,
+                              const bool force = false)
+      : RelationalOperator(query_id),
+        force_(force),
         num_workorders_generated_(0) {}
 
   ~SaveBlocksOperator() override {}
@@ -64,6 +69,8 @@ class SaveBlocksOperator : public RelationalOperator {
                         StorageManager *storage_manager,
                         const tmb::client_id scheduler_client_id,
                         tmb::MessageBus *bus) override;
+
+  bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override;
 
   void feedInputBlock(const block_id input_block_id, const relation_id input_relation_id) override;
 
@@ -93,15 +100,18 @@ class SaveBlocksWorkOrder : public WorkOrder {
   /**
    * @brief Constructor.
    *
+   * @param query_id The ID of the query to which this operator belongs.
    * @param save_block_id The id of the block to save.
    * @param force If true, force writing of all blocks to disk, otherwise only
    *        write dirty blocks.
    * @param storage_manager The StorageManager to use.
    **/
-  SaveBlocksWorkOrder(const block_id save_block_id,
+  SaveBlocksWorkOrder(const std::size_t query_id,
+                      const block_id save_block_id,
                       const bool force,
                       StorageManager *storage_manager)
-      : save_block_id_(save_block_id),
+      : WorkOrder(query_id),
+        save_block_id_(save_block_id),
         force_(force),
         storage_manager_(DCHECK_NOTNULL(storage_manager)) {}
 

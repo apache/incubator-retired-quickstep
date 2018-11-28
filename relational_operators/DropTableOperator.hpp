@@ -18,6 +18,7 @@
 #ifndef QUICKSTEP_RELATIONAL_OPERATORS_DROP_TABLE_OPERATOR_HPP_
 #define QUICKSTEP_RELATIONAL_OPERATORS_DROP_TABLE_OPERATOR_HPP_
 
+#include <cstddef>
 #include <utility>
 #include <vector>
 
@@ -40,6 +41,7 @@ class CatalogDatabaseLite;
 class CatalogRelation;
 class QueryContext;
 class StorageManager;
+class WorkOrderProtosContainer;
 class WorkOrdersContainer;
 
 /** \addtogroup RelationalOperators
@@ -54,15 +56,18 @@ class DropTableOperator : public RelationalOperator {
   /**
    * @brief Constructor.
    *
+   * @param query_id The ID of the query to which this operator belongs.
    * @param relation The relation to drop.
    * @param database The databse where to drop \c relation.
    * @param only_drop_blocks If true, only drop the blocks belonging to \c
    *        relation, but leave \c relation in \c database.
    **/
-  DropTableOperator(const CatalogRelation &relation,
+  DropTableOperator(const std::size_t query_id,
+                    const CatalogRelation &relation,
                     CatalogDatabase *database,
                     const bool only_drop_blocks = false)
-      : relation_(relation),
+      : RelationalOperator(query_id),
+        relation_(relation),
         database_(database),
         only_drop_blocks_(only_drop_blocks),
         work_generated_(false) {}
@@ -74,6 +79,8 @@ class DropTableOperator : public RelationalOperator {
                         StorageManager *storage_manager,
                         const tmb::client_id scheduler_client_id,
                         tmb::MessageBus *bus) override;
+
+  bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override;
 
   void updateCatalogOnCompletion() override;
 
@@ -95,17 +102,20 @@ class DropTableWorkOrder : public WorkOrder {
   /**
    * @brief Constructor.
    *
+   * @param query_id The ID of the query to which this operator belongs.
    * @param blocks The blocks to drop.
    * @param storage_manager The StorageManager to use.
    * @param rel_id The relation id to drop.
    * @param catalog_database_cache The CatalogDatabaseCache in the distributed
    *        version.
    **/
-  DropTableWorkOrder(std::vector<block_id> &&blocks,
+  DropTableWorkOrder(const std::size_t query_id,
+                     std::vector<block_id> &&blocks,
                      StorageManager *storage_manager,
                      const relation_id rel_id = kInvalidCatalogId,
                      CatalogDatabaseLite *catalog_database_cache = nullptr)
-      : blocks_(std::move(blocks)),
+      : WorkOrder(query_id),
+        blocks_(std::move(blocks)),
         storage_manager_(DCHECK_NOTNULL(storage_manager)),
         rel_id_(rel_id),
         catalog_database_cache_(catalog_database_cache) {}

@@ -108,7 +108,9 @@ class BasicColumnStoreTupleStorageSubBlock : public TupleStorageSubBlock {
   }
 
   bool adHocInsertIsEfficient() const override {
-    return false;
+    // Ad-hoc insert is only efficient if it doesn't require resorting the
+    // whole block.
+    return !sort_specified_;
   }
 
   TupleStorageSubBlockType getTupleStorageSubBlockType() const override {
@@ -170,14 +172,14 @@ class BasicColumnStoreTupleStorageSubBlock : public TupleStorageSubBlock {
                                           const TupleIdSequence *filter) const override;
 
   void rebuild() override {
-    if (!sorted_) {
+    if (sort_specified_ && !sorted_) {
       rebuildInternal();
     }
   }
 
   bool isInsertOrderPreserving() const override {
-    // Rebuild reorders inserts based on sort column.
-    return false;
+    // Rebuild reorders inserts based on sort column if any is specified.
+    return !sort_specified_;
   }
 
  private:
@@ -211,11 +213,12 @@ class BasicColumnStoreTupleStorageSubBlock : public TupleStorageSubBlock {
                         const tuple_id distance);
 
   // Sort all columns according to ascending order of values in the sort
-  // column. Returns true if any reordering occured.
+  // column. Returns true if any reordering occured. This should only be called
+  // when 'sort_specified_' is true, otherwise the block is always "built".
   bool rebuildInternal();
 
   tuple_id max_tuples_;
-  bool sorted_;
+  bool sort_specified_, sorted_;
 
   attribute_id sort_column_id_;
   const Type *sort_column_type_;

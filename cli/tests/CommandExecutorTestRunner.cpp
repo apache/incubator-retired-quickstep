@@ -20,12 +20,15 @@
 #include <cstdio>
 #include <set>
 #include <string>
+#include <utility>
 
 #include "cli/CommandExecutor.hpp"
 #include "cli/DropRelation.hpp"
 #include "cli/PrintToScreen.hpp"
 #include "parser/ParseStatement.hpp"
+#include "query_execution/AdmitRequestMessage.hpp"
 #include "query_execution/Foreman.hpp"
+#include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/Worker.hpp"
 #include "query_optimizer/ExecutionGenerator.hpp"
 #include "query_optimizer/LogicalGenerator.hpp"
@@ -40,6 +43,8 @@
 #include "utility/SqlError.hpp"
 
 #include "glog/logging.h"
+
+#include "tmb/tagged_message.h"
 
 namespace quickstep {
 
@@ -87,6 +92,11 @@ void CommandExecutorTestRunner::runTestCase(
           quickstep::cli::executeCommand(
               *result.parsed_statement,
               *(test_database_loader_.catalog_database()),
+              main_thread_client_id_,
+              foreman_->getBusClientID(),
+              &bus_,
+              test_database_loader_.storage_manager(),
+              nullptr,
               output_stream.file());
         } else  {
           QueryHandle query_handle(optimizer_context.query_id());
@@ -97,14 +107,20 @@ void CommandExecutorTestRunner::runTestCase(
               physical_generator.generatePlan(
                   logical_generator.generatePlan(*result.parsed_statement));
           execution_generator.generatePlan(physical_plan);
-          foreman_->setQueryPlan(
-              query_handle.getQueryPlanMutable()->getQueryPlanDAGMutable());
 
-          foreman_->reconstructQueryContextFromProto(query_handle.getQueryContextProto());
+          AdmitRequestMessage request_message(&query_handle);
+          TaggedMessage admit_tagged_message(
+              &request_message, sizeof(request_message), kAdmitRequestMessage);
+          QueryExecutionUtil::SendTMBMessage(&bus_,
+                                             main_thread_client_id_,
+                                             foreman_->getBusClientID(),
+                                             std::move(admit_tagged_message));
 
-          foreman_->start();
-          foreman_->join();
-
+          // Receive workload completion message from Foreman.
+          const AnnotatedMessage annotated_msg =
+              bus_.Receive(main_thread_client_id_, 0, true);
+          const TaggedMessage &tagged_message = annotated_msg.tagged_message;
+          DCHECK_EQ(kWorkloadCompletionMessage, tagged_message.message_type());
           const CatalogRelation *query_result_relation = query_handle.getQueryResultRelation();
           if (query_result_relation) {
             PrintToScreen::PrintRelation(*query_result_relation,

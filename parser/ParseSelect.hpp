@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -30,6 +32,7 @@
 #include "parser/ParseSelectionClause.hpp"
 #include "parser/ParseTableReference.hpp"
 #include "parser/ParseTreeNode.hpp"
+#include "parser/ParseWindow.hpp"
 #include "utility/Macros.hpp"
 #include "utility/PtrList.hpp"
 
@@ -68,7 +71,8 @@ class ParseSelect : public ParseTreeNode {
               ParseGroupBy *group_by,
               ParseHaving *having,
               ParseOrderBy *order_by,
-              ParseLimit *limit)
+              ParseLimit *limit,
+              PtrList<ParseWindow> *window_list)
       : ParseTreeNode(line_number, column_number),
         selection_(selection),
         from_list_(from_list),
@@ -76,7 +80,8 @@ class ParseSelect : public ParseTreeNode {
         group_by_(group_by),
         having_(having),
         order_by_(order_by),
-        limit_(limit) {
+        limit_(limit),
+        window_list_(window_list) {
   }
 
   ~ParseSelect() override {
@@ -152,6 +157,13 @@ class ParseSelect : public ParseTreeNode {
    */
   const ParseLimit* limit() const { return limit_.get(); }
 
+  /**
+   * @brief Gets the parsed WINDOW.
+   *
+   * @return The parsed WINDOW.
+   */
+  const PtrList<ParseWindow>* window_list() const { return window_list_.get(); }
+
  protected:
   void getFieldStringItems(
       std::vector<std::string> *inline_field_names,
@@ -171,7 +183,7 @@ class ParseSelect : public ParseTreeNode {
     if (from_list_ != nullptr) {
       container_child_field_names->push_back("from_clause");
       container_child_fields->emplace_back();
-      for (const ParseTableReference& from_item : *from_list_) {
+      for (const ParseTableReference &from_item : *from_list_) {
         container_child_fields->back().push_back(&from_item);
       }
     }
@@ -195,6 +207,14 @@ class ParseSelect : public ParseTreeNode {
       non_container_child_field_names->push_back("limit");
       non_container_child_fields->push_back(limit_.get());
     }
+
+    if (window_list_ != nullptr) {
+      container_child_field_names->push_back("window_list");
+      container_child_fields->emplace_back();
+      for (const ParseWindow &window : *window_list_) {
+        container_child_fields->back().push_back(&window);
+      }
+    }
   }
 
  private:
@@ -205,6 +225,7 @@ class ParseSelect : public ParseTreeNode {
   std::unique_ptr<ParseHaving> having_;
   std::unique_ptr<ParseOrderBy> order_by_;
   std::unique_ptr<ParseLimit> limit_;
+  std::unique_ptr<PtrList<ParseWindow>> window_list_;
 
   DISALLOW_COPY_AND_ASSIGN(ParseSelect);
 };

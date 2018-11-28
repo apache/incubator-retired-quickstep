@@ -41,7 +41,10 @@ namespace quickstep {
 class CatalogRelationSchema;
 class Predicate;
 class StorageManager;
+class WorkOrderProtosContainer;
 class WorkOrdersContainer;
+
+namespace serialization { class WorkOrder; }
 
 /** \addtogroup RelationalOperators
  *  @{
@@ -55,6 +58,7 @@ class DeleteOperator : public RelationalOperator {
   /**
    * @brief Constructor.
    *
+   * @param query_id The ID of the query to which this operator belongs.
    * @param relation The relation to perform the DELETE over.
    * @param predicate_index The index of Predicate in QueryContext. All tuples
    *        matching pred will be deleted (If kInvalidPredicateId, then all
@@ -62,10 +66,12 @@ class DeleteOperator : public RelationalOperator {
    * @param relation_is_stored If relation is a stored relation and is fully
    *        available to the operator before it can start generating workorders.
    **/
-  DeleteOperator(const CatalogRelation &relation,
+  DeleteOperator(const std::size_t query_id,
+                 const CatalogRelation &relation,
                  const QueryContext::predicate_id predicate_index,
                  const bool relation_is_stored)
-     :  relation_(relation),
+      : RelationalOperator(query_id),
+        relation_(relation),
         predicate_index_(predicate_index),
         relation_is_stored_(relation_is_stored),
         started_(false),
@@ -80,6 +86,8 @@ class DeleteOperator : public RelationalOperator {
                         StorageManager *storage_manager,
                         const tmb::client_id scheduler_client_id,
                         tmb::MessageBus *bus) override;
+
+  bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override;
 
   const relation_id getOutputRelationID() const override {
     return relation_.getID();
@@ -98,6 +106,13 @@ class DeleteOperator : public RelationalOperator {
   }
 
  private:
+  /**
+   * @brief Create Work Order proto.
+   *
+   * @param block The block id used in the Work Order.
+   **/
+  serialization::WorkOrder* createWorkOrderProto(const block_id block);
+
   const CatalogRelation &relation_;
   const QueryContext::predicate_id predicate_index_;
 
@@ -119,6 +134,7 @@ class DeleteWorkOrder : public WorkOrder {
   /**
    * @brief Constructor.
    *
+   * @param query_id The ID of the query to which this workorder belongs.
    * @param input_relation The relation to perform the DELETE over.
    * @param input_block_id The block Id.
    * @param predicate All tuples matching \c predicate will be deleted (If
@@ -129,14 +145,16 @@ class DeleteWorkOrder : public WorkOrder {
    * @param scheduler_client_id The TMB client ID of the scheduler thread.
    * @param bus A pointer to the TMB.
    **/
-  DeleteWorkOrder(const CatalogRelationSchema &input_relation,
+  DeleteWorkOrder(const std::size_t query_id,
+                  const CatalogRelationSchema &input_relation,
                   const block_id input_block_id,
                   const Predicate *predicate,
                   StorageManager *storage_manager,
                   const std::size_t delete_operator_index,
                   const tmb::client_id scheduler_client_id,
                   MessageBus *bus)
-      : input_relation_(input_relation),
+      : WorkOrder(query_id),
+        input_relation_(input_relation),
         input_block_id_(input_block_id),
         predicate_(predicate),
         storage_manager_(DCHECK_NOTNULL(storage_manager)),
@@ -156,6 +174,7 @@ class DeleteWorkOrder : public WorkOrder {
   StorageManager *storage_manager_;
 
   const std::size_t delete_operator_index_;
+
   const tmb::client_id scheduler_client_id_;
   MessageBus *bus_;
 

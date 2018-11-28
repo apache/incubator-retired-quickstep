@@ -103,6 +103,7 @@ add_library(quickstep_parser_ParsePartitionClause ../empty_src.cpp ParsePartitio
 add_library(quickstep_parser_ParsePredicate ParsePredicate.cpp ParsePredicate.hpp)
 add_library(quickstep_parser_ParsePredicateExists ../empty_src.cpp ParsePredicateExists.hpp)
 add_library(quickstep_parser_ParsePredicateInTableQuery ../empty_src.cpp ParsePredicateInTableQuery.hpp)
+add_library(quickstep_parser_ParsePriority ../empty_src.cpp ParsePriority.hpp)
 add_library(quickstep_parser_ParseSample ParseSample.cpp ParseSample.hpp)
 add_library(quickstep_parser_ParseSelect ../empty_src.cpp ParseSelect.hpp)
 add_library(quickstep_parser_ParseSelectionClause ParseSelectionClause.cpp ParseSelectionClause.hpp)
@@ -113,6 +114,7 @@ add_library(quickstep_parser_ParseSubqueryExpression ParseSubqueryExpression.cpp
 add_library(quickstep_parser_ParseSubqueryTableReference ParseSubqueryTableReference.cpp ParseSubqueryTableReference.hpp)
 add_library(quickstep_parser_ParseTableReference ParseTableReference.cpp ParseTableReference.hpp)
 add_library(quickstep_parser_ParseTreeNode ../empty_src.cpp ParseTreeNode.hpp)
+add_library(quickstep_parser_ParseWindow ../empty_src.cpp ParseWindow.hpp)
 add_library(quickstep_parser_ParserUtil ParserUtil.cpp ParserUtil.hpp)
 add_library(quickstep_parser_SqlParserWrapper SqlParserWrapper.cpp SqlParserWrapper.hpp)
 add_library(quickstep_parser_SqlParser ${BISON_SqlParser_OUTPUTS})
@@ -135,6 +137,7 @@ target_link_libraries(quickstep_parser_ParseBasicExpressions
                       quickstep_parser_ParseLiteralValue
                       quickstep_parser_ParseString
                       quickstep_parser_ParseTreeNode
+                      quickstep_parser_ParseWindow
                       quickstep_types_operations_binaryoperations_BinaryOperation
                       quickstep_types_operations_unaryoperations_UnaryOperation
                       quickstep_utility_Macros
@@ -199,7 +202,8 @@ target_link_libraries(quickstep_parser_ParseLiteralValue
                       quickstep_types_TypedValue
                       quickstep_types_VarCharType
                       quickstep_types_YearMonthIntervalType
-                      quickstep_utility_Macros)
+                      quickstep_utility_Macros
+                      quickstep_utility_SqlError)
 target_link_libraries(quickstep_parser_ParseOrderBy
                       quickstep_parser_ParseExpression
                       quickstep_parser_ParseTreeNode
@@ -226,6 +230,10 @@ target_link_libraries(quickstep_parser_ParsePredicateInTableQuery
                       quickstep_parser_ParsePredicate
                       quickstep_parser_ParseSubqueryExpression
                       quickstep_utility_Macros)
+target_link_libraries(quickstep_parser_ParsePriority
+                      quickstep_parser_ParseLiteralValue
+                      quickstep_parser_ParseTreeNode
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_parser_ParseSample
                       quickstep_parser_ParseLiteralValue
                       quickstep_parser_ParseTreeNode
@@ -240,6 +248,7 @@ target_link_libraries(quickstep_parser_ParseSelect
                       quickstep_parser_ParseSelectionClause
                       quickstep_parser_ParseTableReference
                       quickstep_parser_ParseTreeNode
+                      quickstep_parser_ParseWindow
                       quickstep_utility_Macros
                       quickstep_utility_PtrList)
 target_link_libraries(quickstep_parser_ParseSelectionClause
@@ -263,6 +272,7 @@ target_link_libraries(quickstep_parser_ParseStatement
                       quickstep_parser_ParseKeyValue
                       quickstep_parser_ParsePartitionClause
                       quickstep_parser_ParsePredicate
+                      quickstep_parser_ParsePriority
                       quickstep_parser_ParseSelect
                       quickstep_parser_ParseString
                       quickstep_parser_ParseSubqueryTableReference
@@ -299,6 +309,12 @@ target_link_libraries(quickstep_parser_ParseTreeNode
                       quickstep_utility_TreeStringSerializable)
 target_link_libraries(quickstep_parser_ParserUtil
                       quickstep_utility_SqlError)
+target_link_libraries(quickstep_parser_ParseWindow
+                      quickstep_parser_ParseExpression
+                      quickstep_parser_ParseOrderBy
+                      quickstep_parser_ParseString
+                      quickstep_parser_ParseTreeNode
+                      quickstep_utility_PtrList)
 target_link_libraries(quickstep_parser_SqlLexer
                       quickstep_parser_ParseJoinedTableReference
                       quickstep_parser_ParseLiteralValue
@@ -327,6 +343,7 @@ target_link_libraries(quickstep_parser_SqlParser
                       quickstep_parser_ParsePredicate
                       quickstep_parser_ParsePredicateExists
                       quickstep_parser_ParsePredicateInTableQuery
+                      quickstep_parser_ParsePriority
                       quickstep_parser_ParseSample
                       quickstep_parser_ParseSelect
                       quickstep_parser_ParseSelectionClause
@@ -336,6 +353,7 @@ target_link_libraries(quickstep_parser_SqlParser
                       quickstep_parser_ParseSubqueryExpression
                       quickstep_parser_ParseSubqueryTableReference
                       quickstep_parser_ParseTableReference
+                      quickstep_parser_ParseWindow
                       quickstep_parser_ParserUtil
                       quickstep_storage_StorageBlockInfo
                       quickstep_types_Type
@@ -403,6 +421,7 @@ target_link_libraries(quickstep_parser
                       quickstep_parser_ParsePredicate
                       quickstep_parser_ParsePredicateExists
                       quickstep_parser_ParsePredicateInTableQuery
+                      quickstep_parser_ParsePriority
                       quickstep_parser_ParserUtil
                       quickstep_parser_ParseSample
                       quickstep_parser_ParseSelect
@@ -415,6 +434,7 @@ target_link_libraries(quickstep_parser
                       quickstep_parser_ParseSubqueryTableReference
                       quickstep_parser_ParseTableReference
                       quickstep_parser_ParseTreeNode
+                      quickstep_parser_ParseWindow
                       quickstep_parser_SqlLexer
                       quickstep_parser_SqlParser
                       quickstep_parser_SqlParserWrapper)

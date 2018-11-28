@@ -63,6 +63,6 @@ add_library(quickstep_expressions ../empty_src.cpp ExpressionsModule.hpp)
 target_link_libraries(quickstep_expressions
                       quickstep_expressions_ExpressionFactories
                       quickstep_expressions_Expressions_proto
-                      quickstep_expressions_aggregate
+                      quickstep_expressions_aggregation
                       quickstep_expressions_predicate
                       quickstep_expressions_scalar)

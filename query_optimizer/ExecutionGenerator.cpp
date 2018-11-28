@@ -50,6 +50,7 @@
 #include "expressions/scalar/ScalarAttribute.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryContext.pb.h"
+#include "query_optimizer/ExecutionHeuristics.hpp"
 #include "query_optimizer/OptimizerContext.hpp"
 #include "query_optimizer/QueryHandle.hpp"
 #include "query_optimizer/QueryPlan.hpp"
@@ -135,7 +136,7 @@ static const volatile bool join_hashtable_type_dummy
     = gflags::RegisterFlagValidator(&FLAGS_join_hashtable_type,
                                     &ValidateHashTableImplTypeString);
 
-DEFINE_string(aggregate_hashtable_type, "LinearOpenAddressing",
+DEFINE_string(aggregate_hashtable_type, "SeparateChaining",
               "HashTable implementation to use for aggregates with GROUP BY "
               "(valid options are SeparateChaining or LinearOpenAddressing)");
 static const volatile bool aggregate_hashtable_type_dummy
@@ -143,6 +144,9 @@ static const volatile bool aggregate_hashtable_type_dummy
                                     &ValidateHashTableImplTypeString);
 
 DEFINE_bool(parallelize_load, true, "Parallelize loading data files.");
+
+DEFINE_bool(optimize_joins, false,
+            "Enable post execution plan generation optimizations for joins.");
 
 namespace E = ::quickstep::optimizer::expressions;
 namespace P = ::quickstep::optimizer::physical;
@@ -153,6 +157,9 @@ constexpr QueryPlan::DAGNodeIndex ExecutionGenerator::CatalogRelationInfo::kInva
 void ExecutionGenerator::generatePlan(const P::PhysicalPtr &physical_plan) {
   CHECK(P::SomeTopLevelPlan::MatchesWithConditionalCast(physical_plan, &top_level_physical_plan_))
       << "The physical plan must be rooted by a TopLevelPlan";
+
+  cost_model_.reset(
+      new cost::SimpleCostModel(top_level_physical_plan_->shared_subplans()));
 
   const CatalogRelation *result_relation = nullptr;
 
@@ -186,13 +193,19 @@ void ExecutionGenerator::generatePlan(const P::PhysicalPtr &physical_plan) {
     }
     const QueryPlan::DAGNodeIndex drop_table_index =
         execution_plan_->addRelationalOperator(
-            new DropTableOperator(*temporary_relation,
+            new DropTableOperator(query_handle_->query_id(),
+                                  *temporary_relation,
                                   optimizer_context_->catalog_database(),
                                   false /* only_drop_blocks */));
     DCHECK(!temporary_relation_info.isStoredRelation());
     execution_plan_->addDependenciesForDropOperator(
         drop_table_index,
         temporary_relation_info.producer_operator_index);
+  }
+
+  // Optimize execution plan based on heuristics captured during execution plan generation, if enabled.
+  if (FLAGS_optimize_joins) {
+    execution_heuristics_->optimizeExecutionPlan(execution_plan_, query_context_proto_);
   }
 
 #ifdef QUICKSTEP_DISTRIBUTED
@@ -398,12 +411,14 @@ void ExecutionGenerator::convertSample(const P::SamplePtr &physical_sample) {
       findRelationInfoOutputByPhysical(physical_sample->input());
   DCHECK(input_relation_info != nullptr);
 
-  SampleOperator *sample_op = new SampleOperator(*input_relation_info->relation,
-                                                 *output_relation,
-                                                 insert_destination_index,
-                                                 input_relation_info->isStoredRelation(),
-                                                 physical_sample->is_block_sample(),
-                                                 physical_sample->percentage());
+  SampleOperator *sample_op =
+      new SampleOperator(query_handle_->query_id(),
+                         *input_relation_info->relation,
+                         *output_relation,
+                         insert_destination_index,
+                         input_relation_info->isStoredRelation(),
+                         physical_sample->is_block_sample(),
+                         physical_sample->percentage());
   const QueryPlan::DAGNodeIndex sample_index =
       execution_plan_->addRelationalOperator(sample_op);
   insert_destination_proto->set_relational_op_index(sample_index);
@@ -512,20 +527,22 @@ void ExecutionGenerator::convertSelection(
   // doesn't require any expression evaluation or intermediate copies) if
   // possible.
   std::vector<attribute_id> attributes;
-  SelectOperator *op
-      = convertSimpleProjection(project_expressions_group_index, &attributes)
-        ? new SelectOperator(*input_relation_info->relation,
-                             *output_relation,
-                             insert_destination_index,
-                             execution_predicate_index,
-                             move(attributes),
-                             input_relation_info->isStoredRelation())
-        : new SelectOperator(*input_relation_info->relation,
-                             *output_relation,
-                             insert_destination_index,
-                             execution_predicate_index,
-                             project_expressions_group_index,
-                             input_relation_info->isStoredRelation());
+  SelectOperator *op =
+      convertSimpleProjection(project_expressions_group_index, &attributes)
+          ? new SelectOperator(query_handle_->query_id(),
+                               *input_relation_info->relation,
+                               *output_relation,
+                               insert_destination_index,
+                               execution_predicate_index,
+                               move(attributes),
+                               input_relation_info->isStoredRelation())
+          : new SelectOperator(query_handle_->query_id(),
+                               *input_relation_info->relation,
+                               *output_relation,
+                               insert_destination_index,
+                               execution_predicate_index,
+                               project_expressions_group_index,
+                               input_relation_info->isStoredRelation());
 
   const QueryPlan::DAGNodeIndex select_index =
       execution_plan_->addRelationalOperator(op);
@@ -550,6 +567,16 @@ void ExecutionGenerator::convertSharedSubplanReference(const physical::SharedSub
           top_level_physical_plan_->shared_subplan_at(physical_plan->subplan_id()));
   if (found_it != physical_to_output_relation_map_.end()) {
     physical_to_output_relation_map_.emplace(physical_plan, found_it->second);
+
+    // Propagate the (ExprId -> CatalogAttribute) mapping.
+    const std::vector<E::AttributeReferencePtr> &referenced_attributes =
+        physical_plan->referenced_attributes();
+    const std::vector<E::AttributeReferencePtr> &output_attributes =
+        physical_plan->output_attributes();
+    for (std::size_t i = 0; i < referenced_attributes.size(); ++i) {
+      attribute_substitution_map_[output_attributes[i]->id()] =
+          attribute_substitution_map_[referenced_attributes[i]->id()];
+    }
   }
 }
 
@@ -563,12 +590,32 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
   std::vector<attribute_id> probe_attribute_ids;
   std::vector<attribute_id> build_attribute_ids;
 
+  std::vector<attribute_id> probe_original_attribute_ids;
+  std::vector<attribute_id> build_original_attribute_ids;
+
+  const CatalogRelation *referenced_stored_probe_relation = nullptr;
+  const CatalogRelation *referenced_stored_build_relation = nullptr;
+
   bool any_probe_attributes_nullable = false;
   bool any_build_attributes_nullable = false;
+
+  bool skip_hash_join_optimization = false;
 
   const std::vector<E::AttributeReferencePtr> &left_join_attributes =
       physical_plan->left_join_attributes();
   for (const E::AttributeReferencePtr &left_join_attribute : left_join_attributes) {
+    // Try to determine the original stored relation referenced in the Hash Join.
+    referenced_stored_probe_relation =
+        optimizer_context_->catalog_database()->getRelationByName(left_join_attribute->relation_name());
+    if (referenced_stored_probe_relation == nullptr) {
+      // Hash Join optimizations are not possible, if the referenced relation cannot be determined.
+      skip_hash_join_optimization = true;
+    } else {
+      const attribute_id probe_operator_attribute_id =
+          referenced_stored_probe_relation->getAttributeByName(left_join_attribute->attribute_name())->getID();
+      probe_original_attribute_ids.emplace_back(probe_operator_attribute_id);
+    }
+
     const CatalogAttribute *probe_catalog_attribute
         = attribute_substitution_map_[left_join_attribute->id()];
     probe_attribute_ids.emplace_back(probe_catalog_attribute->getID());
@@ -581,6 +628,18 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
   const std::vector<E::AttributeReferencePtr> &right_join_attributes =
       physical_plan->right_join_attributes();
   for (const E::AttributeReferencePtr &right_join_attribute : right_join_attributes) {
+    // Try to determine the original stored relation referenced in the Hash Join.
+    referenced_stored_build_relation =
+        optimizer_context_->catalog_database()->getRelationByName(right_join_attribute->relation_name());
+    if (referenced_stored_build_relation == nullptr) {
+      // Hash Join optimizations are not possible, if the referenced relation cannot be determined.
+      skip_hash_join_optimization = true;
+    } else {
+      const attribute_id build_operator_attribute_id =
+          referenced_stored_build_relation->getAttributeByName(right_join_attribute->attribute_name())->getID();
+      build_original_attribute_ids.emplace_back(build_operator_attribute_id);
+    }
+
     const CatalogAttribute *build_catalog_attribute
         = attribute_substitution_map_[right_join_attribute->id()];
     build_attribute_ids.emplace_back(build_catalog_attribute->getID());
@@ -616,6 +675,8 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
       std::swap(probe_cardinality, build_cardinality);
       std::swap(probe_attribute_ids, build_attribute_ids);
       std::swap(any_probe_attributes_nullable, any_build_attributes_nullable);
+      std::swap(probe_original_attribute_ids, build_original_attribute_ids);
+      std::swap(referenced_stored_probe_relation, referenced_stored_build_relation);
     }
   }
 
@@ -681,6 +742,7 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
   const QueryPlan::DAGNodeIndex build_operator_index =
       execution_plan_->addRelationalOperator(
           new BuildHashOperator(
+              query_handle_->query_id(),
               *build_relation_info->relation,
               build_relation_info->isStoredRelation(),
               build_attribute_ids,
@@ -721,6 +783,7 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
   const QueryPlan::DAGNodeIndex join_operator_index =
       execution_plan_->addRelationalOperator(
           new HashJoinOperator(
+              query_handle_->query_id(),
               *build_relation_info->relation,
               *probe_operator_info->relation,
               probe_operator_info->isStoredRelation(),
@@ -736,8 +799,8 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
   insert_destination_proto->set_relational_op_index(join_operator_index);
 
   const QueryPlan::DAGNodeIndex destroy_operator_index =
-      execution_plan_->addRelationalOperator(
-          new DestroyHashOperator(join_hash_table_index));
+      execution_plan_->addRelationalOperator(new DestroyHashOperator(
+          query_handle_->query_id(), join_hash_table_index));
 
   if (!build_relation_info->isStoredRelation()) {
     execution_plan_->addDirectDependency(build_operator_index,
@@ -770,6 +833,17 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
       std::forward_as_tuple(join_operator_index,
                             output_relation));
   temporary_relation_info_vec_.emplace_back(join_operator_index, output_relation);
+
+  // Add heuristics for the Hash Join, if enabled.
+  if (FLAGS_optimize_joins && !skip_hash_join_optimization) {
+    execution_heuristics_->addHashJoinInfo(build_operator_index,
+                                           join_operator_index,
+                                           referenced_stored_build_relation,
+                                           referenced_stored_probe_relation,
+                                           std::move(build_original_attribute_ids),
+                                           std::move(probe_original_attribute_ids),
+                                           join_hash_table_index);
+  }
 }
 
 void ExecutionGenerator::convertNestedLoopsJoin(
@@ -812,15 +886,16 @@ void ExecutionGenerator::convertNestedLoopsJoin(
 
   // Create and add a NestedLoopsJoin operator.
   const QueryPlan::DAGNodeIndex join_operator_index =
-      execution_plan_->addRelationalOperator(new NestedLoopsJoinOperator(
-          *left_relation_info->relation,
-          *right_relation_info->relation,
-          *output_relation,
-          insert_destination_index,
-          execution_join_predicate_index,
-          project_expressions_group_index,
-          left_relation_info->isStoredRelation(),
-          right_relation_info->isStoredRelation()));
+      execution_plan_->addRelationalOperator(
+          new NestedLoopsJoinOperator(query_handle_->query_id(),
+                                      *left_relation_info->relation,
+                                      *right_relation_info->relation,
+                                      *output_relation,
+                                      insert_destination_index,
+                                      execution_join_predicate_index,
+                                      project_expressions_group_index,
+                                      left_relation_info->isStoredRelation(),
+                                      right_relation_info->isStoredRelation()));
   insert_destination_proto->set_relational_op_index(join_operator_index);
 
   if (!left_relation_info->isStoredRelation()) {
@@ -866,22 +941,21 @@ void ExecutionGenerator::convertCopyFrom(
   const QueryPlan::DAGNodeIndex scan_operator_index =
       execution_plan_->addRelationalOperator(
           new TextScanOperator(
+              query_handle_->query_id(),
               physical_plan->file_name(),
               physical_plan->column_delimiter(),
               physical_plan->escape_strings(),
-              FLAGS_parallelize_load,
               *output_relation,
               insert_destination_index));
   insert_destination_proto->set_relational_op_index(scan_operator_index);
 
   const QueryPlan::DAGNodeIndex save_blocks_operator_index =
       execution_plan_->addRelationalOperator(
-          new SaveBlocksOperator());
+          new SaveBlocksOperator(query_handle_->query_id()));
   execution_plan_->addDirectDependency(save_blocks_operator_index,
                                        scan_operator_index,
                                        false /* is_pipeline_breaker */);
 }
-
 
 void ExecutionGenerator::convertCreateIndex(
   const P::CreateIndexPtr &physical_plan) {
@@ -923,9 +997,11 @@ void ExecutionGenerator::convertCreateIndex(
     // Check if the given index description is valid.
     THROW_SQL_ERROR() << "The index with given properties cannot be created.";
   }
-  execution_plan_->addRelationalOperator(new CreateIndexOperator(input_relation,
-                                                                 physical_plan->index_name(),
-                                                                 std::move(index_description)));
+  execution_plan_->addRelationalOperator(
+      new CreateIndexOperator(query_handle_->query_id(),
+                              input_relation,
+                              physical_plan->index_name(),
+                              std::move(index_description)));
 }
 
 void ExecutionGenerator::convertCreateTable(
@@ -965,7 +1041,8 @@ void ExecutionGenerator::convertCreateTable(
   }
 
   execution_plan_->addRelationalOperator(
-      new CreateTableOperator(catalog_relation.release(),
+      new CreateTableOperator(query_handle_->query_id(),
+                              catalog_relation.release(),
                               optimizer_context_->catalog_database()));
 }
 
@@ -991,7 +1068,8 @@ void ExecutionGenerator::convertDeleteTuples(
        execution_predicate->getStaticResult())) {
     const QueryPlan::DAGNodeIndex drop_table_index =
         execution_plan_->addRelationalOperator(
-            new DropTableOperator(*input_relation_info->relation,
+            new DropTableOperator(query_handle_->query_id(),
+                                  *input_relation_info->relation,
                                   optimizer_context_->catalog_database(),
                                   true /* only_drop_blocks */));
     if (!input_relation_info->isStoredRelation()) {
@@ -1004,10 +1082,12 @@ void ExecutionGenerator::convertDeleteTuples(
     query_context_proto_->add_predicates()->CopyFrom(execution_predicate->getProto());
 
     const QueryPlan::DAGNodeIndex delete_tuples_index =
-        execution_plan_->addRelationalOperator(new DeleteOperator(
-            *input_relation_info->relation,
-            execution_predicate_index,
-            input_relation_info->isStoredRelation()));
+        execution_plan_->addRelationalOperator(
+            new DeleteOperator(query_handle_->query_id(),
+                               *input_relation_info->relation,
+                               execution_predicate_index,
+                               input_relation_info->isStoredRelation()));
+
     if (!input_relation_info->isStoredRelation()) {
       execution_plan_->addDirectDependency(delete_tuples_index,
                                            input_relation_info->producer_operator_index,
@@ -1016,7 +1096,7 @@ void ExecutionGenerator::convertDeleteTuples(
 
     const QueryPlan::DAGNodeIndex save_blocks_index =
         execution_plan_->addRelationalOperator(
-            new SaveBlocksOperator());
+            new SaveBlocksOperator(query_handle_->query_id()));
     execution_plan_->addDirectDependency(save_blocks_index,
                                          delete_tuples_index,
                                          false /* is_pipeline_breaker */);
@@ -1033,7 +1113,8 @@ void ExecutionGenerator::convertDropTable(
 #endif
 
   execution_plan_->addRelationalOperator(
-      new DropTableOperator(catalog_relation,
+      new DropTableOperator(query_handle_->query_id(),
+                            catalog_relation,
                             optimizer_context_->catalog_database()));
 }
 
@@ -1085,14 +1166,15 @@ void ExecutionGenerator::convertInsertTuple(
 
   const QueryPlan::DAGNodeIndex insert_operator_index =
       execution_plan_->addRelationalOperator(
-          new InsertOperator(input_relation,
+          new InsertOperator(query_handle_->query_id(),
+                             input_relation,
                              insert_destination_index,
                              tuple_index));
   insert_destination_proto->set_relational_op_index(insert_operator_index);
 
   const QueryPlan::DAGNodeIndex save_blocks_index =
       execution_plan_->addRelationalOperator(
-          new SaveBlocksOperator());
+          new SaveBlocksOperator(query_handle_->query_id()));
   if (!input_relation_info->isStoredRelation()) {
     execution_plan_->addDirectDependency(insert_operator_index,
                                          input_relation_info->producer_operator_index,
@@ -1160,7 +1242,8 @@ void ExecutionGenerator::convertInsertSelection(
   // optimization is to enable specifying a specific output relation for each
   // physical plan by modifying class Physical.
   SelectOperator *insert_selection_op =
-      new SelectOperator(*selection_relation_info->relation,
+      new SelectOperator(query_handle_->query_id(),
+                         *selection_relation_info->relation,
                          destination_relation,
                          insert_destination_index,
                          QueryContext::kInvalidPredicateId,
@@ -1172,7 +1255,7 @@ void ExecutionGenerator::convertInsertSelection(
   insert_destination_proto->set_relational_op_index(insert_selection_index);
 
   const QueryPlan::DAGNodeIndex save_blocks_index =
-      execution_plan_->addRelationalOperator(new SaveBlocksOperator());
+      execution_plan_->addRelationalOperator(new SaveBlocksOperator(query_handle_->query_id()));
 
   if (!selection_relation_info->isStoredRelation()) {
     execution_plan_->addDirectDependency(insert_selection_index,
@@ -1240,17 +1323,18 @@ void ExecutionGenerator::convertUpdateTable(
   }
 
   const QueryPlan::DAGNodeIndex update_operator_index =
-      execution_plan_->addRelationalOperator(
-          new UpdateOperator(
-              *optimizer_context_->catalog_database()->getRelationById(input_rel_id),
-              relocation_destination_index,
-              execution_predicate_index,
-              update_group_index));
+      execution_plan_->addRelationalOperator(new UpdateOperator(
+          query_handle_->query_id(),
+          *optimizer_context_->catalog_database()->getRelationById(
+              input_rel_id),
+          relocation_destination_index,
+          execution_predicate_index,
+          update_group_index));
   relocation_destination_proto->set_relational_op_index(update_operator_index);
 
   const QueryPlan::DAGNodeIndex save_blocks_index =
       execution_plan_->addRelationalOperator(
-          new SaveBlocksOperator());
+          new SaveBlocksOperator(query_handle_->query_id()));
   if (!input_relation_info->isStoredRelation()) {
     execution_plan_->addDirectDependency(update_operator_index,
                                          input_relation_info->producer_operator_index,
@@ -1272,27 +1356,6 @@ void ExecutionGenerator::convertAggregate(
       findRelationInfoOutputByPhysical(physical_plan->input());
   aggr_state_proto->set_relation_id(input_relation_info->relation->getID());
 
-  for (const E::AliasPtr &named_aggregate_expression : physical_plan->aggregate_expressions()) {
-    const E::AggregateFunctionPtr unnamed_aggregate_expression =
-        std::static_pointer_cast<const E::AggregateFunction>(named_aggregate_expression->expression());
-
-    // Add a new entry in 'aggregates'.
-    S::Aggregate *aggr_proto = aggr_state_proto->add_aggregates();
-
-    // Set the AggregateFunction.
-    aggr_proto->mutable_function()->CopyFrom(
-        unnamed_aggregate_expression->getAggregate().getProto());
-
-    // Add each of the aggregate's arguments.
-    for (const E::ScalarPtr &argument : unnamed_aggregate_expression->getArguments()) {
-      unique_ptr<const Scalar> concretized_argument(argument->concretize(attribute_substitution_map_));
-      aggr_proto->add_argument()->CopyFrom(concretized_argument->getProto());
-    }
-
-    // Set whether it is a DISTINCT aggregation.
-    aggr_proto->set_is_distinct(unnamed_aggregate_expression->is_distinct());
-  }
-
   std::vector<const Type*> group_by_types;
   for (const E::NamedExpressionPtr &grouping_expression : physical_plan->grouping_expressions()) {
     unique_ptr<const Scalar> execution_group_by_expression;
@@ -1312,13 +1375,6 @@ void ExecutionGenerator::convertAggregate(
     group_by_types.push_back(&execution_group_by_expression->getType());
   }
 
-  if (physical_plan->filter_predicate() != nullptr) {
-    unique_ptr<const Predicate> predicate(convertPredicate(physical_plan->filter_predicate()));
-    aggr_state_proto->mutable_predicate()->CopyFrom(predicate->getProto());
-  }
-
-  aggr_state_proto->set_estimated_num_entries(cost_model_->estimateCardinality(physical_plan));
-
   if (!group_by_types.empty()) {
     // SimplifyHashTableImplTypeProto() switches the hash table implementation
     // from SeparateChaining to SimpleScalarSeparateChaining when there is a
@@ -1329,12 +1385,57 @@ void ExecutionGenerator::convertAggregate(
             group_by_types));
   }
 
+  for (const E::AliasPtr &named_aggregate_expression : physical_plan->aggregate_expressions()) {
+    const E::AggregateFunctionPtr unnamed_aggregate_expression =
+        std::static_pointer_cast<const E::AggregateFunction>(named_aggregate_expression->expression());
+
+    // Add a new entry in 'aggregates'.
+    S::Aggregate *aggr_proto = aggr_state_proto->add_aggregates();
+
+    // Set the AggregateFunction.
+    aggr_proto->mutable_function()->CopyFrom(
+        unnamed_aggregate_expression->getAggregate().getProto());
+
+    // Add each of the aggregate's arguments.
+    for (const E::ScalarPtr &argument : unnamed_aggregate_expression->getArguments()) {
+      unique_ptr<const Scalar> concretized_argument(argument->concretize(attribute_substitution_map_));
+      aggr_proto->add_argument()->CopyFrom(concretized_argument->getProto());
+    }
+
+    // Set whether it is a DISTINCT aggregation.
+    aggr_proto->set_is_distinct(unnamed_aggregate_expression->is_distinct());
+
+    // Add distinctify hash table impl type if it is a DISTINCT aggregation.
+    if (unnamed_aggregate_expression->is_distinct()) {
+      const std::vector<E::ScalarPtr> &arguments = unnamed_aggregate_expression->getArguments();
+      DCHECK_GE(arguments.size(), 1u);
+      if (group_by_types.empty() && arguments.size() == 1) {
+        aggr_state_proto->add_distinctify_hash_table_impl_types(
+            SimplifyHashTableImplTypeProto(
+                HashTableImplTypeProtoFromString(FLAGS_aggregate_hashtable_type),
+                {&arguments[0]->getValueType()}));
+      } else {
+        aggr_state_proto->add_distinctify_hash_table_impl_types(
+            HashTableImplTypeProtoFromString(FLAGS_aggregate_hashtable_type));
+      }
+    }
+  }
+
+  if (physical_plan->filter_predicate() != nullptr) {
+    unique_ptr<const Predicate> predicate(convertPredicate(physical_plan->filter_predicate()));
+    aggr_state_proto->mutable_predicate()->CopyFrom(predicate->getProto());
+  }
+
+  aggr_state_proto->set_estimated_num_entries(cost_model_->estimateCardinality(physical_plan));
+
   const QueryPlan::DAGNodeIndex aggregation_operator_index =
       execution_plan_->addRelationalOperator(
           new AggregationOperator(
+              query_handle_->query_id(),
               *input_relation_info->relation,
               input_relation_info->isStoredRelation(),
               aggr_state_index));
+
   if (!input_relation_info->isStoredRelation()) {
     execution_plan_->addDirectDependency(aggregation_operator_index,
                                          input_relation_info->producer_operator_index,
@@ -1352,9 +1453,11 @@ void ExecutionGenerator::convertAggregate(
 
   const QueryPlan::DAGNodeIndex finalize_aggregation_operator_index =
       execution_plan_->addRelationalOperator(
-          new FinalizeAggregationOperator(aggr_state_index,
+          new FinalizeAggregationOperator(query_handle_->query_id(),
+                                          aggr_state_index,
                                           *output_relation,
                                           insert_destination_index));
+
   insert_destination_proto->set_relational_op_index(finalize_aggregation_operator_index);
 
   execution_plan_->addDirectDependency(finalize_aggregation_operator_index,
@@ -1400,12 +1503,13 @@ void ExecutionGenerator::convertSort(const P::SortPtr &physical_sort) {
   const CatalogRelationInfo *input_relation_info =
       findRelationInfoOutputByPhysical(physical_sort->input());
   const QueryPlan::DAGNodeIndex run_generator_index =
-      execution_plan_->addRelationalOperator(
-          new SortRunGenerationOperator(*input_relation_info->relation,
-                                        *initial_runs_relation,
-                                        initial_runs_destination_id,
-                                        sort_run_gen_config_id,
-                                        input_relation_info->isStoredRelation()));
+      execution_plan_->addRelationalOperator(new SortRunGenerationOperator(
+          query_handle_->query_id(),
+          *input_relation_info->relation,
+          *initial_runs_relation,
+          initial_runs_destination_id,
+          sort_run_gen_config_id,
+          input_relation_info->isStoredRelation()));
   if (!input_relation_info->isStoredRelation()) {
     execution_plan_->addDirectDependency(run_generator_index,
                                          input_relation_info->producer_operator_index,
@@ -1453,16 +1557,18 @@ void ExecutionGenerator::convertSort(const P::SortPtr &physical_sort) {
 
   // TODO(qzeng): Make the merge factor configurable.
   const QueryPlan::DAGNodeIndex merge_run_operator_index =
-      execution_plan_->addRelationalOperator(
-          new SortMergeRunOperator(*initial_runs_relation,
-                                   *sorted_relation,
-                                   sorted_output_destination_id,
-                                   *merged_runs_relation,
-                                   merged_runs_destination_id,
-                                   sort_merge_run_config_id,
-                                   64 /* merge_factor */,
-                                   physical_sort->limit(),
-                                   false /* input_relation_is_stored */));
+      execution_plan_->addRelationalOperator(new SortMergeRunOperator(
+          query_handle_->query_id(),
+          *initial_runs_relation,
+          *sorted_relation,
+          sorted_output_destination_id,
+          *merged_runs_relation,
+          merged_runs_destination_id,
+          sort_merge_run_config_id,
+          64 /* merge_factor */,
+          physical_sort->limit(),
+          false /* input_relation_is_stored */));
+
   execution_plan_->addDirectDependency(merge_run_operator_index,
                                        run_generator_index,
                                        false /* is_pipeline_breaker */);
@@ -1475,6 +1581,7 @@ void ExecutionGenerator::convertSort(const P::SortPtr &physical_sort) {
   const QueryPlan::DAGNodeIndex drop_merged_runs_index =
       execution_plan_->addRelationalOperator(
           new DropTableOperator(
+              query_handle_->query_id(),
               *merged_runs_relation,
               optimizer_context_->catalog_database(),
               false /* only_drop_blocks */));
@@ -1511,7 +1618,8 @@ void ExecutionGenerator::convertTableGenerator(
       physical_tablegen->generator_function_handle()->getProto());
 
   TableGeneratorOperator *op =
-      new TableGeneratorOperator(*output_relation,
+      new TableGeneratorOperator(query_handle_->query_id(),
+                                 *output_relation,
                                  insert_destination_index,
                                  generator_function_index);
 

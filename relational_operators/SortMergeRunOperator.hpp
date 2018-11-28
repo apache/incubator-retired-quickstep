@@ -44,7 +44,10 @@ namespace quickstep {
 class CatalogRelationSchema;
 class InsertDestination;
 class StorageManager;
+class WorkOrderProtosContainer;
 class WorkOrdersContainer;
+
+namespace serialization { class WorkOrder; }
 
 /**
  * @defgroup SortMergeRun Merging Sorted Runs
@@ -72,6 +75,7 @@ class SortMergeRunOperator : public RelationalOperator {
   /**
    * @brief Constructor for merging sorted runs to generate a sorted relation.
    *
+   * @param query_id The ID of the query to which this operator belongs.
    * @param input_relation The relation to merge sorted blocks.
    * @param output_relation The output relation.
    * @param output_destination_index The index of the InsertDestination in the
@@ -89,16 +93,19 @@ class SortMergeRunOperator : public RelationalOperator {
    * @param input_relation_is_stored Boolean to indicate is input relation is
    *                                 stored or streamed.
    **/
-  SortMergeRunOperator(const CatalogRelation &input_relation,
-                       const CatalogRelation &output_relation,
-                       const QueryContext::insert_destination_id output_destination_index,
-                       const CatalogRelation &run_relation,
-                       const QueryContext::insert_destination_id run_block_destination_index,
-                       const QueryContext::sort_config_id sort_config_index,
-                       const std::size_t merge_factor,
-                       const std::size_t top_k,
-                       const bool input_relation_is_stored)
-      : input_relation_(input_relation),
+  SortMergeRunOperator(
+      const std::size_t query_id,
+      const CatalogRelation &input_relation,
+      const CatalogRelation &output_relation,
+      const QueryContext::insert_destination_id output_destination_index,
+      const CatalogRelation &run_relation,
+      const QueryContext::insert_destination_id run_block_destination_index,
+      const QueryContext::sort_config_id sort_config_index,
+      const std::size_t merge_factor,
+      const std::size_t top_k,
+      const bool input_relation_is_stored)
+      : RelationalOperator(query_id),
+        input_relation_(input_relation),
         output_relation_(output_relation),
         output_destination_index_(output_destination_index),
         sort_config_index_(sort_config_index),
@@ -127,6 +134,8 @@ class SortMergeRunOperator : public RelationalOperator {
                         StorageManager *storage_manager,
                         const tmb::client_id scheduler_client_id,
                         tmb::MessageBus *bus) override;
+
+  bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override;
 
   void feedInputBlock(const block_id input_block_id,
                       const relation_id input_relation_id) override {
@@ -178,6 +187,13 @@ class SortMergeRunOperator : public RelationalOperator {
                              const tmb::client_id scheduler_client_id,
                              tmb::MessageBus *bus);
 
+  /**
+   * @brief Create Work Order proto.
+   *
+   * @param job The merge job.
+   **/
+  serialization::WorkOrder* createWorkOrderProto(merge_run_operator::MergeTree::MergeJob *job);
+
   const CatalogRelation &input_relation_;
 
   const CatalogRelation &output_relation_;
@@ -211,6 +227,7 @@ class SortMergeRunWorkOrder : public WorkOrder {
   /**
    * @brief Constructor.
    *
+   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param sort_config The Sort configuration.
    * @param run_relation The relation to which the run blocks belong to.
    * @param input_runs Input runs to merge.
@@ -224,6 +241,7 @@ class SortMergeRunWorkOrder : public WorkOrder {
    * @param bus TMB to send the feedback message on.
    **/
   SortMergeRunWorkOrder(
+      const std::size_t query_id,
       const SortConfiguration &sort_config,
       const CatalogRelationSchema &run_relation,
       std::vector<merge_run_operator::Run> &&input_runs,
@@ -234,7 +252,8 @@ class SortMergeRunWorkOrder : public WorkOrder {
       const std::size_t operator_index,
       const tmb::client_id scheduler_client_id,
       MessageBus *bus)
-      : sort_config_(sort_config),
+      : WorkOrder(query_id),
+        sort_config_(sort_config),
         run_relation_(run_relation),
         input_runs_(std::move(input_runs)),
         top_k_(top_k),

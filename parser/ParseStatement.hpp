@@ -32,6 +32,7 @@
 #include "parser/ParseKeyValue.hpp"
 #include "parser/ParsePartitionClause.hpp"
 #include "parser/ParsePredicate.hpp"
+#include "parser/ParsePriority.hpp"
 #include "parser/ParseSelect.hpp"
 #include "parser/ParseString.hpp"
 #include "parser/ParseSubqueryTableReference.hpp"
@@ -82,6 +83,16 @@ class ParseStatement : public ParseTreeNode {
    * @return The type of this statement.
    **/
   virtual StatementType getStatementType() const = 0;
+
+  /**
+   * @brief Get the priority of the SQL statement. Note that the priority is
+   *        an unsigned non-zero integer.
+   *
+   * @return The priority of the SQL statement. The default priority is 1.
+   **/
+  virtual const std::uint64_t getPriority() const {
+    return 1;
+  }
 
  protected:
   ParseStatement(const int line_number, const int column_number)
@@ -480,14 +491,18 @@ class ParseStatementSelect : public ParseStatement {
    * @param column_number Column number of the first token of this node in the SQL statement.
    * @param select_query The top-level SELECT query.
    * @param with_clause The WITH clause of common table query expressions.
+   * @param priority_clause The PRIORITY clause of this query. If not valid or
+   *        not present, this is NULL.
    **/
   ParseStatementSelect(const int line_number,
                        const int column_number,
                        ParseSelect *select_query,
-                       PtrVector<ParseSubqueryTableReference> *with_clause)
+                       PtrVector<ParseSubqueryTableReference> *with_clause,
+                       ParsePriority *priority_clause)
       : ParseStatement(line_number, column_number),
         select_query_(select_query),
-        with_clause_(with_clause) {
+        with_clause_(with_clause),
+        priority_clause_(priority_clause) {
   }
 
   /**
@@ -518,6 +533,14 @@ class ParseStatementSelect : public ParseStatement {
     return with_clause_.get();
   }
 
+  const std::uint64_t getPriority() const override {
+    if (priority_clause_ != nullptr) {
+      DCHECK(priority_clause_->priority_expression() != nullptr);
+      return priority_clause_->priority_expression()->long_value();
+    }
+    return 1;
+  }
+
  protected:
   void getFieldStringItems(
       std::vector<std::string> *inline_field_names,
@@ -536,11 +559,17 @@ class ParseStatementSelect : public ParseStatement {
         container_child_fields->back().push_back(&common_subquery);
       }
     }
+
+    if (priority_clause_ != nullptr) {
+      non_container_child_field_names->push_back("priority");
+      non_container_child_fields->push_back(priority_clause_.get());
+    }
   }
 
  private:
   std::unique_ptr<ParseSelect> select_query_;
   std::unique_ptr<PtrVector<ParseSubqueryTableReference>> with_clause_;
+  std::unique_ptr<ParsePriority> priority_clause_;
 
   DISALLOW_COPY_AND_ASSIGN(ParseStatementSelect);
 };

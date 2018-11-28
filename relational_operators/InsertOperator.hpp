@@ -18,6 +18,7 @@
 #ifndef QUICKSTEP_RELATIONAL_OPERATORS_INSERT_OPERATOR_HPP_
 #define QUICKSTEP_RELATIONAL_OPERATORS_INSERT_OPERATOR_HPP_
 
+#include <cstddef>
 #include <memory>
 
 #include "catalog/CatalogRelation.hpp"
@@ -38,6 +39,7 @@ namespace quickstep {
 
 class InsertDestination;
 class StorageManager;
+class WorkOrderProtosContainer;
 class WorkOrdersContainer;
 
 /** \addtogroup RelationalOperators
@@ -52,15 +54,19 @@ class InsertOperator : public RelationalOperator {
   /**
    * @brief Constructor.
    *
+   * @param query_id The ID of the query to which this operator belongs.
    * @param output_relation_id The output relation.
    * @param output_destination_index The index of the InsertDestination in the
    *        QueryContext to insert the tuple.
    * @param tuple_index The index of the tuple to insert in the QueryContext.
    **/
-  InsertOperator(const CatalogRelation &output_relation,
-                 const QueryContext::insert_destination_id output_destination_index,
-                 const QueryContext::tuple_id tuple_index)
-      : output_relation_(output_relation),
+  InsertOperator(
+      const std::size_t query_id,
+      const CatalogRelation &output_relation,
+      const QueryContext::insert_destination_id output_destination_index,
+      const QueryContext::tuple_id tuple_index)
+      : RelationalOperator(query_id),
+        output_relation_(output_relation),
         output_destination_index_(output_destination_index),
         tuple_index_(tuple_index),
         work_generated_(false) {}
@@ -72,6 +78,8 @@ class InsertOperator : public RelationalOperator {
                         StorageManager *storage_manager,
                         const tmb::client_id scheduler_client_id,
                         tmb::MessageBus *bus) override;
+
+  bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override;
 
   QueryContext::insert_destination_id getInsertDestinationID() const override {
     return output_destination_index_;
@@ -100,12 +108,15 @@ class InsertWorkOrder : public WorkOrder {
    *
    * @note InsertWorkOrder takes ownership of \c tuple.
    *
+   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param output_destination The InsertDestination to insert the tuple.
    * @param tuple The tuple to insert.
    **/
-  InsertWorkOrder(InsertDestination *output_destination,
+  InsertWorkOrder(const std::size_t query_id,
+                  InsertDestination *output_destination,
                   Tuple *tuple)
-      : output_destination_(DCHECK_NOTNULL(output_destination)),
+      : WorkOrder(query_id),
+        output_destination_(DCHECK_NOTNULL(output_destination)),
         tuple_(DCHECK_NOTNULL(tuple)) {}
 
   ~InsertWorkOrder() override {}

@@ -46,6 +46,9 @@ const int kCatalogMaxID = INT_MAX;
 // id for the catalog ids.
 constexpr int kInvalidCatalogId = -1;
 
+// Used to indicate no preference for a NUMA Node ID.
+constexpr numa_node_id kAnyNUMANodeID = -1;
+
 /** @} */
 
 }  // namespace quickstep

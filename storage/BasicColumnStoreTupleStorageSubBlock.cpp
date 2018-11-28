@@ -52,6 +52,8 @@
 #include "utility/PtrVector.hpp"
 #include "utility/ScopedBuffer.hpp"
 
+#include "glog/logging.h"
+
 using std::memcpy;
 using std::memmove;
 using std::size_t;
@@ -104,14 +106,19 @@ BasicColumnStoreTupleStorageSubBlock::BasicColumnStoreTupleStorageSubBlock(
                            new_block,
                            sub_block_memory,
                            sub_block_memory_size),
+      sort_specified_(description_.HasExtension(
+          BasicColumnStoreTupleStorageSubBlockDescription::sort_attribute_id)),
       sorted_(true),
       header_(static_cast<BasicColumnStoreHeader*>(sub_block_memory)) {
   if (!DescriptionIsValid(relation_, description_)) {
     FATAL_ERROR("Attempted to construct a BasicColumnStoreTupleStorageSubBlock from an invalid description.");
   }
 
-  sort_column_id_ = description_.GetExtension(BasicColumnStoreTupleStorageSubBlockDescription::sort_attribute_id);
-  sort_column_type_ = &(relation_.getAttributeById(sort_column_id_)->getType());
+  if (sort_specified_) {
+    sort_column_id_ = description_.GetExtension(
+        BasicColumnStoreTupleStorageSubBlockDescription::sort_attribute_id);
+    sort_column_type_ = &(relation_.getAttributeById(sort_column_id_)->getType());
+  }
 
   if (sub_block_memory_size < sizeof(BasicColumnStoreHeader)) {
     throw BlockMemoryTooSmall("BasicColumnStoreTupleStorageSubBlock", sub_block_memory_size_);
@@ -183,26 +190,27 @@ bool BasicColumnStoreTupleStorageSubBlock::DescriptionIsValid(
   if (description.sub_block_type() != TupleStorageSubBlockDescription::BASIC_COLUMN_STORE) {
     return false;
   }
-  // Make sure a sort_attribute_id is specified.
-  if (!description.HasExtension(BasicColumnStoreTupleStorageSubBlockDescription::sort_attribute_id)) {
-    return false;
-  }
 
   // Make sure relation is not variable-length.
   if (relation.isVariableLength()) {
     return false;
   }
 
-  // Check that the specified sort attribute exists and can be ordered by LessComparison.
-  attribute_id sort_attribute_id = description.GetExtension(
-      BasicColumnStoreTupleStorageSubBlockDescription::sort_attribute_id);
-  if (!relation.hasAttributeWithId(sort_attribute_id)) {
-    return false;
-  }
-  const Type &sort_attribute_type = relation.getAttributeById(sort_attribute_id)->getType();
-  if (!ComparisonFactory::GetComparison(ComparisonID::kLess).canCompareTypes(sort_attribute_type,
-                                                                             sort_attribute_type)) {
-    return false;
+  // If a sort attribute is specified, check that it exists and can be ordered
+  // by LessComparison.
+  if (description.HasExtension(
+          BasicColumnStoreTupleStorageSubBlockDescription::sort_attribute_id)) {
+    const attribute_id sort_attribute_id = description.GetExtension(
+        BasicColumnStoreTupleStorageSubBlockDescription::sort_attribute_id);
+    if (!relation.hasAttributeWithId(sort_attribute_id)) {
+      return false;
+    }
+    const Type &sort_attribute_type =
+        relation.getAttributeById(sort_attribute_id)->getType();
+    if (!ComparisonFactory::GetComparison(ComparisonID::kLess).canCompareTypes(
+            sort_attribute_type, sort_attribute_type)) {
+      return false;
+    }
   }
 
   return true;
@@ -230,9 +238,9 @@ TupleStorageSubBlock::InsertResult BasicColumnStoreTupleStorageSubBlock::insertT
   }
 
   tuple_id insert_position = header_->num_tuples;
-  // If sort column is NULL, skip the search and put the new tuple at the end
-  // of everything else.
-  if (!tuple.getAttributeValue(sort_column_id_).isNull()) {
+  // If this column store is unsorted, or the value of the sort column is NULL,
+  // skip the search and put the new tuple at the end of everything else.
+  if (sort_specified_ && !tuple.getAttributeValue(sort_column_id_).isNull()) {
     // Binary search for the appropriate insert location.
     ColumnStripeIterator begin_it(column_stripes_[sort_column_id_],
                                   relation_.getAttributeById(sort_column_id_)->getType().maximumByteLength(),
@@ -435,6 +443,9 @@ bool BasicColumnStoreTupleStorageSubBlock::canSetAttributeValuesInPlaceTyped(
     const tuple_id tuple,
     const std::unordered_map<attribute_id, TypedValue> &new_values) const {
   DEBUG_ASSERT(hasTupleWithID(tuple));
+  if (!sort_specified_) {
+    return true;
+  }
   for (std::unordered_map<attribute_id, TypedValue>::const_iterator it
            = new_values.begin();
        it != new_values.end();
@@ -453,7 +464,7 @@ void BasicColumnStoreTupleStorageSubBlock::setAttributeValueInPlaceTyped(
     const tuple_id tuple,
     const attribute_id attr,
     const TypedValue &value) {
-  DEBUG_ASSERT(attr != sort_column_id_);
+  DCHECK(!sort_specified_ || (attr != sort_column_id_));
 
   const Type &attr_type = relation_.getAttributeById(attr)->getType();
   void *value_position = static_cast<char*>(column_stripes_[attr])
@@ -473,10 +484,10 @@ void BasicColumnStoreTupleStorageSubBlock::setAttributeValueInPlaceTyped(
 bool BasicColumnStoreTupleStorageSubBlock::deleteTuple(const tuple_id tuple) {
   DEBUG_ASSERT(hasTupleWithID(tuple));
 
-  if (!column_null_bitmaps_.elementIsNull(sort_column_id_)) {
-    if (column_null_bitmaps_[sort_column_id_].getBit(tuple)) {
-      --(header_->nulls_in_sort_column);
-    }
+  if (sort_specified_
+      && !column_null_bitmaps_.elementIsNull(sort_column_id_)
+      && column_null_bitmaps_[sort_column_id_].getBit(tuple)) {
+    --(header_->nulls_in_sort_column);
   }
 
   if (tuple == header_->num_tuples - 1) {
@@ -563,7 +574,7 @@ bool BasicColumnStoreTupleStorageSubBlock::bulkDeleteTuples(TupleIdSequence *tup
 
 predicate_cost_t BasicColumnStoreTupleStorageSubBlock::estimatePredicateEvaluationCost(
     const ComparisonPredicate &predicate) const {
-  if (predicate.isAttributeLiteralComparisonPredicate()) {
+  if (sort_specified_ && predicate.isAttributeLiteralComparisonPredicate()) {
     std::pair<bool, attribute_id> comparison_attr = predicate.getAttributeFromAttributeLiteralComparison();
     if (comparison_attr.second == sort_column_id_) {
       return predicate_cost::kBinarySearch;
@@ -575,6 +586,11 @@ predicate_cost_t BasicColumnStoreTupleStorageSubBlock::estimatePredicateEvaluati
 TupleIdSequence* BasicColumnStoreTupleStorageSubBlock::getMatchesForPredicate(
     const ComparisonPredicate &predicate,
     const TupleIdSequence *filter) const {
+  DCHECK(sort_specified_) <<
+      "Called BasicColumnStoreTupleStorageSubBlock::getMatchesForPredicate() "
+      "for an unsorted column store (predicate should have been evaluated "
+      "with a scan instead).";
+
   TupleIdSequence *matches = SortColumnPredicateEvaluator::EvaluatePredicateForUncompressedSortColumn(
       predicate,
       relation_,
@@ -671,6 +687,8 @@ void BasicColumnStoreTupleStorageSubBlock::shiftNullBitmaps(
 // total size of tuples contained in this sub-block. It could be done with
 // less memory, although the implementation would be more complex.
 bool BasicColumnStoreTupleStorageSubBlock::rebuildInternal() {
+  DCHECK(sort_specified_);
+
   const tuple_id num_tuples = header_->num_tuples;
   // Immediately return if 1 or 0 tuples.
   if (num_tuples <= 1) {

@@ -17,6 +17,7 @@
 
 #include "query_optimizer/QueryProcessor.hpp"
 
+#include <cstdint>
 #include <cstdlib>
 #include <fstream>
 #include <memory>
@@ -37,7 +38,8 @@ using std::ofstream;
 namespace quickstep {
 
 QueryHandle* QueryProcessor::generateQueryHandle(const ParseStatement &statement) {
-  std::unique_ptr<QueryHandle> query_handle(new QueryHandle(query_id_));
+  std::unique_ptr<QueryHandle> query_handle(
+      new QueryHandle(query_id_, statement.getPriority()));
 
   optimizer::Optimizer optimizer(query_id_, getDefaultDatabase(), storage_manager_.get());
   optimizer.generateQueryHandle(statement, query_handle.get());
