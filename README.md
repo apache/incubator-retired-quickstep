@@ -1,5 +1,7 @@
 # Apache Quickstep (Incubating)
 
+THIS PODLING HAS BEEN RETIRED. PLEASE SEE RETIRED.md FOR DETAILS.
+
 [![Travis Widget]][Travis]
 
 [Travis]: https://travis-ci.org/apache/incubator-quickstep
